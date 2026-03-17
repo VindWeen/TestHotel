@@ -1,0 +1,38 @@
+## Ignore Visual Studio temporary files
+[Bb]in/
+[Oo]bj/
+
+## Ignore NuGet Packages
+*.nupkg
+# NuGet Symbol Packages
+*.snupkg
+
+## Ignore .NET Core / .NET 10 temporary files
+bin/
+obj/
+
+## Ignore user-specific files
+.DS_Store
+Thumbs.db
+
+## Ignore log files
+*.log
+
+## Ignore appsettings secrets
+# appsettings.*.json
+
+## User secrets
+secrets.json
+*.user
+*.userosx
+*.sln.DotSettings.user
+
+## JetBrains Rider
+.idea/
+*.sln.iml
+
+## Visual Studio Code
+.vscode/settings.json
+
+## Global Usings
+GlobalUsings.cs.g.cs
