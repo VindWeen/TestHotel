@@ -62,6 +62,15 @@ builder.Services.AddAuthorization();
 // ── 4. Helpers ───────────────────────────────────────────────────
 builder.Services.AddScoped<JwtHelper>();
 
+// ── 4.5 Cloudinary ──────────────────────────────────────────────────
+var cloudCfg     = builder.Configuration.GetSection("Cloudinary");
+var cloudAccount = new CloudinaryDotNet.Account(
+    cloudCfg["CloudName"],
+    cloudCfg["ApiKey"],
+    cloudCfg["ApiSecret"]
+);
+builder.Services.AddSingleton(new CloudinaryDotNet.Cloudinary(cloudAccount));
+
 // ── 5. Mapster ───────────────────────────────────────────────────
 builder.Services.AddMapster();
 
