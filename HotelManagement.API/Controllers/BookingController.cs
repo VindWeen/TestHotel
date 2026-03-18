@@ -1,0 +1,371 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using System.Security.Claims;
+using HotelManagement.Core.Entities;
+using HotelManagement.Infrastructure.Data;
+using HotelManagement.Core.Authorization;
+
+namespace HotelManagement.API.Controllers;
+
+#region DTOs
+public class CreateBookingRequest
+{
+    public int? UserId { get; set; } 
+    public string GuestName { get; set; } = null!;
+    public string GuestPhone { get; set; } = null!;
+    public string GuestEmail { get; set; } = null!;
+    public int NumAdults { get; set; }
+    public int NumChildren { get; set; }
+    public int? VoucherId { get; set; }
+    public string? Source { get; set; }   // ← thêm: online / walk_in / phone
+    public string? Note { get; set; }      // ← thêm
+    public List<CreateBookingDetailRequest> Details { get; set; } = new();
+}
+
+public class CreateBookingDetailRequest
+{
+    public int RoomTypeId { get; set; }
+    public DateTime CheckInDate { get; set; }
+    public DateTime CheckOutDate { get; set; }
+}
+#endregion
+
+[ApiController]
+[Route("api/[controller]")]
+public class BookingsController : ControllerBase
+{
+    private readonly AppDbContext _context;
+    private readonly IConnectionMultiplexer _redis;
+
+    public BookingsController(AppDbContext context, IConnectionMultiplexer redis)
+    {
+        _context = context;
+        _redis = redis;
+    }
+
+    private IDatabase RedisDb => _redis.GetDatabase();
+
+    // ================= GET ALL =================
+    [RequirePermission(PermissionCodes.ManageBookings)]
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        string? status,
+        DateTime? fromDate,
+        DateTime? toDate,
+        int? userId,
+        int page = 1,
+        int pageSize = 10)
+    {
+        var query = _context.Bookings
+            .Include(b => b.BookingDetails)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(status))
+            query = query.Where(b => b.Status == status);
+
+        if (userId.HasValue)
+            query = query.Where(b => b.UserId == userId);
+
+        if (fromDate.HasValue)
+            query = query.Where(b => b.CheckInTime >= fromDate);  // ← sửa ở đây
+
+        if (toDate.HasValue)
+            query = query.Where(b => b.CheckOutTime <= toDate);
+
+        var total = await query.CountAsync();
+
+        var data = await query
+            .OrderByDescending(b => b.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Ok(new { total, page, pageSize, data });
+    }
+
+    // ================= GET BY ID =================
+    [RequirePermission(PermissionCodes.ManageBookings)]
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var booking = await _context.Bookings
+            .Include(b => b.BookingDetails)
+                .ThenInclude(d => d.Room)
+            .FirstOrDefaultAsync(b => b.Id == id);
+
+        if (booking == null) return NotFound();
+        return Ok(booking);
+    }
+
+    // ================= MY BOOKINGS =================
+    [Authorize]
+    [HttpGet("my-bookings")]
+    public async Task<IActionResult> GetMyBookings()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        var bookings = await _context.Bookings
+            .Where(b => b.UserId == userId)
+            .Include(b => b.BookingDetails)
+            .ToListAsync();
+
+        return Ok(bookings);
+    }
+
+    [AllowAnonymous]
+[HttpPost]
+public async Task<IActionResult> Create(CreateBookingRequest request)
+{
+    var locks = new List<string>();
+
+    try
+    {
+        // ===== REDIS LOCK =====
+        bool redisAvailable = true;
+        try
+        {
+            foreach (var d in request.Details)
+            {
+                var key = $"lock:{d.RoomTypeId}:{d.CheckInDate:yyyyMMdd}:{d.CheckOutDate:yyyyMMdd}";
+                var ok = await RedisDb.StringSetAsync(key, "1", TimeSpan.FromSeconds(30), When.NotExists);
+                if (!ok)
+                    return BadRequest("Đang có người đặt cùng loại phòng, thử lại!");
+                locks.Add(key);
+            }
+        }
+        catch (RedisConnectionException)
+        {
+            redisAvailable = false;
+        }
+
+        // ===== OVERLAP CHECK =====
+        foreach (var d in request.Details)
+        {
+            var conflict = await _context.BookingDetails.AnyAsync(bd =>
+                bd.RoomTypeId == d.RoomTypeId &&
+                !(bd.CheckOutDate <= d.CheckInDate || bd.CheckInDate >= d.CheckOutDate)
+            );
+
+            if (conflict)
+                return BadRequest("Phòng đã bị đặt trong khoảng này!");
+        }
+
+        // ===== LẤY USER ID NẾU ĐÃ ĐĂNG NHẬP =====
+        int? currentUserId = null;
+        if (User.Identity?.IsAuthenticated == true)
+            currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        var booking = new Booking
+        {
+            UserId     = request.UserId, 
+            GuestName = request.GuestName,
+            GuestPhone = request.GuestPhone,
+            GuestEmail = request.GuestEmail,
+            NumAdults = request.NumAdults,
+            NumChildren = request.NumChildren,
+            Status = "Pending",
+            Source = request.Source ?? "online",        // ← thêm
+            Note = request.Note,                         // ← thêm
+            BookingCode = $"BK{DateTime.UtcNow:yyyyMMddHHmmss}"
+        };
+
+        decimal total = 0;
+
+        foreach (var d in request.Details)
+        {
+            var rt = await _context.RoomTypes.FindAsync(d.RoomTypeId);
+            if (rt == null) return BadRequest("RoomType không tồn tại");
+
+            var nights = (d.CheckOutDate - d.CheckInDate).Days;
+            if (nights <= 0) return BadRequest("Ngày check-out phải sau check-in");
+
+            var amount = nights * rt.BasePrice;
+            total += amount;
+
+            booking.BookingDetails.Add(new BookingDetail
+            {
+                RoomTypeId = d.RoomTypeId,
+                CheckInDate = d.CheckInDate,
+                CheckOutDate = d.CheckOutDate,
+                PricePerNight = rt.BasePrice
+            });
+        }
+
+        // ===== APPLY VOUCHER =====
+        if (request.VoucherId.HasValue)
+        {
+            var v = await _context.Vouchers.FindAsync(request.VoucherId.Value);
+
+            if (v == null || !v.IsActive)
+                return BadRequest("Voucher không hợp lệ");
+
+            // Kiểm tra thời hạn
+            if (v.ValidFrom.HasValue && DateTime.UtcNow < v.ValidFrom)
+                return BadRequest("Voucher chưa đến ngày sử dụng");
+
+            if (v.ValidTo.HasValue && DateTime.UtcNow > v.ValidTo)
+                return BadRequest("Voucher đã hết hạn");
+
+            // Kiểm tra usage limit
+            if (v.UsageLimit.HasValue && v.UsedCount >= v.UsageLimit)
+                return BadRequest("Voucher đã hết lượt sử dụng");
+
+            // Kiểm tra min booking value
+            if (v.MinBookingValue.HasValue && total < v.MinBookingValue)
+                return BadRequest($"Đơn hàng tối thiểu {v.MinBookingValue:N0}đ để dùng voucher này");
+
+            decimal discount = 0;
+
+            if (v.DiscountType == "PERCENT")
+            {
+                discount = total * v.DiscountValue / 100;
+                if (v.MaxDiscountAmount.HasValue)
+                    discount = Math.Min(discount, v.MaxDiscountAmount.Value);
+            }
+            else // FIXED_AMOUNT
+            {
+                discount = v.DiscountValue;
+            }
+
+            booking.VoucherId = v.Id;                        // ← lưu voucher
+            booking.TotalEstimatedAmount = total - discount;
+
+            // ← Cộng used_count lên 1
+            v.UsedCount += 1;
+        }
+        else
+        {
+            booking.TotalEstimatedAmount = total;
+        }
+
+        // ===== DEPOSIT =====
+        booking.DepositAmount = booking.TotalEstimatedAmount * 0.3m;
+
+        _context.Bookings.Add(booking);
+        await _context.SaveChangesAsync();
+
+        return Ok(booking);
+    }
+    finally
+    {
+        foreach (var key in locks)
+            await RedisDb.KeyDeleteAsync(key);
+    }
+}
+
+    // ================= CONFIRM =================
+    [RequirePermission(PermissionCodes.ManageBookings)]
+    [HttpPatch("{id}/confirm")]
+    public async Task<IActionResult> Confirm(int id)
+    {
+        var b = await _context.Bookings.FindAsync(id);
+        if (b == null) return NotFound();
+
+        if (b.Status != "Pending")
+            return BadRequest("Sai trạng thái");
+
+        b.Status = "Confirmed";
+        await _context.SaveChangesAsync();
+
+        return Ok(b);
+    }
+
+    // ================= CANCEL =================
+    [Authorize]
+    [HttpPatch("{id}/cancel")]
+    public async Task<IActionResult> Cancel(int id, string reason)
+    {
+        var b = await _context.Bookings
+            .Include(x => x.BookingDetails)
+                .ThenInclude(d => d.Room)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (b == null) return NotFound();
+
+        b.Status = "Cancelled";
+        b.CancellationReason = reason;
+        b.CancelledAt = DateTime.UtcNow;
+
+        foreach (var d in b.BookingDetails)
+        {
+            if (d.Room != null)
+            {
+                d.Room.BusinessStatus = "Available";
+                d.Room.CleaningStatus = "Clean";
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(b);
+    }
+
+    // ================= CHECK-IN =================
+    [RequirePermission(PermissionCodes.ManageBookings)]
+    [HttpPatch("{id}/check-in")]
+    public async Task<IActionResult> CheckIn(int id)
+    {
+        var b = await _context.Bookings
+            .Include(x => x.BookingDetails)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (b == null) return NotFound();
+
+        if (b.Status != "Confirmed")
+            return BadRequest("Chưa confirm");
+
+        foreach (var d in b.BookingDetails)
+        {
+            var room = await _context.Rooms
+                .Where(r => r.RoomTypeId == d.RoomTypeId && r.BusinessStatus == "Available")
+                .FirstOrDefaultAsync();
+
+            if (room == null)
+                return BadRequest("Không còn phòng trống");
+
+            d.RoomId = room.Id;
+            room.BusinessStatus = "Occupied";
+        }
+
+        b.Status = "Checked_in";
+        b.CheckInTime = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return Ok(b);
+    }
+
+    // ================= CHECK-OUT =================
+    [RequirePermission(PermissionCodes.ManageBookings)]
+    [HttpPatch("{id}/check-out")]
+    public async Task<IActionResult> CheckOut(int id)
+    {
+        var b = await _context.Bookings
+            .Include(x => x.BookingDetails)
+                .ThenInclude(d => d.Room)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (b == null) return NotFound();
+
+        if (b.Status != "Checked_in")
+            return BadRequest("Chưa check-in");
+
+        foreach (var d in b.BookingDetails)
+        {
+            if (d.Room != null)
+            {
+                d.Room.BusinessStatus = "Available";
+                d.Room.CleaningStatus = "Dirty";
+            }
+        }
+
+        b.Status = "Completed";
+        b.CheckOutTime = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        // TODO: tạo Invoice ở đây nếu cần
+
+        return Ok(b);
+    }
+}
