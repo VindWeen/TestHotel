@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,15 +13,22 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly JwtHelper _jwt;
+    private readonly IConfiguration _config;
 
-    public AuthController(AppDbContext db, JwtHelper jwt)
+    private const int RefreshTokenExpiryDays = 7;
+
+    public AuthController(AppDbContext db, JwtHelper jwt, IConfiguration config)
     {
-        _db = db;
-        _jwt = jwt;
+        _db     = db;
+        _jwt    = jwt;
+        _config = config;
     }
 
+    // ────────────────────────────────────────────────────────────
+    // POST /api/Auth/login
+    // ────────────────────────────────────────────────────────────
     /// <summary>
-    /// Đăng nhập — trả về JWT token chứa đầy đủ permissions.
+    /// Đăng nhập — trả về access token + refresh token trong body.
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -32,112 +41,208 @@ public class AuthController : ControllerBase
         if (user is null)
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
 
-        // 2. Kiểm tra Soft Delete — nhân viên đã nghỉ việc không được đăng nhập
+        // 2. Kiểm tra Soft Delete
         if (!user.IsActive)
             return Unauthorized(new { message = "Tài khoản đã bị vô hiệu hóa." });
 
-        // 3. Kiểm tra bị khóa (status = false)
+        // 3. Kiểm tra bị khóa
         if (user.Status == false)
             return Unauthorized(new { message = "Tài khoản đang bị khóa. Vui lòng liên hệ quản trị viên." });
 
-        // 4. BCrypt verify password
+        // 4. Verify password
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
 
-        // 5. Lấy danh sách permission_code của role này
-        var permissionCodes = await _db.RolePermissions
-            .Where(rp => rp.RoleId == user.RoleId)
-            .Join(_db.Permissions,
-                rp => rp.PermissionId,
-                p => p.Id,
-                (rp, p) => p.PermissionCode)
-            .ToListAsync();
+        // 5. Lấy danh sách permission_code
+        var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
 
-        // 6. Cập nhật last_login_at
-        user.LastLoginAt = DateTime.UtcNow;
+        // 6. Tạo refresh token mới, lưu vào DB
+        var roleName     = user.Role?.Name ?? "Guest";
+        var refreshToken = GenerateRefreshToken();
+
+        user.LastLoginAt        = DateTime.UtcNow;
+        user.RefreshToken       = refreshToken;
+        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
         await _db.SaveChangesAsync();
 
-        // 7. Tạo token
-        var roleName = user.Role?.Name ?? "Guest";
+        // 7. Tạo access token
         var token = _jwt.GenerateToken(user, roleName, permissionCodes);
 
         return Ok(new
         {
             token,
-            expiresIn = 60,
-            userId = user.Id,
-            fullName = user.FullName,
-            email = user.Email,
-            role = roleName,
-            avatarUrl = user.AvatarUrl,
-            permissions = permissionCodes
+            refreshToken,
+            expiresIn    = _config["Jwt:ExpiresInMinutes"],
+            userId       = user.Id,
+            fullName     = user.FullName,
+            email        = user.Email,
+            role         = roleName,
+            avatarUrl    = user.AvatarUrl,
+            permissions  = permissionCodes
         });
     }
 
+    // ────────────────────────────────────────────────────────────
+    // POST /api/Auth/register
+    // ────────────────────────────────────────────────────────────
     /// <summary>
-    /// Đăng ký tài khoản khách hàng mới.
-    /// Tự động gán Role = Guest (id=10) và Membership = Khách Mới (id=1).
+    /// Đăng ký tài khoản khách hàng mới, tự đăng nhập luôn sau khi tạo.
     /// </summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         // 1. Kiểm tra email đã tồn tại chưa
-        var emailExists = await _db.Users.AnyAsync(u => u.Email == request.Email);
-        if (emailExists)
+        if (await _db.Users.AnyAsync(u => u.Email == request.Email))
             return Conflict(new { message = "Email này đã được sử dụng." });
 
         // 2. Validate password confirm
         if (request.Password != request.ConfirmPassword)
             return BadRequest(new { message = "Mật khẩu xác nhận không khớp." });
 
-        // 3. Lấy role Guest (id=10) và membership Khách Mới (id=1)
-        var guestRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "Guest");
+        // 3. Lấy role Guest và membership mặc định
+        var guestRole         = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "Guest");
         var defaultMembership = await _db.Memberships.FirstOrDefaultAsync(m => m.MinPoints == 0);
+        var refreshToken      = GenerateRefreshToken();
 
         // 4. Tạo user mới
         var user = new HotelManagement.Core.Entities.User
         {
-            FullName = request.FullName.Trim(),
-            Email = request.Email.Trim().ToLower(),
-            Phone = request.Phone?.Trim(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            RoleId = guestRole?.Id,
-            MembershipId = defaultMembership?.Id,
-            Status = true,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
+            FullName            = request.FullName.Trim(),
+            Email               = request.Email.Trim().ToLower(),
+            Phone               = request.Phone?.Trim(),
+            PasswordHash        = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            RoleId              = guestRole?.Id,
+            MembershipId        = defaultMembership?.Id,
+            Status              = true,
+            IsActive            = true,
+            CreatedAt           = DateTime.UtcNow,
+            RefreshToken        = refreshToken,
+            RefreshTokenExpiry  = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays),
         };
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        // 5. Lấy permission của Guest (thường rỗng, nhưng vẫn query đầy đủ)
-        var permissionCodes = await _db.RolePermissions
-            .Where(rp => rp.RoleId == user.RoleId)
-            .Join(_db.Permissions,
-                rp => rp.PermissionId,
-                p => p.Id,
-                (rp, p) => p.PermissionCode)
-            .ToListAsync();
-
-        // 6. Tạo token luôn — đăng ký xong tự đăng nhập
-        var roleName = guestRole?.Name ?? "Guest";
-        var token = _jwt.GenerateToken(user, roleName, permissionCodes);
+        // 5. Lấy permissions và tạo token
+        var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
+        var roleName        = guestRole?.Name ?? "Guest";
+        var token           = _jwt.GenerateToken(user, roleName, permissionCodes);
 
         return StatusCode(201, new
         {
-            message = "Đăng ký thành công.",
+            message      = "Đăng ký thành công.",
             token,
-            expiresIn = 60,
-            userId = user.Id,
-            fullName = user.FullName,
-            email = user.Email,
-            role = roleName,
-            membership = defaultMembership?.TierName,
-            permissions = permissionCodes
+            refreshToken,
+            expiresIn    = _config["Jwt:ExpiresInMinutes"],
+            userId       = user.Id,
+            fullName     = user.FullName,
+            email        = user.Email,
+            role         = roleName,
+            membership   = defaultMembership?.TierName,
+            permissions  = permissionCodes
         });
     }
+
+    // ────────────────────────────────────────────────────────────
+    // POST /api/Auth/refresh-token  [Public]
+    // ────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Dùng refresh token để lấy access token mới mà không cần login lại.
+    /// Body: { "refreshToken": "..." }
+    /// </summary>
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            return BadRequest(new { message = "Refresh token không được để trống." });
+
+        // 1. Tìm user theo refresh token
+        var user = await _db.Users
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
+
+        if (user is null)
+            return Unauthorized(new { message = "Refresh token không hợp lệ." });
+
+        // 2. Kiểm tra hết hạn
+        if (user.RefreshTokenExpiry is null || user.RefreshTokenExpiry <= DateTime.UtcNow)
+            return Unauthorized(new { message = "Refresh token đã hết hạn. Vui lòng đăng nhập lại." });
+
+        // 3. Kiểm tra tài khoản còn active không
+        if (!user.IsActive || user.Status == false)
+            return Unauthorized(new { message = "Tài khoản đã bị vô hiệu hóa hoặc khóa." });
+
+        // 4. Lấy permissions
+        var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
+
+        // 5. Rotate refresh token — cấp token mới, hủy token cũ ngay
+        //    Nếu token cũ bị đánh cắp và dùng lại → bị từ chối vì không còn trong DB
+        var newRefreshToken = GenerateRefreshToken();
+        user.RefreshToken       = newRefreshToken;
+        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
+        await _db.SaveChangesAsync();
+
+        // 6. Tạo access token mới
+        var roleName = user.Role?.Name ?? "Guest";
+        var token    = _jwt.GenerateToken(user, roleName, permissionCodes);
+
+        return Ok(new
+        {
+            token,
+            refreshToken = newRefreshToken,
+            expiresIn    = _config["Jwt:ExpiresInMinutes"],
+        });
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // POST /api/Auth/logout  [Authenticated]
+    // ────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Xóa refresh token trong DB → vô hiệu hóa phiên đăng nhập phía server.
+    /// Access token cũ vẫn hợp lệ đến khi hết hạn (đặc điểm JWT stateless).
+    /// </summary>
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        // Đọc userId từ JWT claim — không tin request body
+        var userId = JwtHelper.GetUserId(User);
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null)
+            return NotFound(new { message = "Không tìm thấy tài khoản." });
+
+        // Xóa refresh token → phiên server-side bị vô hiệu hóa
+        user.RefreshToken       = null;
+        user.RefreshTokenExpiry = null;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Đăng xuất thành công." });
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Private helpers
+    // ────────────────────────────────────────────────────────────
+
+    private async Task<List<string>> GetPermissionCodesAsync(int? roleId)
+        => await _db.RolePermissions
+            .Where(rp => rp.RoleId == roleId)
+            .Join(_db.Permissions,
+                rp => rp.PermissionId,
+                p  => p.Id,
+                (rp, p) => p.PermissionCode)
+            .ToListAsync();
+
+    /// <summary>
+    /// Tạo refresh token ngẫu nhiên 64 bytes — không thể đoán, không phải JWT.
+    /// </summary>
+    private static string GenerateRefreshToken()
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 }
+
+// ────────────────────────────────────────────────────────────────
+// Request records
+// ────────────────────────────────────────────────────────────────
 
 public record LoginRequest(string Email, string Password);
 
@@ -148,3 +253,5 @@ public record RegisterRequest(
     string ConfirmPassword,
     string? Phone
 );
+
+public record RefreshTokenRequest(string RefreshToken);

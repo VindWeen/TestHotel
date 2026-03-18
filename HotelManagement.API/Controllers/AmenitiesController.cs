@@ -1,240 +1,198 @@
+using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Entities;
+using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
-using System.Data;
-using System.Data.SqlClient;
-using HotelManagement.DTOs;
-using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
-namespace HotelManagement.Controllers
+namespace HotelManagement.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AmenitiesController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class AmenitiesController : ControllerBase
+    private readonly AppDbContext _db;
+
+    public AmenitiesController(AppDbContext db)
     {
-        private readonly IConfiguration _configuration;
+        _db = db;
+    }
 
-        public AmenitiesController(IConfiguration configuration)
+    // ──────────────────────────────────────────────────────────────
+    // GET /api/Amenities  [Public / MANAGE_ROOMS]
+    // Public     : chỉ thấy is_active = 1.
+    // Admin      : thấy tất cả kể cả đã soft delete,
+    //              mỗi item kèm field isActive để FE phân biệt.
+    // ──────────────────────────────────────────────────────────────
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var isAdmin = User.Identity?.IsAuthenticated == true
+                   && User.HasClaim("permission", PermissionCodes.ManageRooms);
+
+        var query = _db.Amenities.AsNoTracking();
+
+        if (!isAdmin)
+            query = query.Where(a => a.IsActive);
+
+        var list = await query
+            .OrderBy(a => a.IsActive ? 0 : 1)  // active lên trước, đã xóa xuống dưới
+            .ThenBy(a => a.Name)
+            .Select(a => new
+            {
+                a.Id,
+                a.Name,
+                a.IconUrl,
+                a.IsActive  // admin cần biết cái nào đang bị ẩn
+            })
+            .ToListAsync();
+
+        return Ok(list);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // GET /api/Amenities/{id}  [Public]
+    // ──────────────────────────────────────────────────────────────
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var amenity = await _db.Amenities
+            .AsNoTracking()
+            .Where(a => a.Id == id && a.IsActive)
+            .Select(a => new { a.Id, a.Name, a.IconUrl })
+            .FirstOrDefaultAsync();
+
+        if (amenity is null)
+            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
+
+        return Ok(amenity);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // POST /api/Amenities  [MANAGE_ROOMS]
+    // Body: { name, iconUrl }. INSERT với is_active = 1.
+    // ──────────────────────────────────────────────────────────────
+    [HttpPost]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> Create([FromBody] CreateAmenityRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Tên tiện nghi không được để trống." });
+
+        // Kiểm tra tên trùng (trong các amenity đang active)
+        var exists = await _db.Amenities
+            .AnyAsync(a => a.Name == request.Name.Trim() && a.IsActive);
+
+        if (exists)
+            return Conflict(new { message = $"Tiện nghi '{request.Name}' đã tồn tại." });
+
+        var amenity = new Amenity
         {
-            _configuration = configuration;
-        }
+            Name     = request.Name.Trim(),
+            IconUrl  = request.IconUrl?.Trim(),
+            IsActive = true
+        };
 
-        private SqlConnection GetConnection()
+        _db.Amenities.Add(amenity);
+        await _db.SaveChangesAsync();
+
+        return StatusCode(201, new
         {
-            return new SqlConnection(_configuration.GetConnectionString("DefaultConnection"));
-        }
+            message = "Tạo tiện nghi thành công.",
+            amenity.Id,
+            amenity.Name,
+            amenity.IconUrl
+        });
+    }
 
-        // =============================
-        // GET: api/Amenities [Public]
-        // =============================
-        [HttpGet]
-        public async Task<IActionResult> GetAmenities()
+    // ──────────────────────────────────────────────────────────────
+    // PUT /api/Amenities/{id}  [MANAGE_ROOMS]
+    // Cập nhật name, icon_url.
+    // ──────────────────────────────────────────────────────────────
+    [HttpPut("{id:int}")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateAmenityRequest request)
+    {
+        var amenity = await _db.Amenities
+            .FirstOrDefaultAsync(a => a.Id == id && a.IsActive);
+
+        if (amenity is null)
+            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Tên tiện nghi không được để trống." });
+
+        // Kiểm tra tên trùng với amenity khác
+        var duplicateName = await _db.Amenities
+            .AnyAsync(a => a.Name == request.Name.Trim() && a.IsActive && a.Id != id);
+
+        if (duplicateName)
+            return Conflict(new { message = $"Tiện nghi '{request.Name}' đã tồn tại." });
+
+        amenity.Name    = request.Name.Trim();
+        amenity.IconUrl = request.IconUrl?.Trim();
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
         {
-            try
-            {
-                using (var conn = GetConnection())
-                {
-                    await conn.OpenAsync();
+            message = "Cập nhật tiện nghi thành công.",
+            amenity.Id,
+            amenity.Name,
+            amenity.IconUrl
+        });
+    }
 
-                    var query = @"
-                        SELECT id, name, icon_url
-                        FROM Amenities
-                        WHERE is_active = 1";
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/Amenities/{id}/restore  [MANAGE_ROOMS]
+    // Khôi phục amenity đã bị soft delete (is_active = 0 → 1).
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/restore")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> Restore(int id)
+    {
+        var amenity = await _db.Amenities
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsActive);
 
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        var reader = await cmd.ExecuteReaderAsync();
+        if (amenity is null)
+            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id} trong danh sách đã xóa." });
 
-                        var list = new List<object>();
+        amenity.IsActive = true;
+        await _db.SaveChangesAsync();
 
-                        while (await reader.ReadAsync())
-                        {
-                            list.Add(new
-                            {
-                                id = reader["id"],
-                                name = reader["name"],
-                                iconUrl = reader["icon_url"]
-                            });
-                        }
-
-                        return Ok(list);
-                    }
-                }
-            }
-            catch
-            {
-                return StatusCode(500, "Lỗi server");
-            }
-        }
-        // ============================
-        // GET: api/Amenities/{id} [Public]
-        // =============================
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetAmenity(int id)
+        return Ok(new
         {
-            try
-            {
-                using (var conn = GetConnection())
-                {
-                    await conn.OpenAsync();
+            message = $"Đã khôi phục tiện nghi '{amenity.Name}'.",
+            amenity.Id,
+            amenity.Name,
+            amenity.IconUrl
+        });
+    }
 
-                    var query = @"
-                        SELECT id, name, icon_url
-                        FROM Amenities
-                        WHERE id = @id AND is_active = 1";
+    // ──────────────────────────────────────────────────────────────
+    // DELETE /api/Amenities/{id}  [MANAGE_ROOMS]
+    // Soft Delete: is_active = 0.
+    // Không phá FK với RoomType_Amenities — record vẫn còn trong DB.
+    // ──────────────────────────────────────────────────────────────
+    [HttpDelete("{id:int}")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var amenity = await _db.Amenities
+            .FirstOrDefaultAsync(a => a.Id == id && a.IsActive);
 
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", id);
+        if (amenity is null)
+            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
 
-                        var reader = await cmd.ExecuteReaderAsync();
+        amenity.IsActive = false;
+        await _db.SaveChangesAsync();
 
-                        if (await reader.ReadAsync())
-                        {
-                            return Ok(new
-                            {
-                                id = reader["id"],
-                                name = reader["name"],
-                                iconUrl = reader["icon_url"]
-                            });
-                        }
-
-                        return NotFound("Không tìm thấy thiết bị");
-                    }
-                }
-            }
-            catch
-            {
-                return StatusCode(500, "Lỗi server");
-            }
-        }
-
-        // =============================
-        // POST: api/Amenities [MANAGE_ROOMS]
-        // =============================
-        [HttpPost]
-        public async Task<IActionResult> CreateAmenity([FromBody] AmenityRequest request)
-        {
-            if (string.IsNullOrEmpty(request.Name))
-                return BadRequest("Name is required");
-
-            try
-            {
-                using (var conn = GetConnection())
-                {
-                    await conn.OpenAsync();
-
-                    var query = @"
-                        INSERT INTO Amenities (name, icon_url, is_active)
-                        OUTPUT INSERTED.id, INSERTED.name, INSERTED.icon_url
-                        VALUES (@name, @iconUrl, 1)";
-
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@name", request.Name);
-                        cmd.Parameters.AddWithValue("@iconUrl", (object?)request.IconUrl ?? DBNull.Value);
-
-                        var reader = await cmd.ExecuteReaderAsync();
-
-                        if (await reader.ReadAsync())
-                        {
-                            return StatusCode(201, new
-                            {
-                                id = reader["id"],
-                                name = reader["name"],
-                                iconUrl = reader["icon_url"]
-                            });
-                        }
-
-                        return StatusCode(500, "Lỗi tạo thiết bị");
-                    }
-                }
-            }
-            catch
-            {
-                return StatusCode(500, "Lỗi server");
-            }
-        }
-
-        // =============================
-        // PUT: api/Amenities/{id} [MANAGE_ROOMS]
-        // =============================
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAmenity(int id, [FromBody] AmenityRequest request)
-        {
-            try
-            {
-                using (var conn = GetConnection())
-                {
-                    await conn.OpenAsync();
-
-                    var query = @"
-                        UPDATE Amenities
-                        SET name = @name,
-                            icon_url = @iconUrl
-                        OUTPUT INSERTED.id, INSERTED.name, INSERTED.icon_url
-                        WHERE id = @id AND is_active = 1";
-
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", id);
-                        cmd.Parameters.AddWithValue("@name", request.Name);
-                        cmd.Parameters.AddWithValue("@iconUrl", (object?)request.IconUrl ?? DBNull.Value);
-
-                        var reader = await cmd.ExecuteReaderAsync();
-
-                        if (await reader.ReadAsync())
-                        {
-                            return Ok(new
-                            {
-                                id = reader["id"],
-                                name = reader["name"],
-                                iconUrl = reader["icon_url"]
-                            });
-                        }
-
-                        return NotFound("Không tìm thấy thiết bị");
-                    }
-                }
-            }
-            catch
-            {
-                return StatusCode(500, "Lỗi server");
-            }
-        }
-
-        // =============================
-        // DELETE: api/Amenities/{id} [MANAGE_ROOMS]
-        // =============================
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAmenity(int id)
-        {
-            try
-            {
-                using (var conn = GetConnection())
-                {
-                    await conn.OpenAsync();
-
-                    var query = @"
-                        UPDATE Amenities
-                        SET is_active = 0
-                        WHERE id = @id AND is_active = 1";
-
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", id);
-
-                        var rows = await cmd.ExecuteNonQueryAsync();
-
-                        if (rows == 0)
-                            return NotFound("Không tìm thấy thiết bị");
-
-                        return Ok(new { message = "Thiết bị đã được xóa" });
-                    }
-                }
-            }
-            catch
-            {
-                return StatusCode(500, "Lỗi server");
-            }
-        }
+        return Ok(new { message = $"Đã xóa tiện nghi '{amenity.Name}'." });
     }
 }
+
+// ──────────────────────────────────────────────────────────────────
+// Request records
+// ──────────────────────────────────────────────────────────────────
+
+public record CreateAmenityRequest(string Name, string? IconUrl);
+public record UpdateAmenityRequest(string Name, string? IconUrl);

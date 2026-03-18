@@ -19,6 +19,10 @@ public class User
     public string PasswordHash { get; set; } = null!;
     public string? AvatarUrl { get; set; }
 
+    // Refresh Token — lưu server-side để validate và revoke khi logout
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiry { get; set; }
+
     // Loyalty
     public int LoyaltyPoints { get; set; } = 0;
     public int LoyaltyPointsUsable { get; set; } = 0;
