@@ -3,6 +3,7 @@ using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Core.Models.Enum;
 
 namespace HotelManagement.API.Controllers;
 
@@ -62,7 +63,13 @@ public class AmenitiesController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (amenity is null)
-            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Không tìm thấy tiện nghi",
+                Message = $"Không tìm thấy tiện nghi #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.CreateAmenity // Action nào phù hợp tuỳ context
+            });
 
         return Ok(amenity);
     }
@@ -95,12 +102,20 @@ public class AmenitiesController : ControllerBase
         _db.Amenities.Add(amenity);
         await _db.SaveChangesAsync();
 
+        var Notification = new Notification
+        {
+            Title = "Tiện nghi mới đã được thêm",
+            Message = $"Tiện nghi '{amenity.Name}' đã được tạo thành công.",
+            Type = NotificationType.Success,
+            Action = NotificationAction.CreateAmenity
+        };
+
         return StatusCode(201, new
         {
-            message = "Tạo tiện nghi thành công.",
             amenity.Id,
             amenity.Name,
-            amenity.IconUrl
+            amenity.IconUrl,
+            notification = Notification
         });
     }
 
@@ -116,51 +131,56 @@ public class AmenitiesController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == id && a.IsActive);
 
         if (amenity is null)
-            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Không tìm thấy tiện nghi",
+                Message = $"Không tìm thấy tiện nghi #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other // Action nào phù hợp tuỳ context
+            });
 
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new { message = "Tên tiện nghi không được để trống." });
+            return BadRequest(new Notification
+            {
+                Title = "Tên tiện nghi không hợp lệ",
+                Message = "Tên tiện nghi không được để trống.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.UpdateAmenity
+            });
 
         // Kiểm tra tên trùng với amenity khác
         var duplicateName = await _db.Amenities
             .AnyAsync(a => a.Name == request.Name.Trim() && a.IsActive && a.Id != id);
 
         if (duplicateName)
-            return Conflict(new { message = $"Tiện nghi '{request.Name}' đã tồn tại." });
+            return Conflict(new Notification
+            {
+                Title = "Tên tiện nghi đã tồn tại",
+                Message = $"Tiện nghi '{request.Name}' đã tồn tại.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.UpdateAmenity
+            });
 
         amenity.Name    = request.Name.Trim();
         amenity.IconUrl = request.IconUrl?.Trim();
 
         await _db.SaveChangesAsync();
 
+        var Notification = new Notification
+        {
+            Title = "Tiện nghi đã được cập nhật",
+            Message = $"Tiện nghi '{amenity.Name}' đã được cập nhật thành công.",
+            Type = NotificationType.Success,
+            Action = NotificationAction.UpdateAmenity
+        };
+
         return Ok(new
         {
-            message = "Cập nhật tiện nghi thành công.",
             amenity.Id,
             amenity.Name,
-            amenity.IconUrl
+            amenity.IconUrl,
+            notification = Notification
         });
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // DELETE /api/Amenities/{id}  [MANAGE_ROOMS]
-    // Soft Delete: is_active = 0.
-    // Không phá FK với RoomType_Amenities — record vẫn còn trong DB.
-    // ──────────────────────────────────────────────────────────────
-    [HttpDelete("{id:int}")]
-    [RequirePermission(PermissionCodes.ManageRooms)]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var amenity = await _db.Amenities
-            .FirstOrDefaultAsync(a => a.Id == id && a.IsActive);
-
-        if (amenity is null)
-            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
-
-        amenity.IsActive = false;
-        await _db.SaveChangesAsync();
-
-        return Ok(new { message = $"Đã xóa tiện nghi '{amenity.Name}'." });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -174,18 +194,31 @@ public class AmenitiesController : ControllerBase
         var amenity = await _db.Amenities.FindAsync(id);
  
         if (amenity is null)
-            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Không tìm thấy tiện nghi",
+                Message = $"Không tìm thấy tiện nghi #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other // Action nào phù hợp tuỳ context
+            });
  
         amenity.IsActive = !amenity.IsActive;
         await _db.SaveChangesAsync();
- 
-        var action = amenity.IsActive ? "kích hoạt" : "vô hiệu hóa";
+
+
+        var Notification= new Notification
+        {
+            Title = $"Tiện nghi đã được {(amenity.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
+            Message = $"Tiện nghi '{amenity.Name}' đã {(amenity.IsActive ? "được kích hoạt" : "bị vô hiệu hóa")}.",
+            Type = NotificationType.Success,
+            Action = amenity.IsActive ? NotificationAction.EnableAmenity : NotificationAction.DisableAmenity
+        };
         return Ok(new
         {
-            message  = $"Đã {action} tiện nghi '{amenity.Name}'.",
             amenity.Id,
             amenity.Name,
-            amenity.IsActive
+            amenity.IsActive,
+            notification = Notification
         });
     }
 }

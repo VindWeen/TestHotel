@@ -1,5 +1,6 @@
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Models.Enum;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -85,7 +86,13 @@ public class AttractionsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (attraction is null)
-            return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
+            return NotFound(new { Notification = new Notification
+            {
+                Title = "Không tìm thấy địa điểm",
+                Message = $"Không tìm thấy địa điểm #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.CreateArticle // Action nào phù hợp tuỳ context
+            }});
 
         return Ok(attraction);
     }

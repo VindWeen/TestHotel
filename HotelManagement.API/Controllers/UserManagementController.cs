@@ -5,6 +5,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Core.Models.Enum;
 
 namespace HotelManagement.API.Controllers;
 
@@ -82,6 +83,13 @@ public class UserManagementController : ControllerBase
                 pageSize,
                 totalItems,
                 totalPages
+            },
+            Notification = new Notification
+            {
+                Title = "Danh sách người dùng",
+                Message = $"Đã lấy danh sách người dùng thành công. Tổng cộng {totalItems} người dùng.",
+                Type = NotificationType.Success,
+                Action = NotificationAction.ViewUsers
             }
         });
     }
@@ -121,7 +129,13 @@ public class UserManagementController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (user is null)
-            return NotFound(new { message = $"Không tìm thấy user #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Không tìm thấy người dùng",
+                Message = $"Không tìm thấy người dùng #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other // Action nào phù hợp tuỳ context
+            });
 
         return Ok(user);
     }
@@ -142,7 +156,13 @@ public class UserManagementController : ControllerBase
         {
             var roleExists = await _db.Roles.AnyAsync(r => r.Id == request.RoleId.Value);
             if (!roleExists)
-                return BadRequest(new { message = $"Role #{request.RoleId} không tồn tại." });
+                return BadRequest(new Notification
+                {
+                    Title = "Role không tồn tại",
+                    Message = $"Role #{request.RoleId} không tồn tại.",
+                    Type = NotificationType.Error,
+                    Action = NotificationAction.Other
+                });
         }
 
         // 3. Tạo user mới — BCrypt hash password
@@ -167,7 +187,14 @@ public class UserManagementController : ControllerBase
         return StatusCode(201, new
         {
             message = "Tạo tài khoản nhân viên thành công.",
-            userId  = user.Id
+            userId  = user.Id,
+            notification = new Notification
+            {
+                Title = "Tài khoản mới đã được tạo",
+                Message = $"Tài khoản cho người dùng '{user.FullName}' đã được tạo thành công.",
+                Type = NotificationType.Success,
+                Action = NotificationAction.CreateUser
+            }
         });
     }
 
@@ -191,7 +218,13 @@ public class UserManagementController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = "Cập nhật thông tin thành công." });
+        return Ok(new Notification
+        {
+            Title = "Cập nhật thông tin người dùng",
+            Message = $"Thông tin của người dùng '{user.FullName}' đã được cập nhật thành công.",
+            Type = NotificationType.Success,
+            Action = NotificationAction.UpdateUser
+        });
     }
 
     // DELETE /api/UserManagement/{id}  — khoá tài khoản thay vì soft delete
@@ -205,14 +238,32 @@ public class UserManagementController : ControllerBase
 
         // Không thể tự khoá chính mình
         if (currentUserId == id)
-            return BadRequest(new { message = "Bạn không thể tự khoá chính mình." });
+            return BadRequest(new Notification
+            {
+                Title = "Không thể khoá tài khoản của chính bạn",
+                Message = "Bạn không thể tự khoá chính mình.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         var user = await _db.Users.FindAsync(id);
         if (user is null)
-            return NotFound(new { message = $"Không tìm thấy user #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Người dùng không tồn tại",
+                Message = $"Không tìm thấy người dùng #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         if (user.Status == false)
-            return BadRequest(new { message = "Tài khoản này đã bị khoá trước đó." });
+            return BadRequest(new Notification
+            {
+                Title = "Tài khoản đã bị khoá",
+                Message = "Tài khoản này đã bị khoá trước đó.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         // Khoá tài khoản
         user.Status    = false;
@@ -234,7 +285,13 @@ public class UserManagementController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = "Đã khoá tài khoản thành công." });
+        return Ok(new Notification
+        {
+            Title = "Khoá tài khoản",
+            Message = "Đã khoá tài khoản thành công.",
+            Type = NotificationType.Success,
+            Action = NotificationAction.LockAccount
+        });
     }
 
     // PUT /api/UserManagement/{id}/change-role
@@ -245,11 +302,23 @@ public class UserManagementController : ControllerBase
     {
         var user = await _db.Users.FindAsync(id);
         if (user is null)
-            return NotFound(new { message = $"Không tìm thấy user #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Người dùng không tồn tại",
+                Message = $"Không tìm thấy người dùng #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         var role = await _db.Roles.FindAsync(request.NewRoleId);
         if (role is null)
-            return BadRequest(new { message = $"Role #{request.NewRoleId} không tồn tại." });
+            return BadRequest(new Notification
+            {
+                Title = "Role không tồn tại",
+                Message = $"Role #{request.NewRoleId} không tồn tại.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         var oldRoleId  = user.RoleId;
         user.RoleId    = request.NewRoleId;
@@ -259,10 +328,16 @@ public class UserManagementController : ControllerBase
 
         return Ok(new
         {
-            message     = $"Đã đổi role thành '{role.Name}' thành công.",
             oldRoleId,
             newRoleId   = request.NewRoleId,
-            newRoleName = role.Name
+            newRoleName = role.Name,
+            notification = new Notification
+            {
+                Title = "Đổi role người dùng",
+                Message = $"Role của người dùng '{user.FullName}' đã được đổi thành '{role.Name}'.",
+                Type = NotificationType.Success,
+                Action = NotificationAction.UpdateUser
+            }
         });
     }
 
@@ -275,7 +350,13 @@ public class UserManagementController : ControllerBase
 
         var user = await _db.Users.FindAsync(id);
         if (user is null)
-            return NotFound(new { message = $"Không tìm thấy user #{id}." });
+            return NotFound(new Notification
+            {
+                Title = "Người dùng không tồn tại",
+                Message = $"Không tìm thấy người dùng #{id}.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         var oldStatus  = user.Status;
         user.Status    = !(user.Status ?? true);
@@ -296,11 +377,16 @@ public class UserManagementController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
-
         var statusText = user.Status == true ? "mở khóa" : "khóa";
         return Ok(new
         {
-            message = $"Đã {statusText} tài khoản thành công.",
+            Notification = new Notification
+            {
+                Title = $"{statusText} tài khoản",
+                Message = $"Đã {statusText} tài khoản thành công.",
+                Type = NotificationType.Success,
+                Action = user.Status == true ? NotificationAction.UnlockAccount : NotificationAction.LockAccount
+            },
             userId  = id,
             status  = user.Status
         });

@@ -12,22 +12,24 @@ using Microsoft.OpenApi.Models;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ── CORS ────────────────────────────────────────────────────────────────────
+// ── CORS ───────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",   // Vite dev
-                "http://localhost:3000"    // fallback
-              )
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy
+            .WithOrigins(
+                "http://localhost:5173",   // Vite dev server
+                "http://localhost:5174",   // Vite fallback port
+                "http://localhost:3000",   // React fallback
+                "http://127.0.0.1:5500",  // VS Code Live Server
+                "null"                     // file:// (mở HTML trực tiếp)
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
-
 
 // ── Redis ──────────────────────────────────────────────────
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -160,9 +162,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();  // mặc định mở tại /swagger
 }
 
-app.UseCors("AllowFrontend");
-
 // Thứ tự PHẢI đúng: Authentication trước Authorization
+// Thứ tự PHẢI đúng: CORS → Authentication → Authorization
+app.UseCors("AllowFrontend");   // ← thêm dòng này
 app.UseAuthentication();
 app.UseAuthorization();
 

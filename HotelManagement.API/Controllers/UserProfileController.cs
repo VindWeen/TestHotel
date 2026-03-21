@@ -3,6 +3,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Core.Models.Enum;
 
 namespace HotelManagement.API.Controllers;
 
@@ -58,7 +59,13 @@ public class UserProfileController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (profile is null)
-            return NotFound(new { message = "Không tìm thấy thông tin người dùng." });
+            return NotFound(new Notification
+            {
+                Title = "Không tìm thấy thông tin người dùng",
+                Message = "Không tìm thấy thông tin người dùng.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         return Ok(profile);
     }
@@ -71,7 +78,13 @@ public class UserProfileController : ControllerBase
 
         var user = await _db.Users.FindAsync(userId);
         if (user is null)
-            return NotFound(new { message = "Không tìm thấy thông tin người dùng." });
+            return NotFound(new Notification
+            {
+                Title = "Không tìm thấy thông tin người dùng",
+                Message = "Không tìm thấy thông tin người dùng.",
+                Type = NotificationType.Error,
+                Action = NotificationAction.Other
+            });
 
         user.FullName    = request.FullName?.Trim()  ?? user.FullName;
         user.Phone       = request.Phone?.Trim()     ?? user.Phone;
@@ -82,7 +95,14 @@ public class UserProfileController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = "Cập nhật thông tin cá nhân thành công." });
+            var Notification = new Notification
+            {
+                Title = "Cập nhật thông tin thành công",
+                Message = "Thông tin cá nhân của bạn đã được cập nhật.",
+                Type = NotificationType.Success,
+                Action = NotificationAction.UpdateProfile
+            };
+        return Ok(new { notification = Notification });
     }
 
     // PUT /api/UserProfile/change-password
@@ -103,7 +123,14 @@ public class UserProfileController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = "Đổi mật khẩu thành công!" });
+        var Notification = new Notification
+        {
+            Title = "Đổi mật khẩu thành công",
+            Message = "Mật khẩu của bạn đã được thay đổi.",
+            Type = NotificationType.Success,
+            Action = NotificationAction.UpdateProfile
+        };
+        return Ok(new { notification = Notification });
     }
 
     // POST /api/UserProfile/upload-avatar

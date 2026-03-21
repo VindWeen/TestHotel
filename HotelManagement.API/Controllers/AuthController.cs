@@ -4,6 +4,8 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Core.Models.Enum;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace HotelManagement.API.Controllers;
 
@@ -60,6 +62,14 @@ public class AuthController : ControllerBase
         user.RefreshToken       = refreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
         await _db.SaveChangesAsync();
+        
+        var Notification = new Notification
+        {
+            Title = "Thông báo đăng nhập",
+            Message = $"Chào mừng {user.FullName} đã đăng nhập thành công!",
+            Type = NotificationType.Success,
+            Action = NotificationAction.LoginAccount
+        };
 
         // 6. Tạo access token
         var token = _jwt.GenerateToken(user, roleName, permissionCodes);
@@ -74,7 +84,8 @@ public class AuthController : ControllerBase
             email       = user.Email,
             role        = roleName,
             avatarUrl   = user.AvatarUrl,
-            permissions = permissionCodes
+            permissions = permissionCodes,
+            notification = Notification
         });
     }
 
@@ -118,6 +129,14 @@ public class AuthController : ControllerBase
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        var Notification = new Notification
+        {
+            Title = "Thông báo đăng ký",
+            Message = $"Chào mừng {user.FullName} đã đăng ký tài khoản thành công!",
+            Type = NotificationType.Success,
+            Action = NotificationAction.CreateAccount
+        };
+
         // 5. Lấy permissions và tạo token
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
         var roleName        = guestRole?.Name ?? "Guest";
@@ -134,7 +153,8 @@ public class AuthController : ControllerBase
             email       = user.Email,
             role        = roleName,
             membership  = defaultMembership?.TierName,
-            permissions = permissionCodes
+            permissions = permissionCodes,
+            notification = Notification
         });
     }
 
@@ -243,5 +263,4 @@ public record RegisterRequest(
     string  ConfirmPassword,
     string? Phone
 );
-
 public record RefreshTokenRequest(string RefreshToken);

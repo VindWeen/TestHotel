@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Login | The Ethereal Concierge</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#4f645b",
+            "secondary-fixed": "#ffdad9",
+            "on-primary-container": "#42564e",
+            "on-tertiary-container": "#5f554d",
+            "secondary-fixed-dim": "#fac8c8",
+            "primary-fixed": "#d1e8dd",
+            "on-secondary-fixed-variant": "#775252",
+            "on-primary": "#e7fef3",
+            "tertiary": "#675d55",
+            "error-container": "#fa746f",
+            "tertiary-fixed-dim": "#e8dacf",
+            "on-error": "#fff7f6",
+            "on-tertiary-fixed-variant": "#695f56",
+            "on-tertiary-fixed": "#4c433b",
+            "surface-container": "#efeee7",
+            "outline-variant": "#b2b2ab",
+            "inverse-primary": "#e7fff3",
+            "surface-container-highest": "#e3e3db",
+            "inverse-on-surface": "#9e9d99",
+            "secondary-dim": "#6e494a",
+            "on-background": "#31332e",
+            "tertiary-container": "#f7e8dd",
+            "on-secondary-container": "#6d4849",
+            "on-primary-fixed": "#2f433c",
+            "outline": "#7a7b75",
+            "primary-fixed-dim": "#c3dacf",
+            "on-tertiary": "#fff7f3",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-high": "#e9e8e1",
+            "error-dim": "#67040d",
+            "secondary-container": "#ffdad9",
+            "on-surface-variant": "#5e6059",
+            "on-secondary-fixed": "#583637",
+            "surface-container-low": "#f5f4ed",
+            "primary-dim": "#43574f",
+            "tertiary-fixed": "#f7e8dd",
+            "tertiary-dim": "#5b5149",
+            "surface": "#fbf9f4",
+            "surface-bright": "#fbf9f4",
+            "primary-container": "#d1e8dd",
+            "background": "#fbf9f4",
+            "inverse-surface": "#0e0e0c",
+            "on-secondary": "#fff7f6",
+            "on-error-container": "#6e0a12",
+            "surface-variant": "#e3e3db",
+            "surface-tint": "#4f645b",
+            "secondary": "#7b5556",
+            "surface-dim": "#dadad2",
+            "on-primary-fixed-variant": "#4b6057",
+            "on-surface": "#31332e",
+            "error": "#a83836"
+          },
+          fontFamily: {
+            "headline": ["Manrope", "sans-serif"],
+            "body": ["Manrope", "sans-serif"],
+            "label": ["Manrope", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "1.5rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { font-family: 'Manrope', sans-serif; background-color: #fbf9f4; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .form-input-focus:focus { box-shadow: 0 0 0 1px rgba(79, 100, 91, 0.4); outline: none; }
+    .luxury-gradient { background: linear-gradient(135deg, #4f645b 0%, #43574f 100%); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(231,254,243,.4); border-top-color: #e7fef3; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 8px; }
+
+    /* Shake */
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-5px)} 40%,80%{transform:translateX(5px)} }
+    .shake { animation: shake .4s ease; }
+
+    /* Toast */
+    @keyframes toastIn  { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes toastOut { from{transform:translateX(0);opacity:1} to{transform:translateX(110%);opacity:0} }
+    .toast-in  { animation: toastIn  .35s cubic-bezier(.22,1,.36,1) forwards; }
+    .toast-out { animation: toastOut .28s cubic-bezier(.55,0,1,.45)  forwards; }
+    @keyframes toastProgress { from{width:100%} to{width:0} }
+
+    /* Password toggle */
+    .pw-btn { position:absolute; right:16px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#7a7b75; display:flex; align-items:center; transition:color .2s; }
+    .pw-btn:hover { color: #4f645b; }
+
+    /* Modal backdrop */
+    .modal-bg { backdrop-filter: blur(4px); }
+
+    /* Register modal scroll */
+    .modal-scroll { max-height: 90vh; overflow-y: auto; }
+  </style>
+</head>
+
+<!-- ══════════════════════════════════
+     TOAST CONTAINER
+══════════════════════════════════ -->
+<div id="toastContainer" class="fixed top-5 right-5 z-[300] flex flex-col gap-2.5 pointer-events-none" style="width:340px;"></div>
+
+<!-- ══════════════════════════════════
+     MODAL: ĐĂNG KÝ
+══════════════════════════════════ -->
+<div id="registerModal" class="fixed inset-0 bg-black/50 modal-bg hidden items-center justify-center z-[200]">
+  <div class="bg-white rounded-2xl w-full max-w-md mx-4 modal-scroll shadow-2xl">
+    <div class="flex items-center justify-between px-8 pt-7 pb-4 border-b border-stone-100">
+      <h3 class="text-xl font-bold">Tạo tài khoản mới</h3>
+      <button id="closeRegisterModal" class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors">
+        <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;">close</span>
+      </button>
+    </div>
+    <form id="registerForm" class="px-8 py-6 space-y-4" novalidate>
+      <div>
+        <label class="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style="color:#5e6059;">Họ và tên *</label>
+        <input id="r_fullName" type="text" placeholder="Nguyễn Văn A" autocomplete="name"
+               class="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+               style="background:rgba(227,227,219,.5);color:#31332e;" />
+        <p id="r_err_fullName" class="hidden text-xs mt-1 ml-1" style="color:#a83836;"></p>
+      </div>
+      <div>
+        <label class="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style="color:#5e6059;">Email *</label>
+        <input id="r_email" type="email" placeholder="your@email.com" autocomplete="email"
+               class="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+               style="background:rgba(227,227,219,.5);color:#31332e;" />
+        <p id="r_err_email" class="hidden text-xs mt-1 ml-1" style="color:#a83836;"></p>
+      </div>
+      <div>
+        <label class="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style="color:#5e6059;">Số điện thoại</label>
+        <input id="r_phone" type="tel" placeholder="09xxxxxxxx" autocomplete="tel"
+               class="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+               style="background:rgba(227,227,219,.5);color:#31332e;" />
+      </div>
+      <div>
+        <label class="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style="color:#5e6059;">Mật khẩu *</label>
+        <div class="relative">
+          <input id="r_password" type="password" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password"
+                 class="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 pr-14 text-sm form-input-focus transition-all"
+                 style="background:rgba(227,227,219,.5);color:#31332e;" />
+          <button type="button" class="pw-btn" id="r_pwBtn">
+            <span class="material-symbols-outlined" id="r_pwIcon" style="font-size:20px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;">visibility_off</span>
+          </button>
+        </div>
+        <p id="r_err_password" class="hidden text-xs mt-1 ml-1" style="color:#a83836;"></p>
+      </div>
+      <div>
+        <label class="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style="color:#5e6059;">Xác nhận mật khẩu *</label>
+        <div class="relative">
+          <input id="r_confirmPw" type="password" placeholder="Nhập lại mật khẩu" autocomplete="new-password"
+                 class="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 pr-14 text-sm form-input-focus transition-all"
+                 style="background:rgba(227,227,219,.5);color:#31332e;" />
+          <button type="button" class="pw-btn" id="r_cpwBtn">
+            <span class="material-symbols-outlined" id="r_cpwIcon" style="font-size:20px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;">visibility_off</span>
+          </button>
+        </div>
+        <p id="r_err_confirmPw" class="hidden text-xs mt-1 ml-1" style="color:#a83836;"></p>
+      </div>
+
+      <!-- Error banner -->
+      <div id="r_errBanner" class="hidden rounded-xl px-4 py-3 flex items-start gap-2.5"
+           style="background:rgba(168,56,54,.1);border:1px solid rgba(168,56,54,.25);">
+        <span class="material-symbols-outlined mt-0.5" style="font-size:18px;color:#a83836;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">error</span>
+        <p id="r_errText" class="text-sm font-medium leading-snug" style="color:#a83836;"></p>
+      </div>
+
+      <div class="flex gap-3 pt-1">
+        <button type="button" id="cancelRegisterBtn"
+                class="flex-1 py-3.5 border border-stone-200 rounded-full text-sm font-semibold hover:bg-stone-50 transition-colors" style="color:#5e6059;">
+          Hủy
+        </button>
+        <button id="r_submitBtn" type="submit"
+                class="flex-1 luxury-gradient rounded-full py-3.5 font-bold tracking-widest uppercase text-xs shadow-lg transition-all active:scale-[.98] disabled:opacity-60 flex items-center justify-center"
+                style="color:#e7fef3;">
+          <span id="r_btnLabel">Tạo tài khoản</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<body class="bg-surface text-on-surface antialiased overflow-hidden">
+  <main class="min-h-screen flex flex-col md:flex-row">
+
+    <!-- Left Side: Serene Visual - giữ nguyên giao diện gốc -->
+    <section class="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden bg-primary-fixed">
+      <div class="absolute inset-0 z-0">
+        <img alt="Serene Hotel Interior" class="w-full h-full object-cover opacity-90 mix-blend-multiply"
+          src="https://images8.alphacoders.com/138/1386921.png" />
+      </div>
+      <!-- Branding Overlay -->
+      <div class="relative z-10 flex flex-col justify-between p-16 w-full text-on-primary-fixed">
+        <div>
+          <span class="text-xl font-bold tracking-tighter">The Ethereal Concierge</span>
+        </div>
+        <div class="max-w-md">
+          <h2 class="text-5xl font-extrabold tracking-tight leading-tight mb-6">Your Sanctuary Awaits.</h2>
+          <p class="text-lg font-light leading-relaxed opacity-80">Experience the art of mindful hospitality
+            where every detail is curated for your absolute serenity.</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="h-[1px] w-12 bg-on-primary-fixed-variant opacity-40"></div>
+          <span class="text-xs tracking-[0.2em] uppercase">Est. 2024</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Side: Login Form - giữ nguyên giao diện gốc -->
+    <section class="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-8 md:p-12 lg:p-24 bg-surface">
+      <div class="w-full max-w-md space-y-10">
+
+        <!-- Header - giữ nguyên -->
+        <header class="text-center md:text-left">
+          <h1 class="text-3xl font-extrabold tracking-tight text-on-surface mb-2">Welcome Back</h1>
+          <p class="text-on-surface-variant font-light tracking-wide">Please enter your details to access your
+            retreat.</p>
+        </header>
+
+        <!-- Login Form - giữ nguyên giao diện gốc -->
+        <form id="loginForm" class="space-y-5" novalidate>
+          <div class="space-y-2">
+            <label class="text-[10px] tracking-[0.15em] font-bold text-on-surface-variant uppercase ml-1"
+              for="email">Username or Email</label>
+            <input id="f_email" type="email" placeholder="Enter your email address" autocomplete="email"
+              class="w-full bg-surface-container-highest/50 border-none rounded-xl py-4 px-6 text-on-surface placeholder:text-outline/50 form-input-focus transition-all duration-300" />
+            <p id="err_email" class="hidden text-xs ml-1" style="color:#a83836;"></p>
+          </div>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center ml-1">
+              <label class="text-[10px] tracking-[0.15em] font-bold text-on-surface-variant uppercase"
+                for="password">Password</label>
+              <a class="text-[10px] font-bold text-primary hover:text-primary-dim transition-colors"
+                href="#">Forgot?</a>
+            </div>
+            <div class="relative">
+              <input id="f_password" type="password" placeholder="••••••••" autocomplete="current-password"
+                class="w-full bg-surface-container-highest/50 border-none rounded-xl py-4 px-6 pr-14 text-on-surface placeholder:text-outline/50 form-input-focus transition-all duration-300" />
+              <button type="button" id="pwToggle" class="pw-btn" aria-label="Hiện/ẩn mật khẩu">
+                <span class="material-symbols-outlined" id="pwIcon" style="font-size:20px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;">visibility_off</span>
+              </button>
+            </div>
+            <p id="err_password" class="hidden text-xs ml-1" style="color:#a83836;"></p>
+          </div>
+
+          <!-- Checkbox - giữ nguyên -->
+          <div class="flex items-center gap-3 px-1">
+            <div class="relative flex items-center">
+              <input id="f_remember" type="checkbox"
+                class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20 bg-surface" />
+            </div>
+            <label class="text-sm text-on-surface-variant font-medium select-none" for="f_remember">Remember me</label>
+          </div>
+
+          <!-- Error banner -->
+          <div id="errBanner" class="hidden rounded-xl px-4 py-3 flex items-start gap-2.5"
+               style="background:rgba(168,56,54,.1);border:1px solid rgba(168,56,54,.25);">
+            <span class="material-symbols-outlined mt-0.5" style="font-size:18px;color:#a83836;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">error</span>
+            <p id="errBannerText" class="text-sm font-medium leading-snug" style="color:#a83836;"></p>
+          </div>
+
+          <!-- Submit Button - giữ nguyên -->
+          <button id="submitBtn" type="submit"
+            class="w-full luxury-gradient text-on-primary py-4 rounded-full font-bold tracking-widest uppercase text-xs shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all duration-300 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2">
+            <span id="btnLabel">Sign In</span>
+          </button>
+        </form>
+
+        <!-- Footer - giữ nguyên, thêm link mở modal đăng ký -->
+        <footer class="text-center pt-4">
+          <p class="text-sm text-on-surface-variant font-medium">
+            Don't have an account?
+            <a id="openRegisterLink" href="#"
+               class="text-primary font-bold ml-1 hover:underline underline-offset-4 decoration-2">Create an account</a>
+          </p>
+        </footer>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Global Layout Decorative Elements - giữ nguyên -->
+  <div class="fixed top-8 left-8 md:top-12 md:left-12 pointer-events-none md:hidden">
+    <span class="text-lg font-bold tracking-tighter text-on-surface">The Ethereal Concierge</span>
+  </div>
+</body>
+
+<script>
+const API_BASE = 'http://localhost:5279';
+const KEYS = { token:'hm_access_token', refresh:'hm_refresh_token', user:'hm_user', email:'hm_remember_email' };
+
+// ════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════
+const TOAST_STYLE = {
+  Success: { bg:'#1e3a2f', border:'#2d5a45', text:'#a7f3d0', prog:'#34d399', icon:'check_circle' },
+  Error:   { bg:'#3a1e1e', border:'#5a2d2d', text:'#fca5a5', prog:'#f87171', icon:'error' },
+  Warning: { bg:'#3a2e1a', border:'#5a4820', text:'#fcd34d', prog:'#fbbf24', icon:'warning' },
+  Info:    { bg:'#1e2f3a', border:'#2d4a5a', text:'#93c5fd', prog:'#60a5fa', icon:'info' },
+};
+const ACTION_LABELS = {
+  LoginAccount:'Đăng nhập', CreateAccount:'Tạo tài khoản', UpdateAccount:'Cập nhật',
+  ResetPassword:'Đổi mật khẩu', LockAccount:'Khóa tài khoản', UnlockAccount:'Mở khóa',
+};
+
+// Inject @keyframes toastProgress
+const _ks = document.createElement('style');
+_ks.textContent = '@keyframes toastProgress{from{width:100%}to{width:0}}';
+document.head.appendChild(_ks);
+
+function showToast(msg, type='Success', action=null, dur=4500) {
+  const s    = TOAST_STYLE[type] || TOAST_STYLE.Info;
+  const wrap = document.getElementById('toastContainer');
+  const el   = document.createElement('div');
+  const actTag = action && ACTION_LABELS[action]
+    ? `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.5;margin-bottom:2px;">${ACTION_LABELS[action]}</div>`
+    : '';
+  el.style.cssText = `background:${s.bg};border:1px solid ${s.border};color:${s.text};border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3);`;
+  el.className = 'pointer-events-auto toast-in';
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:13px 13px 9px;">
+      <span class="material-symbols-outlined" style="font-size:19px;flex-shrink:0;margin-top:1px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">${s.icon}</span>
+      <div style="flex:1;min-width:0;">${actTag}<p style="font-size:13px;font-weight:600;line-height:1.4;margin:0;">${escHtml(msg)}</p></div>
+      <button onclick="this.closest('.pointer-events-auto').remove()"
+              style="background:none;border:none;cursor:pointer;opacity:.4;padding:2px;flex-shrink:0;color:inherit;"
+              onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">
+        <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;">close</span>
+      </button>
+    </div>
+    <div style="margin:0 12px 9px;height:3px;border-radius:9999px;background:rgba(255,255,255,.1);overflow:hidden;">
+      <div style="height:100%;border-radius:9999px;background:${s.prog};animation:toastProgress ${dur}ms linear forwards;"></div>
+    </div>`;
+  wrap.appendChild(el);
+  const t = setTimeout(() => {
+    el.classList.replace('toast-in','toast-out');
+    setTimeout(() => el.remove(), 300);
+  }, dur);
+  el._t = t;
+}
+function showNotif(notif, fallbackMsg='', fallbackType='Info') {
+  if (notif?.message) showToast(notif.message, notif.type || fallbackType, notif.action || null);
+  else if (fallbackMsg) showToast(fallbackMsg, fallbackType);
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ════════════════════════════════════
+//  PASSWORD TOGGLE
+// ════════════════════════════════════
+function pwToggle(inputId, iconId) {
+  const inp = document.getElementById(inputId);
+  const ico = document.getElementById(iconId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  ico.textContent = show ? 'visibility' : 'visibility_off';
+}
+document.getElementById('pwToggle').onclick  = () => pwToggle('f_password','pwIcon');
+document.getElementById('r_pwBtn').onclick   = () => pwToggle('r_password','r_pwIcon');
+document.getElementById('r_cpwBtn').onclick  = () => pwToggle('r_confirmPw','r_cpwIcon');
+
+// ════════════════════════════════════
+//  REMEMBER EMAIL
+// ════════════════════════════════════
+const savedEmail = localStorage.getItem(KEYS.email);
+if (savedEmail) { document.getElementById('f_email').value = savedEmail; document.getElementById('f_remember').checked = true; }
+
+// ════════════════════════════════════
+//  REGISTER MODAL
+// ════════════════════════════════════
+document.getElementById('openRegisterLink').addEventListener('click', e => {
+  e.preventDefault();
+  document.getElementById('registerModal').classList.remove('hidden');
+  document.getElementById('registerModal').classList.add('flex');
+});
+function closeRegister() {
+  document.getElementById('registerModal').classList.add('hidden');
+  document.getElementById('registerModal').classList.remove('flex');
+  document.getElementById('registerForm').reset();
+  clearRegErr();
+}
+document.getElementById('closeRegisterModal').onclick = closeRegister;
+document.getElementById('cancelRegisterBtn').onclick  = closeRegister;
+document.getElementById('registerModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeRegister();
+});
+
+// ════════════════════════════════════
+//  CLEAR ERRORS
+// ════════════════════════════════════
+function clearLoginErr() {
+  ['f_email','f_password'].forEach(id => {
+    document.getElementById(id).style.border = '';
+    document.getElementById(id).style.background = '';
+  });
+  document.getElementById('err_email').classList.add('hidden');
+  document.getElementById('err_password').classList.add('hidden');
+  document.getElementById('errBanner').classList.add('hidden');
+}
+function clearRegErr() {
+  ['r_err_fullName','r_err_email','r_err_password','r_err_confirmPw'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+    document.getElementById(id).textContent = '';
+  });
+  document.getElementById('r_errBanner').classList.add('hidden');
+}
+function setInputErr(el, errEl, msg) {
+  el.style.border = '1.5px solid rgba(168,56,54,.6)';
+  el.style.background = 'rgba(168,56,54,.05)';
+  errEl.textContent = msg;
+  errEl.classList.remove('hidden');
+}
+
+// Clear on type
+['f_email','f_password'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById(id).style.border = '';
+    document.getElementById(id).style.background = '';
+    document.getElementById(`err_${id.replace('f_','')}`).classList.add('hidden');
+    document.getElementById('errBanner').classList.add('hidden');
+  });
+});
+
+// ════════════════════════════════════
+//  LOADING
+// ════════════════════════════════════
+function setLoading(btnId, labelId, on, defaultLabel) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = on;
+  document.getElementById(labelId).innerHTML = on ? `<span class="spinner"></span>Đang xử lý…` : defaultLabel;
+}
+
+// ════════════════════════════════════
+//  SAVE + REDIRECT
+// ════════════════════════════════════
+function saveAndRedirect(data, remember) {
+  const store = remember ? localStorage : sessionStorage;
+  store.setItem(KEYS.token,   data.token);
+  store.setItem(KEYS.refresh, data.refreshToken);
+  store.setItem(KEYS.user, JSON.stringify({
+    userId:      data.userId,
+    fullName:    data.fullName,
+    email:       data.email,
+    role:        data.role,
+    avatarUrl:   data.avatarUrl,
+    permissions: data.permissions || [],
+  }));
+  setTimeout(() => window.location.href = 'UserManagement.html', 1000);
+}
+
+// ════════════════════════════════════
+//  LOGIN — POST /api/Auth/login
+// ════════════════════════════════════
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  clearLoginErr();
+
+  const email    = document.getElementById('f_email').value.trim();
+  const password = document.getElementById('f_password').value;
+  const remember = document.getElementById('f_remember').checked;
+  let ok = true;
+
+  if (!email) { setInputErr(document.getElementById('f_email'), document.getElementById('err_email'), 'Email không được để trống.'); ok=false; }
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setInputErr(document.getElementById('f_email'), document.getElementById('err_email'), 'Email không hợp lệ.'); ok=false; }
+  if (!password) { setInputErr(document.getElementById('f_password'), document.getElementById('err_password'), 'Mật khẩu không được để trống.'); ok=false; }
+
+  if (!ok) {
+    document.getElementById('loginForm').classList.add('shake');
+    document.getElementById('loginForm').addEventListener('animationend', () => document.getElementById('loginForm').classList.remove('shake'), {once:true});
+    return;
+  }
+
+  setLoading('submitBtn','btnLabel',true,'Sign In');
+  try {
+    const res  = await fetch(`${API_BASE}/api/Auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const msg = data?.message || 'Email hoặc mật khẩu không đúng.';
+      showNotif(data?.notification, msg, 'Error');
+      document.getElementById('errBannerText').textContent = msg;
+      document.getElementById('errBanner').classList.remove('hidden');
+      document.getElementById('f_email').style.border = '1.5px solid rgba(168,56,54,.6)';
+      document.getElementById('f_email').style.background = 'rgba(168,56,54,.05)';
+      document.getElementById('f_password').style.border = '1.5px solid rgba(168,56,54,.6)';
+      document.getElementById('f_password').style.background = 'rgba(168,56,54,.05)';
+      document.getElementById('loginForm').classList.add('shake');
+      document.getElementById('loginForm').addEventListener('animationend', () => document.getElementById('loginForm').classList.remove('shake'), {once:true});
+      setLoading('submitBtn','btnLabel',false,'Sign In');
+      return;
+    }
+
+    showNotif(data.notification, `Chào mừng, ${data.fullName}!`, 'Success');
+    if (remember) localStorage.setItem(KEYS.email, email);
+    else          localStorage.removeItem(KEYS.email);
+    saveAndRedirect(data, remember);
+  } catch (_) {
+    showToast('Không thể kết nối máy chủ. Kiểm tra lại mạng.', 'Error');
+    setLoading('submitBtn','btnLabel',false,'Sign In');
+  }
+});
+
+// ════════════════════════════════════
+//  REGISTER — POST /api/Auth/register
+// ════════════════════════════════════
+document.getElementById('registerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  clearRegErr();
+
+  const fullName  = document.getElementById('r_fullName').value.trim();
+  const email     = document.getElementById('r_email').value.trim();
+  const phone     = document.getElementById('r_phone').value.trim() || null;
+  const password  = document.getElementById('r_password').value;
+  const confirmPw = document.getElementById('r_confirmPw').value;
+  let ok = true;
+
+  const rErr = (id, msg) => { const el=document.getElementById(id); el.textContent=msg; el.classList.remove('hidden'); ok=false; };
+  if (!fullName) rErr('r_err_fullName','Họ và tên không được để trống.');
+  if (!email)    rErr('r_err_email','Email không được để trống.');
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) rErr('r_err_email','Email không hợp lệ.');
+  if (!password) rErr('r_err_password','Mật khẩu không được để trống.');
+  else if (password.length < 6) rErr('r_err_password','Mật khẩu phải ít nhất 6 ký tự.');
+  if (!confirmPw || confirmPw !== password) rErr('r_err_confirmPw','Mật khẩu xác nhận không khớp.');
+
+  if (!ok) {
+    document.getElementById('registerForm').classList.add('shake');
+    document.getElementById('registerForm').addEventListener('animationend', () => document.getElementById('registerForm').classList.remove('shake'), {once:true});
+    return;
+  }
+
+  setLoading('r_submitBtn','r_btnLabel',true,'Tạo tài khoản');
+  try {
+    const res  = await fetch(`${API_BASE}/api/Auth/register`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ fullName, email, password, confirmPassword: confirmPw, phone }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const msg = data?.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+      showNotif(data?.notification, msg, 'Error');
+      document.getElementById('r_errText').textContent = msg;
+      document.getElementById('r_errBanner').classList.remove('hidden');
+      setLoading('r_submitBtn','r_btnLabel',false,'Tạo tài khoản');
+      return;
+    }
+
+    showNotif(data.notification, `Tài khoản đã được tạo! Chào mừng, ${data.fullName}!`, 'Success');
+    closeRegister();
+    saveAndRedirect(data, false);
+  } catch (_) {
+    showToast('Không thể kết nối máy chủ. Kiểm tra lại mạng.', 'Error');
+    setLoading('r_submitBtn','r_btnLabel',false,'Tạo tài khoản');
+  }
+});
+
+// Redirect nếu đã đăng nhập
+(function() {
+  const t = localStorage.getItem(KEYS.token) || sessionStorage.getItem(KEYS.token);
+  if (t) window.location.href = 'UserManagement.html';
+})();
+</script>
+</html>

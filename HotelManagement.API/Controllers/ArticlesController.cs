@@ -8,6 +8,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Core.Models.Enum;
 
 namespace HotelManagement.API.Controllers;
 
@@ -165,12 +166,19 @@ public class ArticlesController : ControllerBase
 
         _db.Articles.Add(article);
         await _db.SaveChangesAsync();
+        var notification = new HotelManagement.Core.Models.Enum.Notification
+        {
+            Title = "Bài viết mới được tạo",
+            Message = $"Bài viết '{article.Title}' đã được tạo với ID #{article.Id}.",
+            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enum.NotificationAction.CreateArticle
+        };
 
         return CreatedAtAction(nameof(GetBySlug),
             new { slug = article.Slug },
             new
             {
-                message = "Tạo bài viết thành công.",
+                notification,
                 article.Id,
                 article.Title,
                 article.Slug,
@@ -240,10 +248,17 @@ public class ArticlesController : ControllerBase
             article.MetaDescription = request.MetaDescription.Trim();
 
         await _db.SaveChangesAsync();
+        var Notification = new Notification
+        {
+            Title = "Bài viết đã được cập nhật",
+            Message = $"Bài viết '{article.Title}' đã được cập nhật thành công.",
+            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enum.NotificationAction.UpdateArticle
+        };
 
         return Ok(new
         {
-            message = "Cập nhật bài viết thành công.",
+            Notification,
             article.Id,
             article.Title,
             article.Slug,
@@ -265,8 +280,14 @@ public class ArticlesController : ControllerBase
 
         article.IsActive = false;
         await _db.SaveChangesAsync();
-
-        return Ok(new { message = $"Đã xoá bài viết #{id} thành công." });
+        var Notification = new Notification
+        {
+            Title = "Bài viết đã bị xoá",
+            Message = $"Bài viết '{article.Title}' đã được xoá thành công.",
+            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enum.NotificationAction.DeleteArticle
+        };
+        return Ok(new { Notification });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -284,11 +305,16 @@ public class ArticlesController : ControllerBase
  
         article.IsActive = !article.IsActive;
         await _db.SaveChangesAsync();
- 
-        var action = article.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        var Notification = new Notification
+        {
+            Title = $"Bài viết đã được {(article.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
+            Message = $"Bài viết '{article.Title}' đã {(article.IsActive ? "được kích hoạt" : "bị vô hiệu hóa")}.",
+            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
+            Action = article.IsActive ? HotelManagement.Core.Models.Enum.NotificationAction.EnableCategory : HotelManagement.Core.Models.Enum.NotificationAction.DisableCategory
+        };
         return Ok(new
         {
-            message  = $"Đã {action} bài viết '{article.Title}'.",
+            Notification,
             article.Id,
             article.Title,
             article.IsActive
@@ -345,10 +371,16 @@ public class ArticlesController : ControllerBase
         article.ThumbnailUrl        = uploadResult.SecureUrl.ToString();
         article.CloudinaryPublicId  = uploadResult.PublicId;
         await _db.SaveChangesAsync();
-
+        var notification = new Notification
+        {
+            Title = "Ảnh bìa đã được cập nhật",
+            Message = $"Ảnh bìa của bài viết '{article.Title}' đã được cập nhật thành công.",
+            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enum.NotificationAction.UpdateArticle
+        };
         return Ok(new
         {
-            message      = "Upload ảnh bìa thành công.",
+            Notification = notification,
             thumbnailUrl = article.ThumbnailUrl
         });
     }

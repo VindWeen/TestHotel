@@ -443,16 +443,3 @@ dotnet run --project HotelManagement.API
 ```
 
 ---
-
-## 10. Những Gì Chưa Làm / TODO
-
-- [ ] **InvoicesController** — tạo và quản lý hóa đơn
-- [ ] **ServicesController** — CRUD dịch vụ và danh mục  
-- [ ] **OrderServicesController** — đặt dịch vụ trong phòng
-- [ ] **ShiftsController** — quản lý ca làm việc nhân viên
-- [ ] **LoyaltyController** — xem và quy đổi điểm thưởng
-- [ ] **ReportsController** — dashboard và báo cáo thống kê
-- [ ] **Tạo Invoice** sau check-out (`// TODO` trong BookingController)
-- [ ] **Email notification** — xác nhận booking, thông báo review bị từ chối
-- [ ] **Rate limiting** — giới hạn API calls
-- [ ] **Unit tests / Integration tests**
