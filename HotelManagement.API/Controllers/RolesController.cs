@@ -100,6 +100,28 @@ public class RolesController : ControllerBase
 
         return Ok(new { permissions });
     }
+
+    /// <summary>
+    /// Trả về danh sách tất cả roles.
+    /// FE dùng để populate dropdown khi tạo/sửa user.
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(PermissionCodes.ManageRoles)]
+    public async Task<IActionResult> GetAll()
+    {
+        var roles = await _db.Roles
+            .AsNoTracking()
+            .OrderBy(r => r.Id)
+            .Select(r => new
+            {
+                r.Id,
+                r.Name,
+                r.Description
+            })
+            .ToListAsync();
+    
+        return Ok(roles);
+    }
 }
 
 public record AssignPermissionRequest(int RoleId, int PermissionId, bool Grant);

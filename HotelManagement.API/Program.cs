@@ -13,6 +13,21 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── CORS ────────────────────────────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",   // Vite dev
+                "http://localhost:3000"    // fallback
+              )
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 
 // ── Redis ──────────────────────────────────────────────────
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -144,6 +159,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();  // mặc định mở tại /swagger
 }
+
+app.UseCors("AllowFrontend");
 
 // Thứ tự PHẢI đúng: Authentication trước Authorization
 app.UseAuthentication();
