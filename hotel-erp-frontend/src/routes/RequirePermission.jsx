@@ -1,0 +1,1 @@
+// Kiểm tra permission cụ thể, chặn nếu không đủ quyền
