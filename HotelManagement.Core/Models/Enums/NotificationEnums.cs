@@ -1,4 +1,4 @@
-namespace HotelManagement.Core.Models.Enum
+namespace HotelManagement.Core.Models.Enums
 {
     public class Notification
     {

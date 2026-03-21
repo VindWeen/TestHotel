@@ -6,6 +6,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Core.Models.Enums
 
 namespace HotelManagement.API.Controllers;
 
@@ -102,12 +103,12 @@ public class ArticleCategoriesController : ControllerBase
         _db.ArticleCategories.Add(category);
         await _db.SaveChangesAsync();
 
-        var Notification = new Core.Models.Enum.Notification
+        var Notification = new Core.Models.Enums.Notification
         {
             Title = "Tạo danh mục bài viết",
             Message = $"Danh mục '{category.Name}' đã được tạo thành công.",
-            Type = Core.Models.Enum.NotificationType.Success,
-            Action = Core.Models.Enum.NotificationAction.CreateCategory
+            Type = Core.Models.Enums.NotificationType.Success,
+            Action = Core.Models.Enums.NotificationAction.CreateCategory
         };
 
         return CreatedAtAction(nameof(GetById),
@@ -155,12 +156,12 @@ public class ArticleCategoriesController : ControllerBase
         category.Name = request.Name.Trim();
 
         await _db.SaveChangesAsync();
-        var Notification = new Core.Models.Enum.Notification
+        var Notification = new Core.Models.Enums.Notification
         {
             Title = "Cập nhật danh mục bài viết",
             Message = $"Danh mục '{category.Name}' đã được cập nhật thành công.",
-            Type = Core.Models.Enum.NotificationType.Success,
-            Action = Core.Models.Enum.NotificationAction.UpdateCategory
+            Type = Core.Models.Enums.NotificationType.Success,
+            Action = Core.Models.Enums.NotificationAction.UpdateCategory
         };
         return Ok(new
         {
@@ -193,12 +194,12 @@ public class ArticleCategoriesController : ControllerBase
         category.IsActive = false;
         await _db.SaveChangesAsync();
 
-        var Notification = new Core.Models.Enum.Notification
+        var Notification = new Core.Models.Enums.Notification
         {
             Title = "Xoá danh mục bài viết",
             Message = $"Danh mục '{category.Name}' đã được xoá thành công. Có {articleCount} bài viết đang sử dụng danh mục này.",
-            Type = Core.Models.Enum.NotificationType.Success,
-            Action = Core.Models.Enum.NotificationAction.DeleteCategory
+            Type = Core.Models.Enums.NotificationType.Success,
+            Action = Core.Models.Enums.NotificationAction.DeleteCategory
         };
 
         return Ok(new
@@ -224,12 +225,12 @@ public class ArticleCategoriesController : ControllerBase
         category.IsActive = !category.IsActive;
         await _db.SaveChangesAsync();
 
-        var Notification = new Core.Models.Enum.Notification
+        var Notification = new Core.Models.Enums.Notification
         {
             Title = $"Danh mục đã được {(category.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
             Message = $"Danh mục '{category.Name}' đã {(category.IsActive ? "được kích hoạt" : "bị vô hiệu hóa")}.",
-            Type = Core.Models.Enum.NotificationType.Success,
-            Action = category.IsActive ? Core.Models.Enum.NotificationAction.EnableCategory : Core.Models.Enum.NotificationAction.DisableCategory
+            Type = Core.Models.Enums.NotificationType.Success,
+            Action = category.IsActive ? Core.Models.Enums.NotificationAction.EnableCategory : Core.Models.Enums.NotificationAction.DisableCategory
         };
         return Ok(new
         {

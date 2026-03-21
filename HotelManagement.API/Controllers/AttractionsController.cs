@@ -1,6 +1,6 @@
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
-using HotelManagement.Core.Models.Enum;
+using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

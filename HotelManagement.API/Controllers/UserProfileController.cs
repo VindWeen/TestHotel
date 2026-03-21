@@ -3,7 +3,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HotelManagement.Core.Models.Enum;
+using HotelManagement.Core.Models.Enums;
 
 namespace HotelManagement.API.Controllers;
 

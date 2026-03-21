@@ -8,7 +8,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HotelManagement.Core.Models.Enum;
+using HotelManagement.Core.Models.Enums;
 
 namespace HotelManagement.API.Controllers;
 
@@ -166,12 +166,12 @@ public class ArticlesController : ControllerBase
 
         _db.Articles.Add(article);
         await _db.SaveChangesAsync();
-        var notification = new HotelManagement.Core.Models.Enum.Notification
+        var notification = new HotelManagement.Core.Models.Enums.Notification
         {
             Title = "Bài viết mới được tạo",
             Message = $"Bài viết '{article.Title}' đã được tạo với ID #{article.Id}.",
-            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
-            Action = HotelManagement.Core.Models.Enum.NotificationAction.CreateArticle
+            Type = HotelManagement.Core.Models.Enums.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enums.NotificationAction.CreateArticle
         };
 
         return CreatedAtAction(nameof(GetBySlug),
@@ -252,8 +252,8 @@ public class ArticlesController : ControllerBase
         {
             Title = "Bài viết đã được cập nhật",
             Message = $"Bài viết '{article.Title}' đã được cập nhật thành công.",
-            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
-            Action = HotelManagement.Core.Models.Enum.NotificationAction.UpdateArticle
+            Type = HotelManagement.Core.Models.Enums.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enums.NotificationAction.UpdateArticle
         };
 
         return Ok(new
@@ -284,8 +284,8 @@ public class ArticlesController : ControllerBase
         {
             Title = "Bài viết đã bị xoá",
             Message = $"Bài viết '{article.Title}' đã được xoá thành công.",
-            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
-            Action = HotelManagement.Core.Models.Enum.NotificationAction.DeleteArticle
+            Type = HotelManagement.Core.Models.Enums.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enums.NotificationAction.DeleteArticle
         };
         return Ok(new { Notification });
     }
@@ -309,8 +309,8 @@ public class ArticlesController : ControllerBase
         {
             Title = $"Bài viết đã được {(article.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
             Message = $"Bài viết '{article.Title}' đã {(article.IsActive ? "được kích hoạt" : "bị vô hiệu hóa")}.",
-            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
-            Action = article.IsActive ? HotelManagement.Core.Models.Enum.NotificationAction.EnableCategory : HotelManagement.Core.Models.Enum.NotificationAction.DisableCategory
+            Type = HotelManagement.Core.Models.Enums.NotificationType.Success,
+            Action = article.IsActive ? HotelManagement.Core.Models.Enums.NotificationAction.EnableCategory : HotelManagement.Core.Models.Enums.NotificationAction.DisableCategory
         };
         return Ok(new
         {
@@ -375,8 +375,8 @@ public class ArticlesController : ControllerBase
         {
             Title = "Ảnh bìa đã được cập nhật",
             Message = $"Ảnh bìa của bài viết '{article.Title}' đã được cập nhật thành công.",
-            Type = HotelManagement.Core.Models.Enum.NotificationType.Success,
-            Action = HotelManagement.Core.Models.Enum.NotificationAction.UpdateArticle
+            Type = HotelManagement.Core.Models.Enums.NotificationType.Success,
+            Action = HotelManagement.Core.Models.Enums.NotificationAction.UpdateArticle
         };
         return Ok(new
         {
