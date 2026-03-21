@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>The Ethereal Concierge | Welcome</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-secondary-container": "#6d4849",
+                        "on-tertiary": "#fff7f3",
+                        "surface-container-highest": "#f2f2f2",
+                        "primary-dim": "#43574f",
+                        "on-background": "#31332e",
+                        "on-surface": "#1a1a1a",
+                        "on-surface-variant": "#5e6059",
+                        "on-primary-fixed": "#2f433c",
+                        "outline-variant": "#d1d1cc",
+                        "on-tertiary-fixed": "#4c433b",
+                        "inverse-surface": "#0e0e0c",
+                        "on-primary-container": "#42564e",
+                        "error": "#a83836",
+                        "inverse-primary": "#e7fff3",
+                        "background": "#ffffff",
+                        "on-error-container": "#6e0a12",
+                        "surface-container-high": "#f9f9f9",
+                        "secondary-fixed": "#ffdad9",
+                        "on-tertiary-container": "#5f554d",
+                        "on-error": "#fff7f6",
+                        "tertiary": "#675d55",
+                        "secondary-container": "#ffdad9",
+                        "error-container": "#fa746f",
+                        "on-primary": "#e7fef3",
+                        "primary": "#4f645b",
+                        "on-tertiary-fixed-variant": "#695f56",
+                        "on-secondary-fixed-variant": "#775252",
+                        "surface-bright": "#ffffff",
+                        "surface-variant": "#f2f2f2",
+                        "tertiary-container": "#f7e8dd",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-dim": "#6e494a",
+                        "surface-container": "#fcfcfc",
+                        "primary-fixed": "#d1e8dd",
+                        "on-secondary-fixed": "#583637",
+                        "surface-tint": "#4f645b",
+                        "surface-container-low": "#ffffff",
+                        "error-dim": "#67040d",
+                        "tertiary-fixed": "#f7e8dd",
+                        "surface-dim": "#f5f5f5",
+                        "primary-container": "#d1e8dd",
+                        "tertiary-dim": "#5b5149",
+                        "surface": "#ffffff",
+                        "primary-fixed-dim": "#c3dacf",
+                        "outline": "#7a7b75",
+                        "inverse-on-surface": "#9e9d99",
+                        "tertiary-fixed-dim": "#e8dacf",
+                        "secondary-fixed-dim": "#fac8c8",
+                        "secondary": "#7b5556",
+                        "on-secondary": "#fff7f6",
+                        "on-primary-fixed-variant": "#4b6057"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "3xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Custom scrollbar for the long registration form */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #f2f2f2;
+            border-radius: 10px;
+        }
+
+        /* Toggle State Logic */
+        #auth-toggle:checked~.form-container .login-view {
+            display: none;
+        }
+
+        #auth-toggle:checked~.form-container .signup-view {
+            display: flex;
+        }
+
+        #auth-toggle:checked~.image-panel {
+            transform: translateX(-100%);
+        }
+
+        #auth-toggle:checked~.form-container {
+            transform: translateX(100%);
+        }
+
+        /* Smoothing the split screen swap */
+        .image-panel,
+        .form-container {
+            transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1);
+        }
+
+        @media (max-width: 768px) {
+
+            #auth-toggle:checked~.image-panel,
+            #auth-toggle:checked~.form-container {
+                transform: none;
+            }
+
+            .image-panel {
+                display: none;
+            }
+
+            .form-container {
+                width: 100% !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="font-body text-on-surface antialiased overflow-hidden p-0 md:p-6 lg:p-8 bg-[#8DA399]/20">
+    <!-- Hidden Toggle Control -->
+    <input class="hidden" id="auth-toggle" type="checkbox" />
+    <!-- Main wrapper with rounding to act as the "container card" -->
+    <main
+        class="relative flex min-h-screen md:min-h-0 md:h-[calc(100vh-3rem)] lg:h-[calc(100vh-4rem)] w-full overflow-hidden md:rounded-3xl shadow-2xl bg-surface border border-outline-variant/20">
+        <!-- Image Panel (Right side by default) -->
+        <section
+            class="image-panel absolute right-0 top-0 z-20 hidden h-full w-1/2 md:block overflow-hidden bg-surface-container">
+            <div class="relative h-full w-full">
+                <!-- Rounding applied to the image and its container to match "more rounding" request -->
+                <img alt="Serene luxury hotel suite with ocean view" class="h-full w-full object-cover"
+                    data-alt="Minimalist luxury hotel room with panoramic sea view"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUXLirJlWJiy10WHJheRqqrv4EtlspwBjVQDI4G6WCsDBgXSUvSBwsdAfbo1-m87D-XEPsKtrjpwhxTzc3pgZP9XFBzMezt71X_tkCybCWbpHGllEvbv80ia3FiBv-AIqMTvhmPr03oG0QVMqWvBFLx-M0nnp2W6iXCK0x8RIcmfkjFA9EvE5ATbCrXXB4GhG4amZQiP1h9FRuarHM9n2EbwGdH9Gut0CweAjs6Ot_QKkIaxLUp4dVmQJ9QM8EssZIC-xjI6F1bnw" />
+                <!-- Brand Overlay -->
+                <div class="absolute inset-0 bg-primary/10 backdrop-blur-[2px]"></div>
+                <div class="absolute inset-0 flex flex-col justify-between p-16 text-on-primary">
+                    <div class="space-y-2">
+                        <span class="font-label text-xs tracking-[0.3em] uppercase opacity-80">Welcome to</span>
+                        <h1 class="font-headline text-4xl font-extrabold tracking-tighter">The Ethereal Concierge</h1>
+                    </div>
+                    <div class="max-w-md space-y-6">
+                        <p class="font-headline text-2xl leading-relaxed font-light italic">
+                            "A digital sanctuary crafted for the discerning traveler, where every detail is a breath of
+                            fresh air."
+                        </p>
+                        <div class="flex items-center gap-4">
+                            <div class="h-[1px] w-12 bg-on-primary/40"></div>
+                            <span class="font-label text-xs tracking-widest uppercase">Est. 2024</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Form Panel (Left side by default) -->
+        <section
+            class="form-container relative z-10 flex h-full w-full flex-col items-center justify-center bg-white px-6 md:w-1/2 lg:px-24">
+            <!-- Mobile Brand Header -->
+            <div class="mb-12 flex flex-col items-center md:hidden">
+                <h1 class="font-headline text-2xl font-extrabold tracking-tighter text-primary">The Ethereal Concierge
+                </h1>
+            </div>
+            <!-- LOGIN VIEW -->
+            <div class="login-view flex w-full max-w-sm flex-col space-y-8">
+                <div class="space-y-2">
+                    <h2 class="font-headline text-3xl font-bold text-on-surface">Sign In</h2>
+                    <p class="text-on-surface-variant font-light">Return to your personal sanctuary.</p>
+                </div>
+                <form class="space-y-5" onsubmit="return false;">
+                    <div class="space-y-1">
+                        <label
+                            class="font-label text-xs font-semibold uppercase tracking-wider text-on-surface-variant px-1">Username
+                            or Email</label>
+                        <input
+                            class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-5 py-4 text-sm focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-outline"
+                            placeholder="Enter your identity" type="text" />
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center px-1">
+                            <label
+                                class="font-label text-xs font-semibold uppercase tracking-wider text-on-surface-variant">Password</label>
+                            <a class="text-[10px] font-bold uppercase tracking-tighter text-primary/70 hover:text-primary transition-colors"
+                                href="#">Forgot?</a>
+                        </div>
+                        <input
+                            class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-5 py-4 text-sm focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-outline"
+                            placeholder="••••••••" type="password" />
+                    </div>
+                    <button
+                        class="w-full rounded-2xl bg-primary py-4 font-label text-sm font-bold uppercase tracking-widest text-on-primary shadow-lg shadow-primary/20 hover:bg-primary-dim transition-all active:scale-[0.98]">
+                        Sign In
+                    </button>
+                </form>
+                <div class="relative py-4">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-outline-variant/30"></div>
+                    </div>
+                    <!-- <div class="relative flex justify-center text-xs uppercase tracking-widest"><span
+                            class="bg-white px-4 text-outline">or continue with</span></div> -->
+                </div>
+                <!-- <div class="grid grid-cols-2 gap-4">
+                    <button
+                        class="flex items-center justify-center gap-2 rounded-2xl border border-outline-variant/20 py-3 text-sm font-medium hover:bg-surface-container-low transition-colors">
+                        <img alt="Google" class="h-4 w-4"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpI1R6XLFJ8XtLKHL5Rw_N4X4cR0B_QbalvQFvq7GdOvLpggTeP_nCbkYliCfn3ibD8BnNrqkxBdMMuUrNbYcaERkd3L76zYLSEVp41qt1MbKifgQVYfTBgkQS4TvCjyHQ8ewcQ251zL2eB6QwuqEoB7ou03QklqKmKp2Q2R5FMz6qEfub7p-9e5GG3dYhnzsa_QXRXSif2JWtEG09_glXmlaHxZC6hPZIPD5ObJSDJNK8qk8o_g2UYidXCwKnW-cVBHfUeyYecKk" />
+                        <span class="text-on-surface-variant">Google</span>
+                    </button>
+                    <button
+                        class="flex items-center justify-center gap-2 rounded-2xl border border-outline-variant/20 py-3 text-sm font-medium hover:bg-surface-container-low transition-colors">
+                        <span class="material-symbols-outlined text-lg">ios</span>
+                        <span class="text-on-surface-variant">Apple</span>
+                    </button>
+                </div> -->
+                <p class="text-center text-sm text-on-surface-variant">
+                    Don't have an account?
+                    <label class="cursor-pointer font-bold text-primary hover:underline underline-offset-4"
+                        for="auth-toggle">Sign Up</label>
+                </p>
+            </div>
+            <!-- SIGN UP VIEW -->
+            <div class="signup-view hidden flex-col w-full max-w-md space-y-8 py-12">
+                <div class="space-y-2">
+                    <h2 class="font-headline text-3xl font-bold text-on-surface">Join the Circle</h2>
+                    <p class="text-on-surface-variant font-light">Experience luxury redefined.</p>
+                </div>
+                <form class="custom-scrollbar max-h-[614px] overflow-y-auto space-y-6 pr-4" onsubmit="return false;">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="space-y-1">
+                            <label
+                                class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Full
+                                Name</label>
+                            <input
+                                class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all"
+                                placeholder="John Doe" type="text" />
+                        </div>
+                        <div class="space-y-1">
+                            <label
+                                class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Email
+                                Address</label>
+                            <input
+                                class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all"
+                                placeholder="john@ethereal.com" type="email" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="space-y-1">
+                            <label
+                                class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Phone
+                                Number</label>
+                            <input
+                                class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all"
+                                placeholder="+1 (555) 000-0000" type="tel" />
+                        </div>
+                        <div class="space-y-1">
+                            <label
+                                class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Date
+                                of Birth</label>
+                            <input
+                                class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all text-on-surface-variant"
+                                type="date" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="space-y-1">
+                            <label
+                                class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Gender</label>
+                            <select
+                                class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all text-on-surface-variant">
+                                <option>Select Preference</option>
+                                <option>Female</option>
+                                <option>Male</option>
+                                <option>Non-binary</option>
+                                <option>Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label
+                                class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Username</label>
+                            <input
+                                class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all"
+                                placeholder="unique_traveler" type="text" />
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label
+                            class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Home
+                            Address</label>
+                        <input
+                            class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all"
+                            placeholder="123 Serenity Blvd, Sky City, 90210" type="text" />
+                    </div>
+                    <div class="space-y-1">
+                        <label
+                            class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Secure
+                            Password</label>
+                        <input
+                            class="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-highest px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all"
+                            placeholder="••••••••" type="password" />
+                    </div>
+                    <div class="flex items-start gap-3 py-2">
+                        <input
+                            class="mt-1 h-4 w-4 rounded border-outline-variant bg-white text-primary focus:ring-primary"
+                            type="checkbox" />
+                        <label class="text-xs text-on-surface-variant leading-relaxed">
+                            I agree to the <a class="font-bold text-primary" href="#">Terms of Service</a> and
+                            acknowledge the <a class="font-bold text-primary" href="#">Privacy Policy</a>.
+                        </label>
+                    </div>
+                    <button
+                        class="w-full rounded-2xl bg-primary py-4 font-label text-sm font-bold uppercase tracking-widest text-on-primary shadow-lg shadow-primary/20 hover:bg-primary-dim transition-all active:scale-[0.98]">
+                        Create Account
+                    </button>
+                </form>
+                <p class="text-center text-sm text-on-surface-variant">
+                    Already have an account?
+                    <label class="cursor-pointer font-bold text-primary hover:underline underline-offset-4"
+                        for="auth-toggle">Sign In</label>
+                </p>
+            </div>
+            <!-- Subtle Footer Links -->
+            <footer class="absolute bottom-8 flex gap-6">
+                <a class="font-label text-[10px] uppercase tracking-widest text-outline hover:text-primary transition-colors"
+                    href="#">Privacy</a>
+                <a class="font-label text-[10px] uppercase tracking-widest text-outline hover:text-primary transition-colors"
+                    href="#">Terms</a>
+                <a class="font-label text-[10px] uppercase tracking-widest text-outline hover:text-primary transition-colors"
+                    href="#">Sustainability</a>
+            </footer>
+        </section>
+    </main>
+</body>
+
+</html>

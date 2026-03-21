@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>The Ethereal - Quản lý nhân sự &amp; Người dùng</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container-low": "#f5f4ed",
+            "on-primary-container": "#42564e",
+            "tertiary-dim": "#5b5149",
+            "on-secondary-fixed": "#583637",
+            "tertiary-fixed-dim": "#e8dacf",
+            "on-primary-fixed": "#2f433c",
+            "surface-tint": "#4f645b",
+            "on-tertiary-fixed": "#4c433b",
+            "tertiary-fixed": "#f7e8dd",
+            "primary-fixed-dim": "#c3dacf",
+            "inverse-primary": "#e7fff3",
+            "surface-variant": "#e3e3db",
+            "secondary-fixed": "#ffdad9",
+            "inverse-surface": "#0e0e0c",
+            "surface": "#fbf9f4",
+            "outline-variant": "#b2b2ab",
+            "secondary": "#7b5556",
+            "tertiary-container": "#f7e8dd",
+            "surface-dim": "#dadad2",
+            "error": "#a83836",
+            "on-tertiary": "#fff7f3",
+            "on-surface-variant": "#5e6059",
+            "surface-container-highest": "#e3e3db",
+            "error-container": "#fa746f",
+            "on-surface": "#31332e",
+            "on-secondary": "#fff7f6",
+            "primary-dim": "#43574f",
+            "on-primary": "#e7fef3",
+            "background": "#fbf9f4",
+            "surface-bright": "#fbf9f4",
+            "primary": "#4f645b",
+            "primary-container": "#d1e8dd",
+            "on-secondary-container": "#6d4849",
+            "on-error": "#fff7f6",
+            "surface-container-lowest": "#ffffff",
+            "on-primary-fixed-variant": "#4b6057",
+            "secondary-container": "#ffdad9",
+            "primary-fixed": "#d1e8dd",
+            "inverse-on-surface": "#9e9d99",
+            "on-error-container": "#6e0a12",
+            "on-secondary-fixed-variant": "#775252",
+            "on-tertiary-container": "#5f554d",
+            "outline": "#7a7b75",
+            "surface-container-high": "#e9e8e1",
+            "tertiary": "#675d55",
+            "on-tertiary-fixed-variant": "#695f56",
+            "surface-container": "#efeee7",
+            "secondary-fixed-dim": "#fac8c8",
+            "error-dim": "#67040d",
+            "secondary-dim": "#6e494a",
+            "on-background": "#31332e"
+          },
+          fontFamily: {
+            "headline": ["Manrope"],
+            "body": ["Manrope"],
+            "label": ["Manrope"]
+          },
+          borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+
+    body {
+      font-family: 'Manrope', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cbd5e1;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: #4f645b;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+  </style>
+</head>
+
+<body class="bg-surface text-on-surface">
+  <!-- SideNavBar -->
+  <aside class="h-screen w-64 fixed left-0 top-0 border-r border-stone-100 bg-white flex flex-col py-8 px-4 z-50">
+    <div class="mb-10 px-4">
+      <h1 class="text-xl font-bold tracking-widest text-emerald-900 uppercase">The Ethereal</h1>
+      <p class="text-[10px] tracking-[0.2em] text-stone-500 uppercase mt-1">Hotel ERP</p>
+    </div>
+    <nav class="flex-1 space-y-1">
+      <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50"
+        href="#">
+        <span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+        <span class="text-sm font-medium">Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50"
+        href="#">
+        <span class="material-symbols-outlined" data-icon="meeting_room">meeting_room</span>
+        <span class="text-sm font-medium">Quản lý Phòng</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50"
+        href="#">
+        <span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+        <span class="text-sm font-medium">Vật tư &amp; Minibar</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50"
+        href="#">
+        <span class="material-symbols-outlined" data-icon="confirmation_number">confirmation_number</span>
+        <span class="text-sm font-medium">Booking &amp; Voucher</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-emerald-900 bg-emerald-50/50 font-bold"
+        href="#">
+        <span class="material-symbols-outlined" data-icon="group"
+          style="font-variation-settings: 'FILL' 1;">group</span>
+        <span class="text-sm font-medium">Danh sách Nhân sự</span>
+      </a>
+    </nav>
+    <div class="mt-auto px-4">
+      <button
+        class="w-full py-3 bg-primary text-on-primary rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+        Thêm người dùng
+      </button>
+    </div>
+  </aside>
+  <!-- TopNavBar -->
+  <header
+    class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-white/80 backdrop-blur-md border-b border-stone-100 flex items-center justify-between px-8">
+    <div class="flex items-center gap-8">
+      <div class="relative w-80">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm"
+          data-icon="search">search</span>
+        <input
+          class="w-full bg-stone-100 border-none rounded-full py-2 pl-10 pr-4 text-xs focus:ring-1 focus:ring-primary/40"
+          placeholder="Tìm kiếm tài nguyên..." type="text" />
+      </div>
+      <nav class="flex gap-6">
+        <a class="text-stone-500 font-medium text-sm hover:text-emerald-700 transition-all" href="#">Hotels</a>
+        <a class="text-emerald-800 border-b-2 border-emerald-800 pb-1 font-semibold text-sm" href="#">Analytics</a>
+        <a class="text-stone-500 font-medium text-sm hover:text-emerald-700 transition-all" href="#">Reports</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="flex gap-1"><button class="p-2 text-stone-500 hover:bg-stone-100 rounded-full transition-colors"
+          id="theme-toggle">
+          <span class="material-symbols-outlined" data-icon="light_mode">light_mode</span>
+        </button>
+        <button class="p-2 text-stone-500 hover:bg-stone-100 rounded-full transition-colors relative">
+          <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+          <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+        </button>
+        <button class="p-2 text-stone-500 hover:bg-stone-100 rounded-full transition-colors">
+          <span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+        </button>
+      </div>
+      <div class="h-8 w-px bg-stone-200 mx-2"></div>
+      <div class="flex items-center gap-3 cursor-pointer">
+        <div class="text-right">
+          <p class="text-xs font-bold text-on-surface">Alex Rivera</p>
+          <p class="text-[10px] text-stone-500">General Manager</p>
+        </div>
+        <img alt="Manager Profile" class="w-10 h-10 rounded-full object-cover border border-stone-200"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwj11ZS5iH48v0sXiiU44b3dLEPEJV4XON3tDiH6ZNsLDJb5la_4Xr-I0fCyLxs8QT_eFvRxLXSYKS93_UUueQH8tlsP6IPFHyLaVtZF9AcB3vV64WHTsPcUJM4bP9U5vJnWhDXTewCi00AoSwbWTEUnhDZZypCZF--qFor6pz5D3hZkHHBuVF_7LrrJWGDggtpxHd0Ct9ctNJNLn3dO5QJsqBjc6ZOApz2NKbIgyX8agRyxnVMddwJNlIBJJCw30n1cpJ3QGGrcg" />
+      </div>
+    </div>
+  </header>
+  <!-- Main Content -->
+  <main class="ml-64 pt-24 p-8 min-h-screen bg-[#f8f9fa]">
+    <div class="max-w-7xl mx-auto">
+      <!-- Page Header -->
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h2 class="text-2xl font-bold text-on-surface tracking-tight">Quản lý Nhân sự &amp; Người dùng</h2>
+        </div>
+        <div class="flex gap-3">
+          <button
+            class="px-5 py-2 rounded-xl text-sm font-medium bg-white text-on-surface border border-stone-200 hover:bg-stone-50 transition-colors flex items-center gap-2 shadow-sm">
+            <span class="material-symbols-outlined text-sm" data-icon="file_download">file_download</span>
+            Xuất báo cáo
+          </button>
+          <button
+            class="px-5 py-2 rounded-xl text-sm font-medium bg-primary text-on-primary hover:opacity-90 transition-all flex items-center gap-2 shadow-md">
+            <span class="material-symbols-outlined text-sm" data-icon="person_add">person_add</span>
+            Thêm người dùng
+          </button>
+        </div>
+      </div>
+      <!-- Filters Section -->
+      <section class="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-stone-100 flex flex-wrap gap-4 items-end">
+        <div class="flex-1 min-w-[300px]">
+          <label class="block text-[11px] font-semibold text-stone-500 mb-2">Họ tên, Email, SĐT</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-lg"
+              data-icon="search">search</span>
+            <input
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary/40 focus:bg-white"
+              placeholder="Gõ từ khóa..." type="text" />
+          </div>
+        </div>
+        <div class="w-56">
+          <label class="block text-[11px] font-semibold text-stone-500 mb-2">Lọc theo Vai trò</label>
+          <select
+            class="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 px-4 text-sm focus:ring-1 focus:ring-primary/40 appearance-none bg-[url('https://api.iconify.design/material-symbols:expand-more.svg')] bg-[length:20px] bg-[right_12px_center] bg-no-repeat">
+            <option>Chọn vai trò</option>
+            <option>Receptionist</option>
+            <option>Manager</option>
+            <option>Accountant</option>
+            <option>Guest</option>
+          </select>
+        </div>
+        <div class="w-56">
+          <label class="block text-[11px] font-semibold text-stone-500 mb-2">Lọc theo Trạng thái</label>
+          <select
+            class="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 px-4 text-sm focus:ring-1 focus:ring-primary/40 appearance-none bg-[url('https://api.iconify.design/material-symbols:expand-more.svg')] bg-[length:20px] bg-[right_12px_center] bg-no-repeat">
+            <option>Chọn trạng thái</option>
+            <option>Hoạt động</option>
+            <option>Đã khóa</option>
+          </select>
+        </div>
+        <button
+          class="bg-stone-100 text-stone-600 p-2.5 rounded-xl border border-stone-200 hover:bg-stone-200 transition-colors">
+          <span class="material-symbols-outlined" data-icon="tune">tune</span>
+        </button>
+      </section>
+      <!-- Data Table Section -->
+      <div class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-stone-50/50 border-b border-stone-100">
+                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Họ và tên</th>
+                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Email</th>
+                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Số điện thoại</th>
+                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Vai trò</th>
+                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Trạng thái</th>
+                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500 text-right">Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-50">
+              <!-- Row 1 -->
+              <tr class="hover:bg-stone-50/50 transition-colors">
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-3">
+                    <img alt="Avatar" class="w-9 h-9 rounded-full object-cover"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwj11ZS5iH48v0sXiiU44b3dLEPEJV4XON3tDiH6ZNsLDJb5la_4Xr-I0fCyLxs8QT_eFvRxLXSYKS93_UUueQH8tlsP6IPFHyLaVtZF9AcB3vV64WHTsPcUJM4bP9U5vJnWhDXTewCi00AoSwbWTEUnhDZZypCZF--qFor6pz5D3hZkHHBuVF_7LrrJWGDggtpxHd0Ct9ctNJNLn3dO5QJsqBjc6ZOApz2NKbIgyX8agRyxnVMddwJNlIBJJCw30n1cpJ3QGGrcg" />
+                    <span class="font-medium text-stone-800">Hùng Lê Mạnh 2</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-stone-600">manhung08062@gmail.com</td>
+                <td class="px-6 py-4 text-sm text-stone-600">02323453454</td>
+                <td class="px-6 py-4">
+                  <span
+                    class="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full uppercase">Receptionist</span>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-emerald-600">Hoạt động</span>
+                    <label class="toggle-switch">
+                      <input checked="" type="checkbox" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex justify-end gap-1"><button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="shield">shield</span>
+                    </button>
+                    <button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="visibility">visibility</span>
+                    </button>
+                    <button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="edit_square">edit_square</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr class="hover:bg-stone-50/50 transition-colors">
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-3">
+                    <img alt="Avatar" class="w-9 h-9 rounded-full object-cover"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuammojAR49_9oLkY4_JZbHbvyAqZ-PXHuft5YjMhyn_dL-LPnZC3-DJQZIp5L6EGNK8M7ZkHMqbhyGa9DkN-M-A_KhC9PZKvy39gRiQzjatRJmESBUptPvOqVZ_fk1dze5JkaFNpbwxIaHUPsw8JeFb2CHIRUxuuxXvreQ6G4q-6YP4WNoVf_8U4rH4Z0b64Oqr3tN74gS-VmhhbmpBrZKs5jSBAhTxB3oVn_JTxosyV-nqTYeYNqtuwvipl7B_9eaAXWRnjTYBI" />
+                    <span class="font-medium text-stone-800">Lê Mạnh Hùng</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-stone-600">hunglm@vaa.edu.vn</td>
+                <td class="px-6 py-4 text-sm text-stone-600">0123672890</td>
+                <td class="px-6 py-4">
+                  <span
+                    class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full uppercase">Manager</span>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-emerald-600">Hoạt động</span>
+                    <label class="toggle-switch">
+                      <input checked="" type="checkbox" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex justify-end gap-1"><button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="shield">shield</span>
+                    </button>
+                    <button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="visibility">visibility</span>
+                    </button>
+                    <button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="edit_square">edit_square</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 3 (Inactive Example) -->
+              <tr class="hover:bg-stone-50/50 transition-colors">
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-3">
+                    <img alt="Avatar" class="w-9 h-9 rounded-full object-cover"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBotBwe3I7pSk_aK2FBC81I49DZ3G25aEzi6Q-5eS8ULM9mTFT8vEZz8TPqW8iKkyMWQYYqY4eOef4Mn_jVg5mxo2wgVZOyjgKLed2jMoq0N8LLVJCSvTdk3pMChI9WndZqG7Ti26a30B5SDv_UzBedHrrYxYNglRyVJnbYcalVO1Ab7l_0oCT7jlkJfkNs8MC8YejWh012qlCdVR1c7B6d_Zw-bmsO_cQd8jNUA0weJRTYb3Jr__0_4rw_pTsQPGBd73A9KRB6GdI" />
+                    <span class="font-medium text-stone-800">Hoàng Kế Toán</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-stone-600">accountant@hotel.com</td>
+                <td class="px-6 py-4 text-sm text-stone-600">0900000005</td>
+                <td class="px-6 py-4">
+                  <span
+                    class="px-3 py-1 bg-stone-100 text-stone-600 text-[10px] font-bold rounded-full uppercase">Accountant</span>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-stone-400">Đã khóa</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex justify-end gap-1"><button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="shield">shield</span>
+                    </button>
+                    <button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="visibility">visibility</span>
+                    </button>
+                    <button
+                      class="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg">
+                      <span class="material-symbols-outlined text-xl" data-icon="edit_square">edit_square</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-stone-100 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-stone-500">Tổng số người dùng: 10</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-stone-400 hover:bg-stone-100 transition-colors">
+              <span class="material-symbols-outlined text-lg" data-icon="chevron_left">chevron_left</span>
+            </button>
+            <button
+              class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center text-sm font-bold">1</button>
+            <button
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium text-stone-500 hover:bg-stone-100 transition-colors">2</button>
+            <button
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium text-stone-500 hover:bg-stone-100 transition-colors">3</button>
+            <span class="px-2 text-stone-400">...</span>
+            <button
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-stone-400 hover:bg-stone-100 transition-colors">
+              <span class="material-symbols-outlined text-lg" data-icon="chevron_right">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+
+</html>

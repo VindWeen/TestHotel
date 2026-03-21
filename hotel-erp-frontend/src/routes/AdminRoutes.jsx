@@ -1,16 +1,47 @@
 // Khai báo toàn bộ nested routes
-// src/routes/AdminRoutes.jsx
-// Minimal version để test — sẽ bổ sung ProtectedRoute, RequirePermission sau
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/admin/dashboard/DashboardPage';
+import AdminLayout from '../layouts/AdminLayout';
+import ProtectedRoute from './ProtectedRoute';
+import RequirePermission from './RequirePermission';
+import UserListPage from '../pages/admin/staff/UserListPage';
 
 export default function AdminRoutes() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin/dashboard" element={<DashboardPage />} />
-            {/* Mặc định redirect về login */}
+
+            <Route
+                path="/403"
+                element={
+                    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>
+                        <h2>403 — Không đủ quyền truy cập</h2>
+                    </div>
+                }
+            />
+
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute>
+                        <AdminLayout />
+                    </ProtectedRoute>
+                }
+            >
+                <Route path="dashboard" element={<DashboardPage />} />
+
+                {/* ← thêm vào đây */}
+                <Route
+                    path="staff"
+                    element={
+                        <RequirePermission permission="MANAGE_USERS">
+                            <UserListPage />
+                        </RequirePermission>
+                    }
+                />
+            </Route>
+
             <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
     );
