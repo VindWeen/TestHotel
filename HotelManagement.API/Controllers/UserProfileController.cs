@@ -1,9 +1,9 @@
 using HotelManagement.Core.Helpers;
+using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HotelManagement.Core.Models.Enums;
 
 namespace HotelManagement.API.Controllers;
 
@@ -12,7 +12,7 @@ namespace HotelManagement.API.Controllers;
 [Authorize]
 public class UserProfileController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly AppDbContext    _db;
     private readonly IConfiguration _config;
 
     public UserProfileController(AppDbContext db, IConfiguration config)
@@ -59,13 +59,7 @@ public class UserProfileController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (profile is null)
-            return NotFound(new Notification
-            {
-                Title = "Không tìm thấy thông tin người dùng",
-                Message = "Không tìm thấy thông tin người dùng.",
-                Type = NotificationType.Error,
-                Action = NotificationAction.Other
-            });
+            return NotFound(new { message = "Không tìm thấy thông tin người dùng." });
 
         return Ok(profile);
     }
@@ -78,13 +72,7 @@ public class UserProfileController : ControllerBase
 
         var user = await _db.Users.FindAsync(userId);
         if (user is null)
-            return NotFound(new Notification
-            {
-                Title = "Không tìm thấy thông tin người dùng",
-                Message = "Không tìm thấy thông tin người dùng.",
-                Type = NotificationType.Error,
-                Action = NotificationAction.Other
-            });
+            return NotFound(new { message = "Không tìm thấy thông tin người dùng." });
 
         user.FullName    = request.FullName?.Trim()  ?? user.FullName;
         user.Phone       = request.Phone?.Trim()     ?? user.Phone;
@@ -95,14 +83,15 @@ public class UserProfileController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-            var Notification = new Notification
-            {
-                Title = "Cập nhật thông tin thành công",
-                Message = "Thông tin cá nhân của bạn đã được cập nhật.",
-                Type = NotificationType.Success,
-                Action = NotificationAction.UpdateProfile
-            };
-        return Ok(new { notification = Notification });
+        var notification = new Notification
+        {
+            Title   = "Cập nhật thông tin thành công",
+            Message = "Thông tin cá nhân của bạn đã được cập nhật.",
+            Type    = NotificationType.Success,
+            Action  = NotificationAction.UpdateProfile
+        };
+
+        return Ok(new { notification });
     }
 
     // PUT /api/UserProfile/change-password
@@ -123,14 +112,15 @@ public class UserProfileController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        var Notification = new Notification
+        var notification = new Notification
         {
-            Title = "Đổi mật khẩu thành công",
+            Title   = "Đổi mật khẩu thành công",
             Message = "Mật khẩu của bạn đã được thay đổi.",
-            Type = NotificationType.Success,
-            Action = NotificationAction.UpdateProfile
+            Type    = NotificationType.Success,
+            Action  = NotificationAction.UpdateProfile
         };
-        return Ok(new { notification = Notification });
+
+        return Ok(new { notification });
     }
 
     // POST /api/UserProfile/upload-avatar
@@ -153,21 +143,17 @@ public class UserProfileController : ControllerBase
         if (user is null)
             return NotFound(new { message = "Không tìm thấy thông tin người dùng." });
 
-        var cloudName  = _config["Cloudinary:CloudName"]!;
-        var apiKey     = _config["Cloudinary:ApiKey"]!;
-        var apiSecret  = _config["Cloudinary:ApiSecret"]!;
-        var account    = new CloudinaryDotNet.Account(cloudName, apiKey, apiSecret);
+        var account    = new CloudinaryDotNet.Account(
+            _config["Cloudinary:CloudName"]!,
+            _config["Cloudinary:ApiKey"]!,
+            _config["Cloudinary:ApiSecret"]!);
         var cloudinary = new CloudinaryDotNet.Cloudinary(account);
 
-        // Xóa ảnh cũ trên Cloudinary nếu có
         if (!string.IsNullOrEmpty(user.AvatarUrl))
         {
             var oldPublicId = ExtractPublicIdFromUrl(user.AvatarUrl);
             if (!string.IsNullOrEmpty(oldPublicId))
-            {
-                var deletionParams = new CloudinaryDotNet.Actions.DeletionParams(oldPublicId);
-                await cloudinary.DestroyAsync(deletionParams);
-            }
+                await cloudinary.DestroyAsync(new CloudinaryDotNet.Actions.DeletionParams(oldPublicId));
         }
 
         using var stream = file.OpenReadStream();
@@ -182,24 +168,17 @@ public class UserProfileController : ControllerBase
         var uploadResult = await cloudinary.UploadAsync(uploadParams);
 
         if (uploadResult.Error != null)
-            return StatusCode(502, new
-            {
-                message = "Upload ảnh lên Cloudinary thất bại.",
-                detail  = uploadResult.Error.Message
-            });
+            return StatusCode(502, new { message = "Upload ảnh thất bại.", detail = uploadResult.Error.Message });
 
         user.AvatarUrl = uploadResult.SecureUrl.ToString();
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        return Ok(new
-        {
-            message   = "Upload avatar thành công.",
-            avatarUrl = user.AvatarUrl
-        });
+        return Ok(new { message = "Upload avatar thành công.", avatarUrl = user.AvatarUrl });
     }
 
-    // ── Helper ────────────────────────────────────────────────────
+    // ── Private helper ────────────────────────────────────────────────────────
+
     private static string? ExtractPublicIdFromUrl(string url)
     {
         try

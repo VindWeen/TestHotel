@@ -2,11 +2,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HotelManagement.Core.Models.Enums
 
 namespace HotelManagement.API.Controllers;
 
@@ -21,11 +21,7 @@ public class ArticleCategoriesController : ControllerBase
         _db = db;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
     // GET /api/ArticleCategories
-    // Public — danh sách is_active = 1.
-    // FE dùng render menu blog và bộ lọc bài viết.
-    // ──────────────────────────────────────────────────────────────────────────
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetAll()
@@ -34,22 +30,13 @@ public class ArticleCategoriesController : ControllerBase
             .AsNoTracking()
             .Where(c => c.IsActive)
             .OrderBy(c => c.Name)
-            .Select(c => new
-            {
-                c.Id,
-                c.Name,
-                c.Slug
-            })
+            .Select(c => new { c.Id, c.Name, c.Slug })
             .ToListAsync();
 
         return Ok(new { data = categories, total = categories.Count });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
     // GET /api/ArticleCategories/{id}
-    // Public — chi tiết 1 category.
-    // FE dùng load form sửa tên category trong trang admin CMS.
-    // ──────────────────────────────────────────────────────────────────────────
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
@@ -57,12 +44,7 @@ public class ArticleCategoriesController : ControllerBase
         var category = await _db.ArticleCategories
             .AsNoTracking()
             .Where(c => c.Id == id && c.IsActive)
-            .Select(c => new
-            {
-                c.Id,
-                c.Name,
-                c.Slug
-            })
+            .Select(c => new { c.Id, c.Name, c.Slug })
             .FirstOrDefaultAsync();
 
         if (category is null)
@@ -71,11 +53,7 @@ public class ArticleCategoriesController : ControllerBase
         return Ok(category);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
     // POST /api/ArticleCategories
-    // [MANAGE_CONTENT]
-    // Body: { name }. Tự động sinh slug từ name.
-    // ──────────────────────────────────────────────────────────────────────────
     [HttpPost]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> Create([FromBody] CreateArticleCategoryRequest request)
@@ -83,13 +61,11 @@ public class ArticleCategoriesController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Name))
             return BadRequest(new { message = "Tên danh mục không được để trống." });
 
-        // Kiểm tra tên trùng (trong các category đang active)
         var nameExists = await _db.ArticleCategories
             .AnyAsync(c => c.Name == request.Name.Trim() && c.IsActive);
         if (nameExists)
             return Conflict(new { message = $"Danh mục '{request.Name.Trim()}' đã tồn tại." });
 
-        // Sinh slug duy nhất từ name
         var baseSlug = GenerateSlug(request.Name);
         var slug     = await EnsureUniqueSlug(baseSlug);
 
@@ -103,30 +79,20 @@ public class ArticleCategoriesController : ControllerBase
         _db.ArticleCategories.Add(category);
         await _db.SaveChangesAsync();
 
-        var Notification = new Core.Models.Enums.Notification
+        var notification = new Notification
         {
-            Title = "Tạo danh mục bài viết",
+            Title   = "Tạo danh mục bài viết",
             Message = $"Danh mục '{category.Name}' đã được tạo thành công.",
-            Type = Core.Models.Enums.NotificationType.Success,
-            Action = Core.Models.Enums.NotificationAction.CreateCategory
+            Type    = NotificationType.Success,
+            Action  = NotificationAction.CreateCategory
         };
 
         return CreatedAtAction(nameof(GetById),
             new { id = category.Id },
-            new
-            {
-                category.Id,
-                category.Name,
-                category.Slug,
-                Notification
-            });
+            new { category.Id, category.Name, category.Slug, notification });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
     // PUT /api/ArticleCategories/{id}
-    // [MANAGE_CONTENT]
-    // Cập nhật name. Slug tự động sinh lại từ name mới.
-    // ──────────────────────────────────────────────────────────────────────────
     [HttpPut("{id:int}")]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateArticleCategoryRequest request)
@@ -140,13 +106,11 @@ public class ArticleCategoriesController : ControllerBase
         if (category is null)
             return NotFound(new { message = $"Không tìm thấy danh mục #{id}." });
 
-        // Kiểm tra tên trùng với category khác đang active
         var nameExists = await _db.ArticleCategories
             .AnyAsync(c => c.Name == request.Name.Trim() && c.IsActive && c.Id != id);
         if (nameExists)
             return Conflict(new { message = $"Danh mục '{request.Name.Trim()}' đã tồn tại." });
 
-        // Nếu Name thay đổi → sinh lại Slug từ Name mới
         if (category.Name != request.Name.Trim())
         {
             var baseSlug = GenerateSlug(request.Name);
@@ -154,29 +118,20 @@ public class ArticleCategoriesController : ControllerBase
         }
 
         category.Name = request.Name.Trim();
-
         await _db.SaveChangesAsync();
-        var Notification = new Core.Models.Enums.Notification
+
+        var notification = new Notification
         {
-            Title = "Cập nhật danh mục bài viết",
+            Title   = "Cập nhật danh mục bài viết",
             Message = $"Danh mục '{category.Name}' đã được cập nhật thành công.",
-            Type = Core.Models.Enums.NotificationType.Success,
-            Action = Core.Models.Enums.NotificationAction.UpdateCategory
+            Type    = NotificationType.Success,
+            Action  = NotificationAction.UpdateCategory
         };
-        return Ok(new
-        {
-            category.Id,
-            category.Name,
-            category.Slug,   // trả về slug mới đã được sinh lại
-            Notification
-        });
+
+        return Ok(new { category.Id, category.Name, category.Slug, notification });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
     // DELETE /api/ArticleCategories/{id}
-    // [MANAGE_CONTENT]  Soft Delete: is_active = 0.
-    // Bài viết cũ giữ nguyên category_id — không bị ảnh hưởng.
-    // ──────────────────────────────────────────────────────────────────────────
     [HttpDelete("{id:int}")]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> Delete(int id)
@@ -187,68 +142,51 @@ public class ArticleCategoriesController : ControllerBase
         if (category is null)
             return NotFound(new { message = $"Không tìm thấy danh mục #{id}." });
 
-        // Đếm bài viết đang dùng category này để thông báo cho admin
         var articleCount = await _db.Articles
             .CountAsync(a => a.CategoryId == id && a.IsActive);
 
         category.IsActive = false;
         await _db.SaveChangesAsync();
 
-        var Notification = new Core.Models.Enums.Notification
+        var notification = new Notification
         {
-            Title = "Xoá danh mục bài viết",
+            Title   = "Xoá danh mục bài viết",
             Message = $"Danh mục '{category.Name}' đã được xoá thành công. Có {articleCount} bài viết đang sử dụng danh mục này.",
-            Type = Core.Models.Enums.NotificationType.Success,
-            Action = Core.Models.Enums.NotificationAction.DeleteCategory
+            Type    = NotificationType.Success,
+            Action  = NotificationAction.DeleteCategory
         };
 
-        return Ok(new
-        {
-            Notification,
-            affectedArticles = articleCount   // FE hiển thị cảnh báo nếu > 0
-        });
+        return Ok(new { notification, affectedArticles = articleCount });
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // PATCH /api/ArticleCategories/{id}/toggle-active  [MANAGE_CONTENT]
-    // Bật/tắt danh mục: is_active = 1 ↔ 0
-    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/ArticleCategories/{id}/toggle-active
     [HttpPatch("{id:int}/toggle-active")]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> ToggleActive(int id)
     {
         var category = await _db.ArticleCategories.FindAsync(id);
- 
+
         if (category is null)
             return NotFound(new { message = $"Không tìm thấy danh mục #{id}." });
- 
+
         category.IsActive = !category.IsActive;
         await _db.SaveChangesAsync();
 
-        var Notification = new Core.Models.Enums.Notification
+        var notification = new Notification
         {
-            Title = $"Danh mục đã được {(category.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
+            Title   = $"Danh mục đã được {(category.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
             Message = $"Danh mục '{category.Name}' đã {(category.IsActive ? "được kích hoạt" : "bị vô hiệu hóa")}.",
-            Type = Core.Models.Enums.NotificationType.Success,
-            Action = category.IsActive ? Core.Models.Enums.NotificationAction.EnableCategory : Core.Models.Enums.NotificationAction.DisableCategory
+            Type    = NotificationType.Success,
+            Action  = category.IsActive
+                        ? NotificationAction.EnableCategory
+                        : NotificationAction.DisableCategory
         };
-        return Ok(new
-        {
-            Notification,
-            category.Id,
-            category.Name,
-            category.IsActive
-        });
+
+        return Ok(new { notification, category.Id, category.Name, category.IsActive });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // PRIVATE HELPERS
-    // ──────────────────────────────────────────────────────────────────────────
+    // ── Private helpers ────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Chuyển name tiếng Việt → slug ASCII lowercase, ngăn cách bằng dấu gạch ngang.
-    /// Ví dụ: "Tin Tức Khách Sạn" → "tin-tuc-khach-san"
-    /// </summary>
     private static string GenerateSlug(string name)
     {
         var normalized = name.Normalize(NormalizationForm.FormD);
@@ -262,7 +200,6 @@ public class ArticleCategoriesController : ControllerBase
         }
 
         var slug = sb.ToString().Normalize(NormalizationForm.FormC);
-
         slug = slug.ToLowerInvariant();
         slug = slug.Replace("đ", "d");
         slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
@@ -273,10 +210,6 @@ public class ArticleCategoriesController : ControllerBase
         return slug;
     }
 
-    /// <summary>
-    /// Đảm bảo slug duy nhất trong DB.
-    /// Nếu trùng → thêm hậu tố -2, -3, ...
-    /// </summary>
     private async Task<string> EnsureUniqueSlug(string baseSlug, int? excludeId = null)
     {
         var candidate = baseSlug;
@@ -289,18 +222,10 @@ public class ArticleCategoriesController : ControllerBase
                 (excludeId == null || c.Id != excludeId));
 
             if (!exists) return candidate;
-
             candidate = $"{baseSlug}-{counter++}";
         }
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// REQUEST RECORDS
-// ──────────────────────────────────────────────────────────────────────────────
-
-/// <summary>Request body cho POST /api/ArticleCategories</summary>
 public record CreateArticleCategoryRequest(string Name);
-
-/// <summary>Request body cho PUT /api/ArticleCategories/{id}</summary>
 public record UpdateArticleCategoryRequest(string Name);
