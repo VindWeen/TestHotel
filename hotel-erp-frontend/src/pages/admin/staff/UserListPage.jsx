@@ -1,904 +1,434 @@
-// src/pages/admin/staff/UserManagementPage.jsx
-// Clone 1:1 từ UserManagement.html — chỉ UI, chưa có logic/API
+// src/pages/admin/staff/UserListPage.jsx
 import { useState } from "react";
 
-// ─── Material Symbols helper ───────────────────────────────────────────────────
-function MSIcon({ name, filled = false, style: extraStyle }) {
-  return (
-    <span
-      className="material-symbols-outlined"
-      style={{
-        fontVariationSettings: `'FILL' ${filled ? 1 : 0}, 'wght' 400, 'GRAD' 0, 'opsz' 24`,
-        verticalAlign: "middle",
-        fontSize: 20,
-        ...extraStyle,
-      }}
-    >
-      {name}
-    </span>
-  );
-}
-
-// ─── Toggle Switch ─────────────────────────────────────────────────────────────
-function ToggleSwitch({ checked, onChange }) {
-  return (
-    <label style={styles.toggleWrap}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
-      />
-      <span
-        style={{
-          ...styles.slider,
-          background: checked ? "#4f645b" : "#cbd5e1",
-        }}
-      >
-        <span
-          style={{
-            ...styles.sliderThumb,
-            transform: checked ? "translateX(20px)" : "translateX(0)",
-          }}
-        />
-      </span>
-    </label>
-  );
-}
-
-// ─── Sidebar nav item ──────────────────────────────────────────────────────────
-function NavItem({ icon, label, active = false, filled = false }) {
-  return (
-    <a
-      href="#"
-      style={{
-        ...styles.navItem,
-        color: active ? "#1a3a2f" : "#6b7280",
-        background: active ? "rgba(79,100,91,0.08)" : "transparent",
-        fontWeight: active ? 700 : 500,
-      }}
-    >
-      <MSIcon
-        name={icon}
-        filled={filled}
-        style={{ color: active ? "#4f645b" : "#9ca3af" }}
-      />
-      <span>{label}</span>
-    </a>
-  );
-}
-
-// ─── Table row data (static demo) ─────────────────────────────────────────────
 const DEMO_USERS = [
   {
     id: 1,
-    name: "Hùng Lê Mạnh 2",
-    email: "manhung08062@gmail.com",
-    phone: "02323453454",
-    role: "Receptionist",
-    roleColor: { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBwj11ZS5iH48v0sXiiU44b3dLEPEJV4XON3tDiH6ZNsLDJb5la_4Xr-I0fCyLxs8QT_eFvRxLXSYKS93_UUueQH8tlsP6IPFHyLaVtZF9AcB3vV64WHTsPcUJM4bP9U5vJnWhDXTewCi00AoSwbWTEUnhDZZypCZF--qFor6pz5D3hZkHHBuVF_7LrrJWGDggtpxHd0Ct9ctNJNLn3dO5QJsqBjc6ZOApz2NKbIgyX8agRyxnVMddwJNlIBJJCw30n1cpJ3QGGrcg",
-    active: true,
+    fullName: "Hùng Lê Mạnh",
+    email: "hunglm@vaa.edu.vn",
+    phone: "0123672890",
+    roleName: "Manager",
+    status: true,
+    avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBuammojAR49_9oLkY4_JZbHbvyAqZ-PXHuft5YjMhyn_dL-LPnZC3-DJQZIp5L6EGNK8M7ZkHMqbhyGa9DkN-M-A_KhC9PZKvy39gRiQzjatRJmESBUptPvOqVZ_fk1dze5JkaFNpbwxIaHUPsw8JeFb2CHIRUxuuxXvreQ6G4q-6YP4WNoVf_8U4rH4Z0b64Oqr3tN74gS-VmhhbmpBrZKs5jSBAhTxB3oVn_JTxosyV-nqTYeYNqtuwvipl7B_9eaAXWRnjTYBI",
   },
   {
     id: 2,
-    name: "Lê Mạnh Hùng",
-    email: "hunglm@vaa.edu.vn",
-    phone: "0123672890",
-    role: "Manager",
-    roleColor: { bg: "#f0fdf4", text: "#16a34a", border: "#bbf7d0" },
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBuammojAR49_9oLkY4_JZbHbvyAqZ-PXHuft5YjMhyn_dL-LPnZC3-DJQZIp5L6EGNK8M7ZkHMqbhyGa9DkN-M-A_KhC9PZKvy39gRiQzjatRJmESBUptPvOqVZ_fk1dze5JkaFNpbwxIaHUPsw8JeFb2CHIRUxuuxXvreQ6G4q-6YP4WNoVf_8U4rH4Z0b64Oqr3tN74gS-VmhhbmpBrZKs5jSBAhTxB3oVn_JTxosyV-nqTYeYNqtuwvipl7B_9eaAXWRnjTYBI",
-    active: true,
+    fullName: "Nguyễn Văn A",
+    email: "nguyenvana@gmail.com",
+    phone: "0900000000",
+    roleName: "Receptionist",
+    status: true,
+    avatarUrl: "",
   },
   {
     id: 3,
-    name: "Hoàng Kế Toán",
+    fullName: "Hoàng Kế Toán",
     email: "accountant@hotel.com",
     phone: "0900000005",
-    role: "Accountant",
-    roleColor: { bg: "#f9fafb", text: "#6b7280", border: "#e5e7eb" },
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBotBwe3I7pSk_aK2FBC81I49DZ3G25aEzi6Q-5eS8ULM9mTFT8vEZz8TPqW8iKkyMWQYYqY4eOef4Mn_jVg5mxo2wgVZOyjgKLed2jMoq0N8LLVJCSvTdk3pMChI9WndZqG7Ti26a30B5SDv_UzBedHrrYxYNglRyVJnbYcalVO1Ab7l_0oCT7jlkJfkNs8MC8YejWh012qlCdVR1c7B6d_Zw-bmsO_cQd8jNUA0weJRTYb3Jr__0_4rw_pTsQPGBd73A9KRB6GdI",
-    active: false,
+    roleName: "Accountant",
+    status: false,
+    avatarUrl: "",
   },
 ];
 
-// ─── Main ──────────────────────────────────────────────────────────────────────
-export default function UserManagementPage() {
-  const [users, setUsers] = useState(DEMO_USERS);
+const ROLE_BADGE = {
+  'Admin': 'bg-purple-50 text-purple-600',
+  'Manager': 'bg-emerald-50 text-emerald-600',
+  'Receptionist': 'bg-blue-50 text-blue-600',
+  'Accountant': 'bg-stone-100 text-stone-600',
+  'Housekeeping': 'bg-yellow-50 text-yellow-700',
+  'Security': 'bg-orange-50 text-orange-600',
+  'Chef': 'bg-red-50 text-red-600',
+  'Waiter': 'bg-pink-50 text-pink-600',
+  'IT Support': 'bg-cyan-50 text-cyan-600',
+  'Guest': 'bg-gray-100 text-gray-500',
+};
 
-  const handleToggle = (id) => {
+export default function UserListPage() {
+  const [users, setUsers] = useState(DEMO_USERS);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const handleToggleStatus = (id) => {
     setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)),
+      prev.map((u) => (u.id === id ? { ...u, status: !u.status } : u))
     );
   };
 
+  const openDetail = (u) => {
+    setSelectedUser(u);
+    setIsDetailModalOpen(true);
+  };
+
   return (
-    <div style={styles.shell}>
-      <style>{css}</style>
+    <div className="bg-surface text-on-surface antialiased font-body min-h-screen">
+      <style>{`
+        /* Toggle switch */
+        .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
+        .toggle-switch input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e1; transition:.4s; border-radius:24px; }
+        .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.4s; border-radius:50%; }
+        input:checked + .slider { background-color:#4f645b; }
+        input:checked + .slider:before { transform:translateX(20px); }
+        input:disabled + .slider { opacity:0.5; cursor:not-allowed; }
 
-      {/* ══ SIDEBAR ══ */}
-      <aside style={styles.sidebar}>
-        {/* Brand */}
-        <div style={styles.sidebarBrand}>
-          <h1 style={styles.brandName}>The Ethereal</h1>
-          <p style={styles.brandSub}>Hotel ERP</p>
+        /* Spinner */
+        @keyframes spin { to{transform:rotate(360deg)} }
+        .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.35); border-top-color:white; border-radius:50%; animation:spin .65s linear infinite; vertical-align:middle; margin-right:6px; }
+        .spinner-dark { border-color:rgba(79,100,91,.2); border-top-color:#4f645b; }
+
+        /* Fade rows */
+        @keyframes fadeRow { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+        .fade-row { animation:fadeRow .22s ease forwards; }
+
+        /* Modal backdrop */
+        .modal-backdrop { backdrop-filter:blur(4px); }
+
+        /* Pagination buttons */
+        .pg-btn {
+          width:2rem; height:2rem; border-radius:.5rem;
+          display:flex; align-items:center; justify-content:center;
+          font-size:.875rem; font-weight:500;
+          color:#6b7280; background:transparent; border:none; cursor:pointer;
+          transition:background .15s, color .15s;
+        }
+        .pg-btn:hover:not(:disabled) { background:#f3f4f6; }
+        .pg-btn.active { background:#4f645b; color:#e7fef3; font-weight:700; cursor:default; }
+        .pg-btn:disabled { opacity:.35; cursor:not-allowed; }
+        .pg-btn.icon { color:#9ca3af; }
+      `}</style>
+      
+      {/* ═════════ MODALS ═════════ */}
+      {/* Add User Modal */}
+      <div className={`fixed inset-0 bg-black/50 ${isAddUserModalOpen ? 'flex' : 'hidden'} items-center justify-center z-50 modal-backdrop`}>
+        <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold">Thêm người dùng mới</h3>
+            <button onClick={() => setIsAddUserModalOpen(false)} className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors">
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+          </div>
+          <form noValidate onSubmit={(e) => e.preventDefault()}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Họ và tên *</label>
+              <input type="text" placeholder="Nguyễn Văn A" className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Email *</label>
+              <input type="email" placeholder="email@hotel.com" className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">SĐT</label>
+              <input type="tel" placeholder="09xxxxxxxx" className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Mật khẩu *</label>
+              <input type="password" placeholder="Tối thiểu 6 ký tự" className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Vai trò</label>
+              <select className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none bg-white">
+                <option value="">-- Chọn vai trò --</option>
+                <option value="1">Admin</option>
+                <option value="2">Manager</option>
+                <option value="3">Receptionist</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Giới tính</label>
+              <select className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none bg-white">
+                <option value="">-- Chọn --</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="px-5 py-2 border rounded-xl text-sm font-medium hover:bg-stone-50 transition-colors">Hủy</button>
+              <button type="submit" className="px-5 py-2 bg-primary text-on-primary rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center">Thêm</button>
+            </div>
+          </form>
         </div>
+      </div>
 
-        {/* Nav */}
-        <nav style={styles.nav}>
-          <NavItem icon="dashboard" label="Dashboard" />
-          <NavItem icon="meeting_room" label="Quản lý Phòng" />
-          <NavItem icon="inventory_2" label="Vật tư &amp; Minibar" />
-          <NavItem icon="confirmation_number" label="Booking &amp; Voucher" />
-          <NavItem icon="group" label="Danh sách Nhân sự" active filled />
+      {/* Detail Modal */}
+      <div className={`fixed inset-0 bg-black/50 ${isDetailModalOpen ? 'flex' : 'hidden'} items-center justify-center z-50 modal-backdrop`}>
+        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" style={{maxHeight:'90vh', display:'flex', flexDirection:'column'}}>
+          <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-stone-100 flex-shrink-0">
+            <h3 className="text-xl font-bold">Chi tiết người dùng</h3>
+            <button onClick={() => setIsDetailModalOpen(false)} className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors">
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+          </div>
+          <div className="px-8 py-5 overflow-y-auto flex-1">
+            {selectedUser && (
+              <>
+                <div className="flex items-center gap-4 mb-5 pb-4 border-b border-stone-100">
+                  {selectedUser.avatarUrl ? (
+                    <img src={selectedUser.avatarUrl} className="w-14 h-14 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl">
+                      {selectedUser.fullName[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-lg font-bold">{selectedUser.fullName}</p>
+                    <p className="text-sm text-stone-500">{selectedUser.email}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${selectedUser.status ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-100 text-stone-500'}`}>
+                        {selectedUser.status ? 'Hoạt động' : 'Đã khóa'}
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${ROLE_BADGE[selectedUser.roleName] || 'bg-stone-100 text-stone-500'}`}>
+                        {selectedUser.roleName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    ['Vai trò', selectedUser.roleName],
+                    ['Điện thoại', selectedUser.phone],
+                    ['Đăng nhập lần cuối', '—'],
+                    ['Ngày tạo', '—'],
+                  ].map(([k, v], i) => (
+                    <div key={i} className="bg-stone-50 rounded-xl p-2.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-0.5">{k}</p>
+                      <p className="text-sm font-semibold text-stone-700 truncate">{v}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ═════════ LAYOUT ═════════ */}
+      {/* SideNavBar */}
+      <aside className="h-screen w-64 fixed left-0 top-0 border-r border-stone-100 bg-white flex flex-col py-8 px-4 z-40">
+        <div className="mb-10 px-4">
+          <h1 className="text-xl font-bold tracking-widest text-emerald-900 uppercase">The Ethereal</h1>
+          <p className="text-[10px] tracking-[0.2em] text-stone-500 uppercase mt-1">Hotel ERP</p>
+        </div>
+        <nav className="flex-1 space-y-1">
+          <a className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50" href="#">
+            <span className="material-symbols-outlined">dashboard</span>
+            <span className="text-sm font-medium">Dashboard</span>
+          </a>
+          <a className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50" href="#">
+            <span className="material-symbols-outlined">meeting_room</span>
+            <span className="text-sm font-medium">Quản lý Phòng</span>
+          </a>
+          <a className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50" href="#">
+            <span className="material-symbols-outlined">inventory_2</span>
+            <span className="text-sm font-medium">Vật tư & Minibar</span>
+          </a>
+          <a className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-stone-500 hover:text-emerald-700 hover:bg-emerald-50" href="#">
+            <span className="material-symbols-outlined">confirmation_number</span>
+            <span className="text-sm font-medium">Booking & Voucher</span>
+          </a>
+          <a className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-emerald-900 bg-emerald-50/50 font-bold" href="#">
+            <span className="material-symbols-outlined" style={{fontVariationSettings:"'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24"}}>group</span>
+            <span className="text-sm font-medium">Danh sách Nhân sự</span>
+          </a>
         </nav>
-
-        {/* Bottom CTA */}
-        <div style={{ marginTop: "auto" }}>
-          <button style={styles.sidebarCTA}>
-            <MSIcon name="add" style={{ fontSize: 16, color: "#e7fef3" }} />
+        <div className="mt-auto px-4 space-y-2">
+          {/* Current user */}
+          <div className="px-2 py-2 rounded-xl bg-stone-50 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">A</div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-stone-800 truncate">Admin</p>
+              <p className="text-[10px] text-stone-500 truncate">System Admin</p>
+            </div>
+          </div>
+          <button onClick={() => setIsAddUserModalOpen(true)} className="w-full py-3 bg-primary text-on-primary rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-sm">add</span>
             Thêm người dùng
+          </button>
+          <button className="w-full py-2.5 border border-stone-200 text-stone-500 rounded-xl font-medium text-sm hover:bg-stone-50 transition-all flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-sm">logout</span>
+            Đăng xuất
           </button>
         </div>
       </aside>
 
-      {/* ══ MAIN AREA ══ */}
-      <div style={styles.mainArea}>
-        {/* ── Top Header ── */}
-        <header style={styles.header}>
-          {/* Search + Nav tabs */}
-          <div style={styles.headerLeft}>
-            <div style={styles.searchWrap}>
-              <MSIcon name="search" style={styles.searchIcon} />
-              <input
-                style={styles.searchInput}
-                placeholder="Tìm kiếm tài nguyên..."
-                type="text"
-              />
+      {/* TopNavBar */}
+      <header className="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-30 bg-white/80 backdrop-blur-md border-b border-stone-100 flex items-center justify-between px-8">
+        <div className="flex items-center gap-8">
+          <div className="relative w-80">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">search</span>
+            <input className="w-full bg-stone-100 border-none rounded-full py-2 pl-10 pr-4 text-xs focus:ring-1 focus:ring-primary/40 outline-none" placeholder="Tìm kiếm tài nguyên..." type="text" />
+          </div>
+          <nav className="flex gap-6">
+            <a className="text-stone-500 font-medium text-sm hover:text-emerald-700 transition-all" href="#">Hotels</a>
+            <a className="text-emerald-800 border-b-2 border-emerald-800 pb-1 font-semibold text-sm" href="#">Analytics</a>
+            <a className="text-stone-500 font-medium text-sm hover:text-emerald-700 transition-all" href="#">Reports</a>
+          </nav>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-1">
+            <button className="p-2 text-stone-500 hover:bg-stone-100 rounded-full transition-colors relative">
+              <span className="material-symbols-outlined">notifications</span>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            <button className="p-2 text-stone-500 hover:bg-stone-100 rounded-full transition-colors">
+              <span className="material-symbols-outlined">help_outline</span>
+            </button>
+          </div>
+          <div className="h-8 w-px bg-stone-200 mx-2"></div>
+          <div className="flex items-center gap-3 cursor-pointer">
+            <div className="text-right">
+              <p className="text-xs font-bold text-on-surface">Alex Rivera</p>
+              <p className="text-[10px] text-stone-500">General Manager</p>
             </div>
-            <nav style={styles.headerNav}>
-              {["Hotels", "Analytics", "Reports"].map((tab, i) => (
-                <a
-                  key={tab}
-                  href="#"
-                  style={{
-                    ...styles.headerNavLink,
-                    color: i === 1 ? "#1a3a2f" : "#6b7280",
-                    borderBottom: i === 1 ? "2px solid #1a3a2f" : "none",
-                    paddingBottom: i === 1 ? 4 : 0,
-                    fontWeight: i === 1 ? 600 : 500,
-                  }}
-                >
-                  {tab}
-                </a>
-              ))}
-            </nav>
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">A</div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="ml-64 pt-24 p-8 min-h-screen bg-[#f8f9fa]">
+        <div className="max-w-7xl mx-auto">
+          {/* Page Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-on-surface tracking-tight">Quản lý Nhân sự & Người dùng</h2>
+              <p className="text-sm text-stone-500 mt-1">
+                Tổng: <span className="font-semibold text-on-surface">{users.length}</span> người dùng
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button className="px-5 py-2 rounded-xl text-sm font-medium bg-white text-on-surface border border-stone-200 hover:bg-stone-50 transition-colors flex items-center gap-2 shadow-sm">
+                <span className="material-symbols-outlined text-sm">file_download</span>
+                Xuất báo cáo
+              </button>
+              <button 
+                onClick={() => setIsAddUserModalOpen(true)}
+                className="px-5 py-2 rounded-xl text-sm font-medium bg-primary text-on-primary hover:opacity-90 transition-all flex items-center gap-2 shadow-md">
+                <span className="material-symbols-outlined text-sm">person_add</span>
+                Thêm người dùng
+              </button>
+            </div>
           </div>
 
-          {/* Right side */}
-          <div style={styles.headerRight}>
-            <div style={styles.headerIcons}>
-              {/* Theme toggle */}
-              <button style={styles.iconBtn}>
-                <MSIcon name="light_mode" style={{ color: "#6b7280" }} />
-              </button>
-              {/* Bell */}
-              <button style={{ ...styles.iconBtn, position: "relative" }}>
-                <MSIcon name="notifications" style={{ color: "#6b7280" }} />
-                <span style={styles.notifDot} />
-              </button>
-              {/* Help */}
-              <button style={styles.iconBtn}>
-                <MSIcon name="help_outline" style={{ color: "#6b7280" }} />
-              </button>
-            </div>
-
-            <div style={styles.headerDivider} />
-
-            {/* User profile */}
-            <div style={styles.headerUser}>
-              <div style={styles.headerUserText}>
-                <p style={styles.headerUserName}>Alex Rivera</p>
-                <p style={styles.headerUserRole}>General Manager</p>
-              </div>
-              <img
-                alt="Manager Profile"
-                style={styles.headerAvatar}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwj11ZS5iH48v0sXiiU44b3dLEPEJV4XON3tDiH6ZNsLDJb5la_4Xr-I0fCyLxs8QT_eFvRxLXSYKS93_UUueQH8tlsP6IPFHyLaVtZF9AcB3vV64WHTsPcUJM4bP9U5vJnWhDXTewCi00AoSwbWTEUnhDZZypCZF--qFor6pz5D3hZkHHBuVF_7LrrJWGDggtpxHd0Ct9ctNJNLn3dO5QJsqBjc6ZOApz2NKbIgyX8agRyxnVMddwJNlIBJJCw30n1cpJ3QGGrcg"
-              />
-            </div>
-          </div>
-        </header>
-
-        {/* ── Page Content ── */}
-        <main style={styles.content}>
-          <div style={styles.contentInner}>
-            {/* Page title + actions */}
-            <div style={styles.pageHeader}>
-              <div>
-                <h2 style={styles.pageTitle}>
-                  Quản lý Nhân sự &amp; Người dùng
-                </h2>
-              </div>
-              <div style={{ display: "flex", gap: 12 }}>
-                <button style={styles.exportBtn}>
-                  <MSIcon
-                    name="file_download"
-                    style={{ fontSize: 16, color: "#374151" }}
-                  />
-                  Xuất báo cáo
-                </button>
-                <button style={styles.addUserBtn}>
-                  <MSIcon
-                    name="person_add"
-                    style={{ fontSize: 16, color: "#e7fef3" }}
-                  />
-                  Thêm người dùng
-                </button>
+          {/* Filters Section */}
+          <section className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-stone-100 flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[300px]">
+              <label className="block text-[11px] font-semibold text-stone-500 mb-2">Họ tên, Email, SĐT</label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-lg">search</span>
+                <input className="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary/40 focus:bg-white outline-none" placeholder="Gõ từ khóa..." type="text" />
               </div>
             </div>
+            <div className="w-56">
+              <label className="block text-[11px] font-semibold text-stone-500 mb-2">Lọc theo Vai trò</label>
+              <select className="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 px-4 text-sm focus:ring-1 focus:ring-primary/40 outline-none">
+                <option value="">Chọn vai trò</option>
+                <option>Admin</option>
+                <option>Manager</option>
+                <option>Receptionist</option>
+              </select>
+            </div>
+            <div className="w-56">
+              <label className="block text-[11px] font-semibold text-stone-500 mb-2">Lọc theo Trạng thái</label>
+              <select className="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 px-4 text-sm focus:ring-1 focus:ring-primary/40 outline-none">
+                <option value="">Chọn trạng thái</option>
+                <option value="active">Hoạt động</option>
+                <option value="locked">Đã khóa</option>
+              </select>
+            </div>
+            <button className="bg-stone-100 text-stone-600 p-2.5 rounded-xl border border-stone-200 hover:bg-stone-200 transition-colors" title="Xóa bộ lọc">
+              <span className="material-symbols-outlined">tune</span>
+            </button>
+          </section>
 
-            {/* Filters */}
-            <section style={styles.filterSection}>
-              {/* Search */}
-              <div style={{ flex: 1, minWidth: 300 }}>
-                <label style={styles.filterLabel}>Họ tên, Email, SĐT</label>
-                <div style={{ position: "relative" }}>
-                  <MSIcon name="search" style={styles.filterSearchIcon} />
-                  <input
-                    style={styles.filterInput}
-                    placeholder="Gõ từ khóa..."
-                    type="text"
-                  />
-                </div>
-              </div>
-
-              {/* Role select */}
-              <div style={styles.filterField}>
-                <label style={styles.filterLabel}>Lọc theo Vai trò</label>
-                <select style={styles.filterSelect}>
-                  <option>Chọn vai trò</option>
-                  <option>Receptionist</option>
-                  <option>Manager</option>
-                  <option>Accountant</option>
-                  <option>Guest</option>
-                </select>
-              </div>
-
-              {/* Status select */}
-              <div style={styles.filterField}>
-                <label style={styles.filterLabel}>Lọc theo Trạng thái</label>
-                <select style={styles.filterSelect}>
-                  <option>Chọn trạng thái</option>
-                  <option>Hoạt động</option>
-                  <option>Đã khóa</option>
-                </select>
-              </div>
-
-              {/* Tune button */}
-              <button style={styles.tuneBtn}>
-                <MSIcon name="tune" style={{ color: "#6b7280" }} />
-              </button>
-            </section>
-
-            {/* Table */}
-            <div style={styles.tableCard}>
-              <div style={{ overflowX: "auto" }}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr style={styles.thead}>
-                      {[
-                        "Họ và tên",
-                        "Email",
-                        "Số điện thoại",
-                        "Vai trò",
-                        "Trạng thái",
-                        "Thao tác",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          style={{
-                            ...styles.th,
-                            textAlign: h === "Thao tác" ? "right" : "left",
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id} className="table-row" style={styles.tr}>
-                        {/* Name */}
-                        <td style={styles.td}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                            }}
-                          >
-                            <img
-                              alt="Avatar"
-                              style={styles.avatar}
-                              src={u.avatar}
-                            />
-                            <span style={styles.userName}>{u.name}</span>
+          {/* Data Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-stone-50/50 border-b border-stone-100">
+                    <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Họ và tên</th>
+                    <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Email</th>
+                    <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Số điện thoại</th>
+                    <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Vai trò</th>
+                    <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500">Trạng thái</th>
+                    <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-stone-500 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-50">
+                  {users.map((u, i) => {
+                    const roleClass = ROLE_BADGE[u.roleName] || 'bg-stone-100 text-stone-500';
+                    return (
+                      <tr key={u.id} className="hover:bg-stone-50/50 transition-colors fade-row" style={{animationDelay: `${Math.min(i * 25, 200)}ms`}}>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {u.avatarUrl ? (
+                              <img src={u.avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                                {u.fullName ? u.fullName[0].toUpperCase() : '?'}
+                              </div>
+                            )}
+                            <div>
+                              <span className="font-medium text-stone-800 text-sm">{u.fullName}</span>
+                              <p className="text-xs text-stone-400">#{u.id}</p>
+                            </div>
                           </div>
                         </td>
-
-                        {/* Email */}
-                        <td style={styles.td}>{u.email}</td>
-
-                        {/* Phone */}
-                        <td style={styles.td}>{u.phone}</td>
-
-                        {/* Role badge */}
-                        <td style={styles.td}>
-                          <span
-                            style={{
-                              ...styles.roleBadge,
-                              background: u.roleColor.bg,
-                              color: u.roleColor.text,
-                              border: `1px solid ${u.roleColor.border}`,
-                            }}
-                          >
-                            {u.role}
-                          </span>
+                        <td className="px-6 py-4 text-sm text-stone-600">{u.email}</td>
+                        <td className="px-6 py-4 text-sm text-stone-600">{u.phone}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 ${roleClass} text-[10px] font-bold rounded-full uppercase`}>{u.roleName}</span>
                         </td>
-
-                        {/* Status + Toggle */}
-                        <td style={styles.td}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 500,
-                                color: u.active ? "#16a34a" : "#9ca3af",
-                              }}
-                            >
-                              {u.active ? "Hoạt động" : "Bị khóa"}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium ${u.status ? 'text-emerald-600' : 'text-stone-400'}`}>
+                              {u.status ? 'Hoạt động' : 'Đã khóa'}
                             </span>
-                            <ToggleSwitch
-                              checked={u.active}
-                              onChange={() => handleToggle(u.id)}
-                            />
+                            <label className="toggle-switch">
+                              <input type="checkbox" checked={u.status} onChange={() => handleToggleStatus(u.id)} />
+                              <span className="slider"></span>
+                            </label>
                           </div>
                         </td>
-
-                        {/* Actions */}
-                        <td style={{ ...styles.td, textAlign: "right" }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              gap: 4,
-                            }}
-                          >
-                            <button className="action-btn" title="Phân quyền">
-                              <MSIcon
-                                name="shield"
-                                style={{ fontSize: 20, color: "currentColor" }}
-                              />
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => openDetail(u)} className="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg" title="Xem chi tiết">
+                              <span className="material-symbols-outlined text-xl">visibility</span>
                             </button>
-                            <button className="action-btn" title="Xem chi tiết">
-                              <MSIcon
-                                name="visibility"
-                                style={{ fontSize: 20, color: "currentColor" }}
-                              />
-                            </button>
-                            <button className="action-btn" title="Chỉnh sửa">
-                              <MSIcon
-                                name="edit_square"
-                                style={{ fontSize: 20, color: "currentColor" }}
-                              />
+                            <button className="p-2 text-stone-400 hover:text-primary transition-colors hover:bg-stone-100 rounded-lg" title="Chỉnh sửa">
+                              <span className="material-symbols-outlined text-xl">edit_square</span>
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Pagination */}
-              <div style={styles.pagination}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14, color: "#6b7280" }}>
-                    Tổng số người dùng: 10
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <button
-                    style={{
-                      ...styles.pageBtn,
-                      opacity: 0.5,
-                      cursor: "not-allowed",
-                    }}
-                  >
-                    <MSIcon
-                      name="chevron_left"
-                      style={{ fontSize: 18, color: "#9ca3af" }}
-                    />
-                  </button>
-                  {[1, 2, 3].map((p) => (
-                    <button
-                      key={p}
-                      style={{
-                        ...styles.pageBtn,
-                        background: p === 1 ? "#4f645b" : "#fff",
-                        color: p === 1 ? "#e7fef3" : "#6b7280",
-                        border:
-                          p === 1 ? "1px solid #4f645b" : "1px solid #e5e7eb",
-                        fontWeight: p === 1 ? 700 : 500,
-                      }}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <span style={{ padding: "0 8px", color: "#9ca3af" }}>
-                    ...
-                  </span>
-                  <button style={styles.pageBtn}>
-                    <MSIcon
-                      name="chevron_right"
-                      style={{ fontSize: 18, color: "#9ca3af" }}
-                    />
-                  </button>
-                </div>
+            {/* Pagination */}
+            <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-stone-500">Hiển thị</span>
+                <select className="bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-primary/40 outline-none">
+                  <option value="10">10/trang</option>
+                  <option value="20">20/trang</option>
+                </select>
+                <span className="text-xs text-stone-400">1–3 / {users.length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button className="pg-btn icon" disabled><span className="material-symbols-outlined" style={{fontSize:'18px'}}>chevron_left</span></button>
+                <button className="pg-btn active">1</button>
+                <button className="pg-btn icon" disabled><span className="material-symbols-outlined" style={{fontSize:'18px'}}>chevron_right</span></button>
               </div>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
-
-// ─── CSS (scoped) ──────────────────────────────────────────────────────────────
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-  * { box-sizing: border-box; }
-
-  .material-symbols-outlined {
-    font-family: 'Material Symbols Outlined';
-    font-weight: normal;
-    font-style: normal;
-    font-size: 20px;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
-    display: inline-block;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
-    -webkit-font-smoothing: antialiased;
-    vertical-align: middle;
-  }
-
-  .table-row:hover td { background: rgba(79,100,91,0.025) !important; }
-
-  .action-btn {
-    padding: 8px;
-    border: none;
-    background: transparent;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #9ca3af;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .action-btn:hover {
-    background: #f3f4f6;
-    color: #4f645b;
-  }
-`;
-
-// ─── Styles ────────────────────────────────────────────────────────────────────
-const font = "'Manrope', sans-serif";
-
-const styles = {
-  shell: {
-    display: "flex",
-    minHeight: "100vh",
-    background: "#f8f9fa",
-    fontFamily: font,
-    WebkitFontSmoothing: "antialiased",
-  },
-
-  // ── Sidebar ──
-  sidebar: {
-    width: 256,
-    minHeight: "100vh",
-    background: "#ffffff",
-    borderRight: "1px solid #f3f4f6",
-    display: "flex",
-    flexDirection: "column",
-    padding: "32px 16px",
-    position: "fixed",
-    left: 0,
-    top: 0,
-    zIndex: 40,
-  },
-  sidebarBrand: { marginBottom: 40, padding: "0 16px" },
-  brandName: {
-    fontFamily: font,
-    fontSize: 20,
-    fontWeight: 700,
-    letterSpacing: "-0.025em",
-    color: "#1a3a2f",
-    textTransform: "uppercase",
-    margin: 0,
-  },
-  brandSub: {
-    fontFamily: font,
-    fontSize: 10,
-    letterSpacing: "0.2em",
-    textTransform: "uppercase",
-    color: "#9ca3af",
-    marginTop: 4,
-  },
-  nav: { display: "flex", flexDirection: "column", gap: 4 },
-  navItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "12px 16px",
-    borderRadius: 12,
-    textDecoration: "none",
-    fontSize: 14,
-    fontFamily: font,
-    transition: "all 0.15s",
-  },
-  sidebarCTA: {
-    width: "100%",
-    padding: "12px",
-    background: "#4f645b",
-    color: "#e7fef3",
-    border: "none",
-    borderRadius: 12,
-    fontFamily: font,
-    fontSize: 14,
-    fontWeight: 600,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(79,100,91,0.25)",
-  },
-
-  // ── Main area ──
-  mainArea: {
-    marginLeft: 256,
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  },
-
-  // ── Header ──
-  header: {
-    position: "sticky",
-    top: 0,
-    zIndex: 30,
-    background: "rgba(255,255,255,0.8)",
-    backdropFilter: "blur(12px)",
-    borderBottom: "1px solid #f3f4f6",
-    height: 64,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 32px",
-  },
-  headerLeft: { display: "flex", alignItems: "center", gap: 32 },
-  searchWrap: { position: "relative", width: 320 },
-  searchIcon: {
-    position: "absolute",
-    left: 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: "#9ca3af",
-  },
-  searchInput: {
-    width: "100%",
-    background: "#f3f4f6",
-    border: "none",
-    borderRadius: 999,
-    padding: "8px 16px 8px 40px",
-    fontSize: 12,
-    fontFamily: font,
-    outline: "none",
-    color: "#374151",
-  },
-  headerNav: { display: "flex", gap: 24 },
-  headerNavLink: {
-    fontFamily: font,
-    fontSize: 14,
-    fontWeight: 500,
-    textDecoration: "none",
-    transition: "color 0.15s",
-  },
-  headerRight: { display: "flex", alignItems: "center", gap: 16 },
-  headerIcons: { display: "flex", gap: 4 },
-  iconBtn: {
-    padding: 8,
-    border: "none",
-    background: "transparent",
-    borderRadius: 999,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "background 0.15s",
-  },
-  notifDot: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    background: "#ef4444",
-    borderRadius: "50%",
-    border: "2px solid white",
-  },
-  headerDivider: {
-    width: 1,
-    height: 32,
-    background: "#e5e7eb",
-    margin: "0 8px",
-  },
-  headerUser: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    cursor: "pointer",
-  },
-  headerUserText: { textAlign: "right" },
-  headerUserName: {
-    fontFamily: font,
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#1a1a1a",
-    margin: 0,
-  },
-  headerUserRole: {
-    fontFamily: font,
-    fontSize: 10,
-    color: "#6b7280",
-    margin: 0,
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: "50%",
-    objectFit: "cover",
-    border: "1px solid #e5e7eb",
-  },
-
-  // ── Content ──
-  content: { flex: 1, padding: "32px" },
-  contentInner: { maxWidth: 1200, margin: "0 auto" },
-
-  pageHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  pageTitle: {
-    fontFamily: font,
-    fontSize: 22,
-    fontWeight: 800,
-    color: "#1a1a1a",
-    margin: 0,
-    letterSpacing: "-0.3px",
-  },
-
-  exportBtn: {
-    padding: "9px 20px",
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    fontSize: 14,
-    fontWeight: 500,
-    color: "#374151",
-    fontFamily: font,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    cursor: "pointer",
-  },
-  addUserBtn: {
-    padding: "9px 20px",
-    background: "#4f645b",
-    border: "none",
-    borderRadius: 12,
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#e7fef3",
-    fontFamily: font,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    boxShadow: "0 4px 12px rgba(79,100,91,0.25)",
-    cursor: "pointer",
-  },
-
-  // ── Filters ──
-  filterSection: {
-    background: "#ffffff",
-    borderRadius: 16,
-    padding: "20px 24px",
-    marginBottom: 24,
-    border: "1px solid #f3f4f6",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 16,
-    alignItems: "flex-end",
-  },
-  filterLabel: {
-    display: "block",
-    fontFamily: font,
-    fontSize: 11,
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    color: "#6b7280",
-    marginBottom: 8,
-  },
-  filterInput: {
-    width: "100%",
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: "10px 16px 10px 40px",
-    fontSize: 14,
-    fontFamily: font,
-    outline: "none",
-    color: "#374151",
-  },
-  filterSearchIcon: {
-    position: "absolute",
-    left: 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: "#9ca3af",
-  },
-  filterField: { width: 224 },
-  filterSelect: {
-    width: "100%",
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: "10px 16px",
-    fontSize: 14,
-    fontFamily: font,
-    outline: "none",
-    color: "#6b7280",
-    cursor: "pointer",
-  },
-  tuneBtn: {
-    padding: "10px",
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // ── Table ──
-  tableCard: {
-    background: "#ffffff",
-    borderRadius: 16,
-    border: "1px solid #f3f4f6",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-    overflow: "hidden",
-  },
-  table: { width: "100%", borderCollapse: "collapse" },
-  thead: {
-    background: "rgba(249,250,251,0.5)",
-    borderBottom: "1px solid #f3f4f6",
-  },
-  tr: {},
-  th: {
-    padding: "16px 24px",
-    fontFamily: font,
-    fontSize: 11,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    color: "#6b7280",
-  },
-  td: {
-    padding: "16px 24px",
-    fontSize: 14,
-    fontFamily: font,
-    color: "#374151",
-    borderBottom: "1px solid rgba(243,244,246,0.8)",
-  },
-  avatar: { width: 36, height: 36, borderRadius: "50%", objectFit: "cover" },
-  userName: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "#1a1a1a",
-    fontFamily: font,
-  },
-  roleBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "2px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 600,
-    fontFamily: font,
-  },
-
-  // Toggle switch
-  toggleWrap: {
-    position: "relative",
-    display: "inline-block",
-    width: 44,
-    height: 24,
-    cursor: "pointer",
-  },
-  slider: {
-    position: "absolute",
-    inset: 0,
-    borderRadius: 24,
-    transition: "background 0.3s",
-    display: "flex",
-    alignItems: "center",
-  },
-  sliderThumb: {
-    position: "absolute",
-    left: 3,
-    width: 18,
-    height: 18,
-    background: "#ffffff",
-    borderRadius: "50%",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-    transition: "transform 0.3s",
-  },
-
-  // Pagination
-  pagination: {
-    padding: "16px 24px",
-    borderTop: "1px solid #f3f4f6",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  pageBtn: {
-    minWidth: 32,
-    height: 32,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 500,
-    fontFamily: font,
-    border: "1px solid #e5e7eb",
-    background: "#ffffff",
-    color: "#6b7280",
-    cursor: "pointer",
-    transition: "all 0.15s",
-  },
-};

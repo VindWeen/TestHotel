@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
@@ -49,6 +50,20 @@ public class AuthController : ControllerBase
         user.LastLoginAt        = DateTime.UtcNow;
         user.RefreshToken       = refreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = user.Id,
+            Action    = "LOGIN",
+            TableName = "Users",
+            RecordId  = user.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"email\": \"{user.Email}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -105,6 +120,20 @@ public class AuthController : ControllerBase
         };
 
         _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = user.Id,
+            Action    = "REGISTER",
+            TableName = "Users",
+            RecordId  = user.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"email\": \"{user.Email}\", \"fullName\": \"{user.FullName}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
         await _db.SaveChangesAsync();
 
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
@@ -186,6 +215,20 @@ public class AuthController : ControllerBase
 
         user.RefreshToken       = null;
         user.RefreshTokenExpiry = null;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "LOGOUT",
+            TableName = "Users",
+            RecordId  = userId,
+            OldValue  = null,
+            NewValue  = null,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Đăng xuất thành công." });

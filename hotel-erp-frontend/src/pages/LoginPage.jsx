@@ -1,579 +1,215 @@
 // src/pages/LoginPage.jsx
-// Clone 1:1 từ index.html — chỉ UI, chưa có logic/API
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LoginPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
+
+
+  // Tailwind CSS and config are now bundled by Vite.
 
   return (
-    <div style={styles.body}>
-      <style>{css}</style>
 
-      <main style={styles.main}>
-        {/* ══ IMAGE PANEL ══
-            - Login:   hiện bên phải (right-0)
-            - Sign-up: trượt sang trái (-100%)
-        */}
-        <section
-          className="image-panel"
-          style={{
-            ...styles.imagePanel,
-            transform: isSignUp ? "translateX(-100%)" : "translateX(0)",
-          }}
-        >
-          <div style={{ position: "relative", height: "100%", width: "100%" }}>
-            <img
-              alt="Serene luxury hotel suite with ocean view"
-              style={styles.bgImg}
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUXLirJlWJiy10WHJheRqqrv4EtlspwBjVQDI4G6WCsDBgXSUvSBwsdAfbo1-m87D-XEPsKtrjpwhxTzc3pgZP9XFBzMezt71X_tkCybCWbpHGllEvbv80ia3FiBv-AIqMTvhmPr03oG0QVMqWvBFLx-M0nnp2W6iXCK0x8RIcmfkjFA9EvE5ATbCrXXB4GhG4amZQiP1h9FRuarHM9n2EbwGdH9Gut0CweAjs6Ot_QKkIaxLUp4dVmQJ9QM8EssZIC-xjI6F1bnw"
-            />
-            <div style={styles.imgOverlay} />
-            <div style={styles.imgContent}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={styles.welcomeTo}>Welcome to</span>
-                <h1 style={styles.brandTitle}>The Ethereal Concierge</h1>
-              </div>
-              <div
-                style={{
-                  maxWidth: 448,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 24,
-                }}
-              >
-                <p style={styles.brandQuote}>
-                  "A digital sanctuary crafted for the discerning traveler,
-                  where every detail is a breath of fresh air."
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div
-                    style={{
-                      height: 1,
-                      width: 48,
-                      background: "rgba(231,254,243,0.4)",
-                    }}
-                  />
-                  <span style={styles.estLabel}>Est. 2024</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+    <>
+      <style>{`
+        body { font-family: 'Manrope', sans-serif; background-color: #fbf9f4; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+        .form-input-focus:focus { box-shadow: 0 0 0 1px rgba(79, 100, 91, 0.4); outline: none; }
+        .luxury-gradient { background: linear-gradient(135deg, #4f645b 0%, #43574f 100%); }
 
-        {/* ══ FORM PANEL ══
-            - Login:   ở bên trái, translateX(0)
-            - Sign-up: trượt sang phải (100%)
-        */}
-        <section
-          className="form-container"
-          style={{
-            ...styles.formPanel,
-            transform: isSignUp ? "translateX(100%)" : "translateX(0)",
-          }}
-        >
-          {/* Mobile brand — ẩn trên desktop */}
-          <div className="mobile-brand" style={styles.mobileBrand}>
-            <h1 style={styles.mobileBrandTitle}>The Ethereal Concierge</h1>
-          </div>
+        /* Spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(231,254,243,.4); border-top-color: #e7fef3; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 8px; }
 
-          {/* ── LOGIN VIEW ── */}
-          {!isSignUp && (
-            <div style={styles.formBox}>
-              <div style={styles.formHeading}>
-                <h2 style={styles.formTitle}>Sign In</h2>
-                <p style={styles.formSubtitle}>
-                  Return to your personal sanctuary.
-                </p>
-              </div>
+        /* Shake */
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-5px)} 40%,80%{transform:translateX(5px)} }
+        .shake { animation: shake .4s ease; }
 
-              <form style={styles.form} onSubmit={(e) => e.preventDefault()}>
-                <Field label="Username or Email">
-                  <input
-                    style={styles.input}
-                    placeholder="Enter your identity"
-                    type="text"
-                  />
-                </Field>
+        /* Password toggle */
+        .pw-btn { position:absolute; right:16px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#7a7b75; display:flex; align-items:center; transition:color .2s; }
+        .pw-btn:hover { color: #4f645b; }
 
-                <Field
-                  label="Password"
-                  aside={
-                    <a href="#" style={styles.forgotLink}>
-                      Forgot?
-                    </a>
-                  }
-                >
-                  <input
-                    style={styles.input}
-                    placeholder="••••••••"
-                    type="password"
-                  />
-                </Field>
+        /* Modal backdrop */
+        .modal-bg { backdrop-filter: blur(4px); }
 
-                <button style={styles.submitBtn} type="submit">
-                  Sign In
-                </button>
-              </form>
+        /* Register modal scroll */
+        .modal-scroll { max-height: 90vh; overflow-y: auto; }
+      `}</style>
+      
+      {/* External CSS Links */}
+      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 
-              {/* Divider */}
-              <div style={{ position: "relative", padding: "16px 0" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "100%",
-                      borderTop: "1px solid rgba(209,209,204,0.3)",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <p style={styles.switchText}>
-                Don't have an account?{" "}
-                <button
-                  style={styles.switchBtn}
-                  onClick={() => setIsSignUp(true)}
-                >
-                  Sign Up
-                </button>
-              </p>
-            </div>
-          )}
-
-          {/* ── SIGN UP VIEW ── */}
-          {isSignUp && (
-            <div style={{ ...styles.formBox, maxWidth: 448 }}>
-              <div style={styles.formHeading}>
-                <h2 style={styles.formTitle}>Join the Circle</h2>
-                <p style={styles.formSubtitle}>Experience luxury redefined.</p>
-              </div>
-
-              <form
-                className="custom-scrollbar"
-                style={{
-                  ...styles.form,
-                  maxHeight: 614,
-                  overflowY: "auto",
-                  paddingRight: 16,
-                }}
-                onSubmit={(e) => e.preventDefault()}
-              >
-                {/* Full Name + Email */}
-                <div style={styles.grid2}>
-                  <Field label="Full Name">
-                    <input
-                      style={styles.inputSm}
-                      placeholder="John Doe"
-                      type="text"
-                    />
-                  </Field>
-                  <Field label="Email Address">
-                    <input
-                      style={styles.inputSm}
-                      placeholder="john@ethereal.com"
-                      type="email"
-                    />
-                  </Field>
-                </div>
-
-                {/* Phone + DOB */}
-                <div style={styles.grid2}>
-                  <Field label="Phone Number">
-                    <input
-                      style={styles.inputSm}
-                      placeholder="+1 (555) 000-0000"
-                      type="tel"
-                    />
-                  </Field>
-                  <Field label="Date of Birth">
-                    <input
-                      style={{ ...styles.inputSm, color: "#5e6059" }}
-                      type="date"
-                    />
-                  </Field>
-                </div>
-
-                {/* Gender + Username */}
-                <div style={styles.grid2}>
-                  <Field label="Gender">
-                    <select style={{ ...styles.inputSm, color: "#5e6059" }}>
-                      <option>Select Preference</option>
-                      <option>Female</option>
-                      <option>Male</option>
-                      <option>Non-binary</option>
-                      <option>Prefer not to say</option>
-                    </select>
-                  </Field>
-                  <Field label="Username">
-                    <input
-                      style={styles.inputSm}
-                      placeholder="unique_traveler"
-                      type="text"
-                    />
-                  </Field>
-                </div>
-
-                {/* Address */}
-                <Field label="Home Address">
-                  <input
-                    style={styles.inputSm}
-                    placeholder="123 Serenity Blvd, Sky City, 90210"
-                    type="text"
-                  />
-                </Field>
-
-                {/* Password */}
-                <Field label="Secure Password">
-                  <input
-                    style={styles.inputSm}
-                    placeholder="••••••••"
-                    type="password"
-                  />
-                </Field>
-
-                {/* Terms */}
-                <div style={styles.termsRow}>
-                  <input
-                    style={{
-                      marginTop: 4,
-                      height: 16,
-                      width: 16,
-                      accentColor: "#4f645b",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
-                    type="checkbox"
-                  />
-                  <label style={styles.termsLabel}>
-                    I agree to the{" "}
-                    <a href="#" style={styles.termsLink}>
-                      Terms of Service
-                    </a>{" "}
-                    and acknowledge the{" "}
-                    <a href="#" style={styles.termsLink}>
-                      Privacy Policy
-                    </a>
-                    .
-                  </label>
-                </div>
-
-                <button style={styles.submitBtn} type="submit">
-                  Create Account
-                </button>
-              </form>
-
-              <p style={styles.switchText}>
-                Already have an account?{" "}
-                <button
-                  style={styles.switchBtn}
-                  onClick={() => setIsSignUp(false)}
-                >
-                  Sign In
-                </button>
-              </p>
-            </div>
-          )}
-
-          {/* Footer links */}
-          <footer style={styles.footer}>
-            {["Privacy", "Terms", "Sustainability"].map((label) => (
-              <a key={label} href="#" style={styles.footerLink}>
-                {label}
-              </a>
-            ))}
-          </footer>
-        </section>
-      </main>
-    </div>
-  );
-}
-
-// ─── Helper: Field wrapper ─────────────────────────────────────────────────────
-function Field({ label, aside, children }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0 4px",
+      {/* MODAL: ĐĂNG KÝ */}
+      <div 
+        id="registerModal" 
+        className={`fixed inset-0 bg-black/50 modal-bg ${isRegisterOpen ? 'flex' : 'hidden'} items-center justify-center z-[200]`}
+        onClick={(e) => {
+          if (e.target.id === 'registerModal') setIsRegisterOpen(false);
         }}
       >
-        <label style={styles.fieldLabel}>{label}</label>
-        {aside}
+        <div className="bg-white rounded-2xl w-full max-w-md mx-4 modal-scroll shadow-2xl">
+          <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-stone-100">
+            <h3 className="text-xl font-bold">Tạo tài khoản mới</h3>
+            <button 
+              onClick={() => setIsRegisterOpen(false)} 
+              className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors"
+            >
+              <span className="material-symbols-outlined" style={{fontSize: '20px', fontVariationSettings: "'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24"}}>close</span>
+            </button>
+          </div>
+          <form id="registerForm" className="px-8 py-6 space-y-4" noValidate onSubmit={(e) => e.preventDefault()}>
+            <div>
+              <label className="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style={{color: '#5e6059'}}>Họ và tên *</label>
+              <input id="r_fullName" type="text" placeholder="Nguyễn Văn A" autoComplete="name"
+                     className="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+                     style={{background: 'rgba(227,227,219,.5)', color: '#31332e'}} />
+            </div>
+            <div>
+              <label className="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style={{color: '#5e6059'}}>Email *</label>
+              <input id="r_email" type="email" placeholder="your@email.com" autoComplete="email"
+                     className="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+                     style={{background: 'rgba(227,227,219,.5)', color: '#31332e'}} />
+            </div>
+            <div>
+              <label className="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style={{color: '#5e6059'}}>Số điện thoại</label>
+              <input id="r_phone" type="tel" placeholder="09xxxxxxxx" autoComplete="tel"
+                     className="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+                     style={{background: 'rgba(227,227,219,.5)', color: '#31332e'}} />
+            </div>
+            <div>
+              <label className="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style={{color: '#5e6059'}}>Mật khẩu *</label>
+              <div className="relative">
+                <input id="r_password" type={showRegPassword ? "text" : "password"} placeholder="Tối thiểu 6 ký tự" autoComplete="new-password"
+                       className="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 pr-14 text-sm form-input-focus transition-all"
+                       style={{background: 'rgba(227,227,219,.5)', color: '#31332e'}} />
+                <button type="button" className="pw-btn" onClick={() => setShowRegPassword(!showRegPassword)}>
+                  <span className="material-symbols-outlined" style={{fontSize: '20px', fontVariationSettings: "'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24"}}>{showRegPassword ? "visibility" : "visibility_off"}</span>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5" style={{color: '#5e6059'}}>Xác nhận mật khẩu *</label>
+              <div className="relative">
+                <input id="r_confirmPw" type={showRegConfirm ? "text" : "password"} placeholder="Nhập lại mật khẩu" autoComplete="new-password"
+                       className="w-full bg-surface-container-highest/50 border-none rounded-xl py-3.5 px-5 pr-14 text-sm form-input-focus transition-all"
+                       style={{background: 'rgba(227,227,219,.5)', color: '#31332e'}} />
+                <button type="button" className="pw-btn" onClick={() => setShowRegConfirm(!showRegConfirm)}>
+                  <span className="material-symbols-outlined" style={{fontSize: '20px', fontVariationSettings: "'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24"}}>{showRegConfirm ? "visibility" : "visibility_off"}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button 
+                type="button" 
+                onClick={() => setIsRegisterOpen(false)}
+                className="flex-1 py-3.5 border border-stone-200 rounded-full text-sm font-semibold hover:bg-stone-50 transition-colors" 
+                style={{color: '#5e6059'}}>
+                Hủy
+              </button>
+              <button type="submit"
+                      className="flex-1 luxury-gradient rounded-full py-3.5 font-bold tracking-widest uppercase text-xs shadow-lg transition-all active:scale-[.98] disabled:opacity-60 flex items-center justify-center"
+                      style={{color: '#e7fef3'}}>
+                <span>Tạo tài khoản</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-      {children}
-    </div>
+
+      <div className="bg-surface text-on-surface antialiased overflow-hidden">
+        <main className="min-h-screen flex flex-col md:flex-row w-full">
+          {/* Left Side: Serene Visual */}
+          <section className="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden bg-primary-fixed">
+            <div className="absolute inset-0 z-0">
+              <img alt="Serene Hotel Interior" className="w-full h-full object-cover opacity-90 mix-blend-multiply"
+                   src="https://images8.alphacoders.com/138/1386921.png" />
+            </div>
+            <div className="relative z-10 flex flex-col justify-between p-16 w-full text-on-primary-fixed">
+              <div>
+                <span className="text-xl font-bold tracking-tighter">The Ethereal Concierge</span>
+              </div>
+              <div className="max-w-md">
+                <h2 className="text-5xl font-extrabold tracking-tight leading-tight mb-6">Your Sanctuary Awaits.</h2>
+                <p className="text-lg font-light leading-relaxed opacity-80">Experience the art of mindful hospitality
+                  where every detail is curated for your absolute serenity.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-[1px] w-12 bg-on-primary-fixed-variant opacity-40"></div>
+                <span className="text-xs tracking-[0.2em] uppercase">Est. 2024</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Right Side: Login Form */}
+          <section className="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-8 md:p-12 lg:p-24 bg-surface">
+            <div className="w-full max-w-md space-y-10">
+
+              <header className="text-center md:text-left">
+                <h1 className="text-3xl font-extrabold tracking-tight text-on-surface mb-2">Welcome Back</h1>
+                <p className="text-on-surface-variant font-light tracking-wide">Please enter your details to access your
+                  retreat.</p>
+              </header>
+
+              <form id="loginForm" className="space-y-5" noValidate onSubmit={(e) => e.preventDefault()}>
+                <div className="space-y-2">
+                  <label className="text-[10px] tracking-[0.15em] font-bold text-on-surface-variant uppercase ml-1" htmlFor="email">
+                    Username or Email
+                  </label>
+                  <input id="f_email" type="email" placeholder="Enter your email address" autoComplete="email"
+                         className="w-full bg-surface-container-highest/50 border-none rounded-xl py-4 px-6 text-on-surface placeholder:text-outline/50 form-input-focus transition-all duration-300" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-[10px] tracking-[0.15em] font-bold text-on-surface-variant uppercase" htmlFor="password">
+                      Password
+                    </label>
+                    <a className="text-[10px] font-bold text-primary hover:text-primary-dim transition-colors" href="#">Forgot?</a>
+                  </div>
+                  <div className="relative">
+                    <input id="f_password" type={showLoginPassword ? "text" : "password"} placeholder="••••••••" autoComplete="current-password"
+                           className="w-full bg-surface-container-highest/50 border-none rounded-xl py-4 px-6 pr-14 text-on-surface placeholder:text-outline/50 form-input-focus transition-all duration-300" />
+                    <button type="button" className="pw-btn" aria-label="Hiện/ẩn mật khẩu" onClick={() => setShowLoginPassword(!showLoginPassword)}>
+                      <span className="material-symbols-outlined" style={{fontSize: '20px', fontVariationSettings: "'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24"}}>{showLoginPassword ? "visibility" : "visibility_off"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 px-1">
+                  <div className="relative flex items-center">
+                    <input id="f_remember" type="checkbox"
+                           className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20 bg-surface" />
+                  </div>
+                  <label className="text-sm text-on-surface-variant font-medium select-none" htmlFor="f_remember">Remember me</label>
+                </div>
+
+                <button type="submit"
+                        className="w-full luxury-gradient text-on-primary py-4 rounded-full font-bold tracking-widest uppercase text-xs shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all duration-300 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2">
+                  <span>Sign In</span>
+                </button>
+              </form>
+
+              <footer className="text-center pt-4">
+                <p className="text-sm text-on-surface-variant font-medium">
+                  Don't have an account?
+                  <a href="#" onClick={(e) => { e.preventDefault(); setIsRegisterOpen(true); }}
+                     className="text-primary font-bold ml-1 hover:underline underline-offset-4 decoration-2">
+                    Create an account
+                  </a>
+                </p>
+              </footer>
+
+            </div>
+          </section>
+        </main>
+
+        <div className="fixed top-8 left-8 md:top-12 md:left-12 pointer-events-none md:hidden">
+          <span className="text-lg font-bold tracking-tighter text-on-surface">The Ethereal Concierge</span>
+        </div>
+      </div>
+    </>
   );
 }
-
-// ─── CSS ───────────────────────────────────────────────────────────────────────
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
-  * { box-sizing: border-box; }
-
-  .image-panel, .form-container {
-    transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1);
-  }
-
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #f2f2f2; border-radius: 10px; }
-
-  @media (max-width: 768px) {
-    .image-panel { display: none !important; }
-    .form-container { width: 100% !important; transform: none !important; }
-    .mobile-brand { display: flex !important; }
-  }
-`;
-
-// ─── Styles ────────────────────────────────────────────────────────────────────
-const font = "'Manrope', sans-serif";
-
-const styles = {
-  body: {
-    minHeight: "100vh",
-    background: "rgba(141,163,153,0.2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "24px",
-    fontFamily: font,
-    WebkitFontSmoothing: "antialiased",
-  },
-  main: {
-    position: "relative",
-    display: "flex",
-    width: "100%",
-    height: "calc(100vh - 3rem)",
-    maxHeight: 900,
-    overflow: "hidden",
-    borderRadius: "1.5rem",
-    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-    background: "#ffffff",
-    border: "1px solid rgba(209,209,204,0.2)",
-  },
-
-  // ── Image panel ──
-  imagePanel: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    zIndex: 20,
-    height: "100%",
-    width: "50%",
-    overflow: "hidden",
-    background: "#f2f2f2",
-  },
-  bgImg: { height: "100%", width: "100%", objectFit: "cover" },
-  imgOverlay: {
-    position: "absolute",
-    inset: 0,
-    background: "rgba(79,100,91,0.1)",
-    backdropFilter: "blur(2px)",
-  },
-  imgContent: {
-    position: "absolute",
-    inset: 0,
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    padding: 64,
-    color: "#e7fef3",
-  },
-  welcomeTo: {
-    fontFamily: font,
-    fontSize: 12,
-    letterSpacing: "0.3em",
-    textTransform: "uppercase",
-    opacity: 0.8,
-  },
-  brandTitle: {
-    fontFamily: font,
-    fontSize: 36,
-    fontWeight: 800,
-    letterSpacing: "-0.025em",
-    color: "#e7fef3",
-    margin: 0,
-  },
-  brandQuote: {
-    fontFamily: font,
-    fontSize: 24,
-    lineHeight: 1.625,
-    fontWeight: 300,
-    fontStyle: "italic",
-    color: "#e7fef3",
-    margin: 0,
-  },
-  estLabel: {
-    fontFamily: font,
-    fontSize: 12,
-    letterSpacing: "0.2em",
-    textTransform: "uppercase",
-  },
-
-  // ── Form panel ──
-  formPanel: {
-    position: "relative",
-    zIndex: 10,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
-    width: "50%",
-    background: "#ffffff",
-    padding: "40px 96px",
-  },
-  mobileBrand: {
-    display: "none",
-    flexDirection: "column",
-    alignItems: "center",
-    marginBottom: 48,
-  },
-  mobileBrandTitle: {
-    fontFamily: font,
-    fontSize: 22,
-    fontWeight: 800,
-    letterSpacing: "-0.025em",
-    color: "#4f645b",
-  },
-
-  // ── Form box ──
-  formBox: {
-    width: "100%",
-    maxWidth: 384,
-    display: "flex",
-    flexDirection: "column",
-    gap: 32,
-  },
-  formHeading: { display: "flex", flexDirection: "column", gap: 8 },
-  formTitle: {
-    fontFamily: font,
-    fontSize: 30,
-    fontWeight: 700,
-    color: "#1a1a1a",
-    margin: 0,
-  },
-  formSubtitle: {
-    fontFamily: font,
-    color: "#5e6059",
-    fontWeight: 300,
-    margin: 0,
-  },
-  form: { display: "flex", flexDirection: "column", gap: 20 },
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 },
-
-  fieldLabel: {
-    fontFamily: font,
-    fontSize: 10,
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.1em",
-    color: "#5e6059",
-  },
-
-  // Full-size input (login)
-  input: {
-    width: "100%",
-    borderRadius: 16,
-    border: "1px solid rgba(209,209,204,0.3)",
-    background: "#f2f2f2",
-    padding: "16px 20px",
-    fontSize: 14,
-    color: "#1a1a1a",
-    outline: "none",
-    fontFamily: font,
-    transition: "all 0.2s",
-  },
-  // Smaller input (sign-up grid)
-  inputSm: {
-    width: "100%",
-    borderRadius: 16,
-    border: "1px solid rgba(209,209,204,0.3)",
-    background: "#f2f2f2",
-    padding: "12px 16px",
-    fontSize: 14,
-    color: "#1a1a1a",
-    outline: "none",
-    fontFamily: font,
-  },
-
-  submitBtn: {
-    width: "100%",
-    borderRadius: 16,
-    background: "#4f645b",
-    padding: "16px",
-    fontFamily: font,
-    fontSize: 14,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.15em",
-    color: "#e7fef3",
-    border: "none",
-    cursor: "pointer",
-    boxShadow: "0 10px 15px -3px rgba(79,100,91,0.2)",
-    transition: "all 0.2s",
-  },
-
-  forgotLink: {
-    fontFamily: font,
-    fontSize: 10,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "-0.025em",
-    color: "rgba(79,100,91,0.7)",
-    textDecoration: "none",
-  },
-
-  switchText: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#5e6059",
-    fontFamily: font,
-    margin: 0,
-  },
-  switchBtn: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: 700,
-    color: "#4f645b",
-    fontFamily: font,
-    fontSize: 14,
-    textDecoration: "underline",
-    textUnderlineOffset: 4,
-    padding: 0,
-  },
-
-  termsRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: "8px 0",
-  },
-  termsLabel: {
-    fontSize: 12,
-    color: "#5e6059",
-    lineHeight: 1.625,
-    fontFamily: font,
-  },
-  termsLink: { fontWeight: 700, color: "#4f645b", textDecoration: "none" },
-
-  footer: { position: "absolute", bottom: 32, display: "flex", gap: 24 },
-  footerLink: {
-    fontFamily: font,
-    fontSize: 10,
-    textTransform: "uppercase",
-    letterSpacing: "0.2em",
-    color: "#7a7b75",
-    textDecoration: "none",
-  },
-};

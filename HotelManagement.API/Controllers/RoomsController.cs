@@ -132,6 +132,20 @@ public class RoomsController : ControllerBase
         room.ViewType = request.ViewType?.Trim();
         room.Notes    = request.Notes?.Trim();
 
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "UPDATE_ROOM",
+            TableName = "Rooms",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"floor\": {request.Floor?.ToString() ?? "null"}, \"viewType\": \"{request.ViewType}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Cập nhật phòng thành công." });
@@ -168,6 +182,21 @@ public class RoomsController : ControllerBase
         };
 
         _db.Rooms.Add(room);
+        await _db.SaveChangesAsync();
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "CREATE_ROOM",
+            TableName = "Rooms",
+            RecordId  = room.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"roomTypeId\": {room.RoomTypeId}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
         await _db.SaveChangesAsync();
 
         return StatusCode(201, new { message = "Tạo phòng thành công.", id = room.Id });
@@ -237,7 +266,23 @@ public class RoomsController : ControllerBase
         if (room is null)
             return NotFound(new { message = $"Không tìm thấy phòng #{id}." });
 
+        var oldCleaningStatus = room.CleaningStatus;
         room.CleaningStatus = request.CleaningStatus;
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "UPDATE_CLEANING_STATUS",
+            TableName = "Rooms",
+            RecordId  = id,
+            OldValue  = oldCleaningStatus,
+            NewValue  = request.CleaningStatus,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = $"Đã cập nhật cleaning_status phòng #{id} thành '{request.CleaningStatus}'." });
@@ -316,6 +361,21 @@ public class RoomsController : ControllerBase
         if (newRooms.Count > 0)
         {
             _db.Rooms.AddRange(newRooms);
+            await _db.SaveChangesAsync();
+
+            var userId = JwtHelper.GetUserId(User);
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserId    = userId,
+                Action    = "BULK_CREATE_ROOMS",
+                TableName = "Rooms",
+                RecordId  = 0,
+                OldValue  = null,
+                NewValue  = $"{{\"count\": {created.Count}, \"rooms\": [{string.Join(",", created.Select(c => $"\"{c}\""))}]}}",
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = Request.Headers.UserAgent.ToString(),
+                CreatedAt = DateTime.UtcNow
+            });
             await _db.SaveChangesAsync();
         }
 

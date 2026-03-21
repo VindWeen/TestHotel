@@ -5,6 +5,7 @@ using System.Security.Claims;
 using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Helpers;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 
@@ -259,6 +260,23 @@ public async Task<IActionResult> Create([FromForm] CreateReviewRequest request)
             review.RejectionReason = request.RejectionReason;
         }
 
+        await _context.SaveChangesAsync();
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = request.IsApproved ? "APPROVE_REVIEW" : "REJECT_REVIEW",
+            TableName = "Reviews",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = request.IsApproved
+                ? "{\"isApproved\": true}"
+                : $"{{\"isApproved\": false, \"rejectionReason\": \"{request.RejectionReason}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
         await _context.SaveChangesAsync();
 
         return Ok(new

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -79,6 +80,21 @@ public class ArticleCategoriesController : ControllerBase
         _db.ArticleCategories.Add(category);
         await _db.SaveChangesAsync();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CREATE_ARTICLE_CATEGORY",
+            TableName = "Article_Categories",
+            RecordId  = category.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"name\": \"{category.Name}\", \"slug\": \"{category.Slug}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         var notification = new Notification
         {
             Title   = "Tạo danh mục bài viết",
@@ -118,6 +134,21 @@ public class ArticleCategoriesController : ControllerBase
         }
 
         category.Name = request.Name.Trim();
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "UPDATE_ARTICLE_CATEGORY",
+            TableName = "Article_Categories",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"name\": \"{category.Name}\", \"slug\": \"{category.Slug}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -146,6 +177,21 @@ public class ArticleCategoriesController : ControllerBase
             .CountAsync(a => a.CategoryId == id && a.IsActive);
 
         category.IsActive = false;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "DELETE_ARTICLE_CATEGORY",
+            TableName = "Article_Categories",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true, \"name\": \"{category.Name}\"}}",
+            NewValue  = "{\"isActive\": false}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -169,7 +215,23 @@ public class ArticleCategoriesController : ControllerBase
         if (category is null)
             return NotFound(new { message = $"Không tìm thấy danh mục #{id}." });
 
+        var oldActive = category.IsActive;
         category.IsActive = !category.IsActive;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "TOGGLE_ARTICLE_CATEGORY",
+            TableName = "Article_Categories",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
+            NewValue  = $"{{\"isActive\": {category.IsActive.ToString().ToLower()}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification

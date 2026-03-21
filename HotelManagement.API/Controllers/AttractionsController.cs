@@ -1,5 +1,6 @@
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -142,6 +143,21 @@ public class AttractionsController : ControllerBase
         _db.Attractions.Add(attraction);
         await _db.SaveChangesAsync();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CREATE_ATTRACTION",
+            TableName = "Attractions",
+            RecordId  = attraction.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"name\": \"{attraction.Name}\", \"category\": \"{attraction.Category}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         return CreatedAtAction(nameof(GetById),
             new { id = attraction.Id },
             new
@@ -213,6 +229,20 @@ public class AttractionsController : ControllerBase
         if (request.MapEmbedLink is not null)
             attraction.MapEmbedLink = request.MapEmbedLink.Trim();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "UPDATE_ATTRACTION",
+            TableName = "Attractions",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"name\": \"{attraction.Name}\", \"category\": \"{attraction.Category}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -241,6 +271,21 @@ public class AttractionsController : ControllerBase
             return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
 
         attraction.IsActive = false;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "DELETE_ATTRACTION",
+            TableName = "Attractions",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true, \"name\": \"{attraction.Name}\"}}",
+            NewValue  = "{\"isActive\": false}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = $"Đã xoá địa điểm '{attraction.Name}' thành công." });
@@ -259,7 +304,23 @@ public class AttractionsController : ControllerBase
         if (attraction is null)
             return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
  
+        var oldActive = attraction.IsActive;
         attraction.IsActive = !attraction.IsActive;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "TOGGLE_ATTRACTION",
+            TableName = "Attractions",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
+            NewValue  = $"{{\"isActive\": {attraction.IsActive.ToString().ToLower()}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
  
         var action = attraction.IsActive ? "kích hoạt" : "vô hiệu hóa";

@@ -1,3 +1,4 @@
+using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
@@ -110,6 +111,19 @@ public class UserProfileController : ControllerBase
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.UpdatedAt    = DateTime.UtcNow;
 
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "CHANGE_PASSWORD",
+            TableName = "Users",
+            RecordId  = userId,
+            OldValue  = null,
+            NewValue  = null,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -170,8 +184,23 @@ public class UserProfileController : ControllerBase
         if (uploadResult.Error != null)
             return StatusCode(502, new { message = "Upload ảnh thất bại.", detail = uploadResult.Error.Message });
 
+        var oldAvatar = user.AvatarUrl;
         user.AvatarUrl = uploadResult.SecureUrl.ToString();
         user.UpdatedAt = DateTime.UtcNow;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "UPDATE_AVATAR",
+            TableName = "Users",
+            RecordId  = userId,
+            OldValue  = oldAvatar != null ? $"{{\"avatarUrl\": \"{oldAvatar}\"}}" : null,
+            NewValue  = $"{{\"avatarUrl\": \"{user.AvatarUrl}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Upload avatar thành công.", avatarUrl = user.AvatarUrl });

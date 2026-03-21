@@ -5,6 +5,7 @@ using System.Security.Claims;
 using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Helpers;
 
 namespace HotelManagement.API.Controllers;
 
@@ -149,6 +150,21 @@ public class VouchersController : ControllerBase
         _context.Vouchers.Add(voucher);
         await _context.SaveChangesAsync();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CREATE_VOUCHER",
+            TableName = "Vouchers",
+            RecordId  = voucher.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"code\": \"{voucher.Code}\", \"discountType\": \"{voucher.DiscountType}\", \"discountValue\": {voucher.DiscountValue}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+
         return Ok(voucher);
     }
 
@@ -189,6 +205,20 @@ public class VouchersController : ControllerBase
         if (request.MaxUsesPerUser   .HasValue) v.MaxUsesPerUser     = request.MaxUsesPerUser.Value;
         if (request.IsActive         .HasValue) v.IsActive           = request.IsActive.Value;
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "UPDATE_VOUCHER",
+            TableName = "Vouchers",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"code\": \"{v.Code}\", \"isActive\": {v.IsActive.ToString().ToLower()}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
         return Ok(v);
     }
@@ -202,6 +232,21 @@ public class VouchersController : ControllerBase
         if (v == null) return NotFound();
 
         v.IsActive = false; // ← Soft delete, không xóa khỏi DB
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "DELETE_VOUCHER",
+            TableName = "Vouchers",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true}}",
+            NewValue  = $"{{\"isActive\": false}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
 
         return Ok(new { message = $"Voucher '{v.Code}' đã bị vô hiệu hóa." });

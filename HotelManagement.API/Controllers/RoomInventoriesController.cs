@@ -1,5 +1,6 @@
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -120,6 +121,21 @@ public class RoomInventoriesController : ControllerBase
         _db.RoomInventories.Add(item);
         await _db.SaveChangesAsync();
 
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "CREATE_INVENTORY",
+            TableName = "Room_Inventory",
+            RecordId  = item.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"roomId\": {item.RoomId}, \"itemName\": \"{item.ItemName}\", \"quantity\": {item.Quantity ?? 0}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         return StatusCode(201, new { message = "Tạo vật tư thành công.", id = item.Id });
     }
 
@@ -146,6 +162,20 @@ public class RoomInventoriesController : ControllerBase
         item.ItemType    = request.ItemType;
         item.Quantity    = request.Quantity;
         item.PriceIfLost = request.PriceIfLost;
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "UPDATE_INVENTORY",
+            TableName = "Room_Inventory",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"itemName\": \"{item.ItemName}\", \"quantity\": {item.Quantity ?? 0}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
 
@@ -176,6 +206,21 @@ public class RoomInventoriesController : ControllerBase
             });
 
         item.IsActive = false;
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "DELETE_INVENTORY",
+            TableName = "Room_Inventory",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true, \"itemName\": \"{item.ItemName}\"}}",
+            NewValue  = "{\"isActive\": false}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = $"Đã xóa vật tư #{id}." });
@@ -266,7 +311,23 @@ public class RoomInventoriesController : ControllerBase
         if (item is null)
             return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
  
+        var oldActive = item.IsActive;
         item.IsActive = !item.IsActive;
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "TOGGLE_INVENTORY",
+            TableName = "Room_Inventory",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
+            NewValue  = $"{{\"isActive\": {item.IsActive.ToString().ToLower()}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
  
         var action = item.IsActive ? "kích hoạt" : "vô hiệu hóa";

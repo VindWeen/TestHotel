@@ -164,6 +164,21 @@ public class UserManagementController : ControllerBase
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CREATE_USER",
+            TableName = "Users",
+            RecordId  = user.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"email\": \"{user.Email}\", \"fullName\": \"{user.FullName}\", \"roleId\": {user.RoleId?.ToString() ?? "null"}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         var notification = new Notification
         {
             Title   = "Tài khoản mới đã được tạo",
@@ -184,6 +199,8 @@ public class UserManagementController : ControllerBase
         if (user is null)
             return NotFound(new { message = $"Không tìm thấy user #{id}." });
 
+        var oldValues = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}";
+
         user.FullName    = request.FullName?.Trim()   ?? user.FullName;
         user.Phone       = request.Phone?.Trim()      ?? user.Phone;
         user.DateOfBirth = request.DateOfBirth        ?? user.DateOfBirth;
@@ -191,6 +208,20 @@ public class UserManagementController : ControllerBase
         user.Address     = request.Address?.Trim()    ?? user.Address;
         user.NationalId  = request.NationalId?.Trim() ?? user.NationalId;
         user.UpdatedAt   = DateTime.UtcNow;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "UPDATE_USER",
+            TableName = "Users",
+            RecordId  = id,
+            OldValue  = oldValues,
+            NewValue  = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
 
@@ -268,6 +299,20 @@ public class UserManagementController : ControllerBase
         var oldRoleId  = user.RoleId;
         user.RoleId    = request.NewRoleId;
         user.UpdatedAt = DateTime.UtcNow;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CHANGE_ROLE",
+            TableName = "Users",
+            RecordId  = id,
+            OldValue  = $"{{\"roleId\": {oldRoleId?.ToString() ?? "null"}}}",
+            NewValue  = $"{{\"roleId\": {request.NewRoleId}, \"roleName\": \"{role.Name}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
 

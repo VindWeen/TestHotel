@@ -6,6 +6,7 @@ using System.Security.Claims;
 using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Helpers;
 
 namespace HotelManagement.API.Controllers;
 
@@ -322,6 +323,20 @@ public class BookingsController : ControllerBase
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId    = currentUserId,
+                Action    = "CREATE_BOOKING",
+                TableName = "Bookings",
+                RecordId  = booking.Id,
+                OldValue  = null,
+                NewValue  = $"{{\"bookingCode\": \"{booking.BookingCode}\", \"total\": {booking.TotalEstimatedAmount}}}",
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = Request.Headers["User-Agent"].ToString(),
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
             return Ok(MapToResponse(booking));
         }
         finally
@@ -346,6 +361,21 @@ public class BookingsController : ControllerBase
             return BadRequest("Sai trạng thái");
 
         b.Status = "Confirmed";
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CONFIRM_BOOKING",
+            TableName = "Bookings",
+            RecordId  = id,
+            OldValue  = "{\"status\": \"Pending\"}",
+            NewValue  = "{\"status\": \"Confirmed\"}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
 
         return Ok(MapToResponse(b));
@@ -375,6 +405,20 @@ public class BookingsController : ControllerBase
                 d.Room.CleaningStatus = "Clean";
             }
         }
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CANCEL_BOOKING",
+            TableName = "Bookings",
+            RecordId  = id,
+            OldValue  = $"{{\"status\": \"{b.Status}\"}}",
+            NewValue  = $"{{\"status\": \"Cancelled\", \"reason\": \"{reason}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _context.SaveChangesAsync();
         return Ok(MapToResponse(b));
@@ -410,6 +454,20 @@ public class BookingsController : ControllerBase
         b.Status = "Checked_in";
         b.CheckInTime = DateTime.UtcNow;
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CHECKIN_BOOKING",
+            TableName = "Bookings",
+            RecordId  = id,
+            OldValue  = "{\"status\": \"Confirmed\"}",
+            NewValue  = "{\"status\": \"Checked_in\"}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
         return Ok(MapToResponse(b));
     }
@@ -440,6 +498,20 @@ public class BookingsController : ControllerBase
 
         b.Status = "Completed";
         b.CheckOutTime = DateTime.UtcNow;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CHECKOUT_BOOKING",
+            TableName = "Bookings",
+            RecordId  = id,
+            OldValue  = "{\"status\": \"Checked_in\"}",
+            NewValue  = "{\"status\": \"Completed\"}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _context.SaveChangesAsync();
 

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
@@ -152,6 +153,20 @@ public class ArticlesController : ControllerBase
         _db.Articles.Add(article);
         await _db.SaveChangesAsync();
 
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = authorId,
+            Action    = "CREATE_ARTICLE",
+            TableName = "Articles",
+            RecordId  = article.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"title\": \"{article.Title}\", \"slug\": \"{article.Slug}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         var notification = new Notification
         {
             Title   = "Bài viết mới được tạo",
@@ -216,6 +231,20 @@ public class ArticlesController : ControllerBase
         if (request.MetaDescription is not null)
             article.MetaDescription = request.MetaDescription.Trim();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "UPDATE_ARTICLE",
+            TableName = "Articles",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"title\": \"{article.Title}\", \"status\": \"{article.Status}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -239,6 +268,21 @@ public class ArticlesController : ControllerBase
             return NotFound(new { message = $"Bài viết #{id} không tồn tại." });
 
         article.IsActive = false;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "DELETE_ARTICLE",
+            TableName = "Articles",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true, \"title\": \"{article.Title}\"}}",
+            NewValue  = "{\"isActive\": false}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -262,7 +306,23 @@ public class ArticlesController : ControllerBase
         if (article is null)
             return NotFound(new { message = $"Bài viết #{id} không tồn tại." });
 
+        var oldActive = article.IsActive;
         article.IsActive = !article.IsActive;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "TOGGLE_ARTICLE",
+            TableName = "Articles",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
+            NewValue  = $"{{\"isActive\": {article.IsActive.ToString().ToLower()}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification

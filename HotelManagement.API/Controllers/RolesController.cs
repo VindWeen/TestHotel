@@ -50,6 +50,21 @@ public class RolesController : ControllerBase
                     RoleId       = request.RoleId,
                     PermissionId = request.PermissionId
                 });
+
+                var currentUserId = JwtHelper.GetUserId(User);
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    UserId    = currentUserId,
+                    Action    = "GRANT_PERMISSION",
+                    TableName = "Role_Permissions",
+                    RecordId  = request.RoleId,
+                    OldValue  = null,
+                    NewValue  = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = Request.Headers["User-Agent"].ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
+
                 await _db.SaveChangesAsync();
             }
 
@@ -60,6 +75,21 @@ public class RolesController : ControllerBase
             if (existing is not null)
             {
                 _db.RolePermissions.Remove(existing);
+
+                var currentUserId = JwtHelper.GetUserId(User);
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    UserId    = currentUserId,
+                    Action    = "REVOKE_PERMISSION",
+                    TableName = "Role_Permissions",
+                    RecordId  = request.RoleId,
+                    OldValue  = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
+                    NewValue  = null,
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = Request.Headers["User-Agent"].ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
+
                 await _db.SaveChangesAsync();
             }
 

@@ -2,6 +2,7 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -147,6 +148,21 @@ public class RoomTypesController : ControllerBase
             });
 
         roomType.IsActive = false;
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "DELETE_ROOM_TYPE",
+            TableName = "Room_Types",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true, \"name\": \"{roomType.Name}\"}}",
+            NewValue  = "{\"isActive\": false}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { message = $"Đã xóa loại phòng '{roomType.Name}'." });
@@ -333,7 +349,23 @@ public class RoomTypesController : ControllerBase
                 });
         }
  
+        var oldActive = roomType.IsActive;
         roomType.IsActive = !roomType.IsActive;
+
+        var userId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = userId,
+            Action    = "TOGGLE_ROOM_TYPE",
+            TableName = "Room_Types",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
+            NewValue  = $"{{\"isActive\": {roomType.IsActive.ToString().ToLower()}}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
  
         var action = roomType.IsActive ? "kích hoạt" : "vô hiệu hóa";

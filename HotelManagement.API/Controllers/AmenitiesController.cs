@@ -1,5 +1,6 @@
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
+using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -79,6 +80,21 @@ public class AmenitiesController : ControllerBase
         _db.Amenities.Add(amenity);
         await _db.SaveChangesAsync();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "CREATE_AMENITY",
+            TableName = "Amenities",
+            RecordId  = amenity.Id,
+            OldValue  = null,
+            NewValue  = $"{{\"name\": \"{amenity.Name}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         var notification = new Notification
         {
             Title   = "Tiện nghi mới đã được thêm",
@@ -113,6 +129,20 @@ public class AmenitiesController : ControllerBase
         amenity.Name    = request.Name.Trim();
         amenity.IconUrl = request.IconUrl?.Trim();
 
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "UPDATE_AMENITY",
+            TableName = "Amenities",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"name\": \"{amenity.Name}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
@@ -138,6 +168,21 @@ public class AmenitiesController : ControllerBase
             return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
 
         amenity.IsActive = false;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "DELETE_AMENITY",
+            TableName = "Amenities",
+            RecordId  = id,
+            OldValue  = $"{{\"isActive\": true, \"name\": \"{amenity.Name}\"}}",
+            NewValue  = "{\"isActive\": false}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         var notification = new Notification
