@@ -186,6 +186,32 @@ public class ArticleCategoriesController : ControllerBase
         });
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/ArticleCategories/{id}/toggle-active  [MANAGE_CONTENT]
+    // Bật/tắt danh mục: is_active = 1 ↔ 0
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageContent)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var category = await _db.ArticleCategories.FindAsync(id);
+ 
+        if (category is null)
+            return NotFound(new { message = $"Không tìm thấy danh mục #{id}." });
+ 
+        category.IsActive = !category.IsActive;
+        await _db.SaveChangesAsync();
+ 
+        var action = category.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        return Ok(new
+        {
+            message  = $"Đã {action} danh mục '{category.Name}'.",
+            category.Id,
+            category.Name,
+            category.IsActive
+        });
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────────────────────

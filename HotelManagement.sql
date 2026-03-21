@@ -1,3 +1,12 @@
+--============================================== TẠO DATABASE ============================================
+use master
+if exists(select * from sys.databases where name = 'HotelManagementDB')
+    drop database [HotelManagementDB]
+go
+create database [HotelManagementDB]
+
+--============================================ TẠO BẢNG =================================
+go 
 USE [HotelManagementDB]
 GO
 
@@ -60,8 +69,7 @@ CREATE TABLE [dbo].[Users](
     [loyalty_points]       [int]            NOT NULL DEFAULT 0,  -- tổng điểm tích lũy
     [loyalty_points_usable][int]            NOT NULL DEFAULT 0,  -- điểm có thể quy đổi thành tiền
     -- Status & Timestamps
-    [status]               [bit]            NULL,        -- 1: Active, 0: Locked (dùng cho JWT check)
-    [is_active]            [bit]            NOT NULL DEFAULT 1,  -- Soft Delete: 0 khi nhân viên nghỉ việc
+    [status]               [bit]            NULL,        -- 1: Active, 0: Locked dùng để mở/khóa tài khoản và cả disable tài khoản nhân viên nghỉ việc
     [last_login_at]        [datetime]       NULL,        -- bảo mật, phân tích hành vi
     [created_at]           [datetime]       NOT NULL DEFAULT GETDATE(),
     [updated_at]           [datetime]       NULL,
@@ -606,26 +614,26 @@ GO
 
 -- 4. Users
 SET IDENTITY_INSERT [dbo].[Users] ON
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (1,  1,  NULL, N'Nguyễn Admin',    N'admin@hotel.com',       N'0900000001', N'$2a$11$oFBpZq/8S8DAE2qhAt0TCOIsOXB3WlBlmdybSneBVxZBdqcKzm9Qu',  1, 1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (2,  2,  NULL, N'Trần Manager',    N'manager@hotel.com',     N'0900000002', N'hash2',  1, 1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (3,  3,  NULL, N'Lê Lễ Tân',      N'reception1@hotel.com',  N'0900000003', N'hash3',  1, 1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (4,  3,  NULL, N'Phạm Lễ Tân',    N'reception2@hotel.com',  N'0900000004', N'hash4',  1, 1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (5,  4,  NULL, N'Hoàng Kế Toán',  N'accountant@hotel.com',  N'0900000005', N'hash5',  1, 1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (6,  10, 1,    N'Khách Hàng A',   N'guestA@gmail.com',      N'0900000006', N'hash6',  1, 1, 120,  100,  CAST(N'2026-01-10T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (7,  10, 2,    N'Khách Hàng B',   N'guestB@gmail.com',      N'0900000007', N'hash7',  1, 1, 550,  400,  CAST(N'2026-01-15T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (8,  10, 3,    N'Khách Hàng C',   N'guestC@gmail.com',      N'0900000008', N'hash8',  1, 1, 1200, 1000, CAST(N'2026-01-20T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (9,  10, 4,    N'Khách Hàng D',   N'guestD@gmail.com',      N'0900000009', N'hash9',  1, 1, 3500, 3000, CAST(N'2026-01-25T00:00:00.000' AS DateTime))
-INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[is_active],[loyalty_points],[loyalty_points_usable],[created_at])
-VALUES (10, 10, 5,    N'Khách Hàng E',   N'guestE@gmail.com',      N'0900000010', N'hash10', 1, 1, 5200, 5000, CAST(N'2026-02-01T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (1,  1,  NULL, N'Nguyễn Admin',    N'admin@hotel.com',       N'0900000001', N'$2a$11$oFBpZq/8S8DAE2qhAt0TCOIsOXB3WlBlmdybSneBVxZBdqcKzm9Qu',  1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (2,  2,  NULL, N'Trần Manager',    N'manager@hotel.com',     N'0900000002', N'hash2',  1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (3,  3,  NULL, N'Lê Lễ Tân',      N'reception1@hotel.com',  N'0900000003', N'hash3',  1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (4,  3,  NULL, N'Phạm Lễ Tân',    N'reception2@hotel.com',  N'0900000004', N'hash4',  1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (5,  4,  NULL, N'Hoàng Kế Toán',  N'accountant@hotel.com',  N'0900000005', N'hash5',  1, 0,    0,    CAST(N'2026-01-01T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (6,  10, 1,    N'Khách Hàng A',   N'guestA@gmail.com',      N'0900000006', N'hash6',  1, 120,  100,  CAST(N'2026-01-10T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (7,  10, 2,    N'Khách Hàng B',   N'guestB@gmail.com',      N'0900000007', N'hash7',  1, 550,  400,  CAST(N'2026-01-15T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (8,  10, 3,    N'Khách Hàng C',   N'guestC@gmail.com',      N'0900000008', N'hash8',  1, 1200, 1000, CAST(N'2026-01-20T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (9,  10, 4,    N'Khách Hàng D',   N'guestD@gmail.com',      N'0900000009', N'hash9',  1, 3500, 3000, CAST(N'2026-01-25T00:00:00.000' AS DateTime))
+INSERT [dbo].[Users] ([id],[role_id],[membership_id],[full_name],[email],[phone],[password_hash],[status],[loyalty_points],[loyalty_points_usable],[created_at])
+VALUES (10, 10, 5,    N'Khách Hàng E',   N'guestE@gmail.com',      N'0900000010', N'hash10', 1, 5200, 5000, CAST(N'2026-02-01T00:00:00.000' AS DateTime))
 SET IDENTITY_INSERT [dbo].[Users] OFF
 GO
 

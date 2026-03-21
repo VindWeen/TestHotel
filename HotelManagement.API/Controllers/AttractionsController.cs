@@ -239,6 +239,32 @@ public class AttractionsController : ControllerBase
         return Ok(new { message = $"Đã xoá địa điểm '{attraction.Name}' thành công." });
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/Attractions/{id}/toggle-active  [MANAGE_CONTENT]
+    // Bật/tắt địa điểm: is_active = 1 ↔ 0
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageContent)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var attraction = await _db.Attractions.FindAsync(id);
+ 
+        if (attraction is null)
+            return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
+ 
+        attraction.IsActive = !attraction.IsActive;
+        await _db.SaveChangesAsync();
+ 
+        var action = attraction.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        return Ok(new
+        {
+            message  = $"Đã {action} địa điểm '{attraction.Name}'.",
+            attraction.Id,
+            attraction.Name,
+            attraction.IsActive
+        });
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────────────────────

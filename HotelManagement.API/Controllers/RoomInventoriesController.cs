@@ -252,6 +252,32 @@ public class RoomInventoriesController : ControllerBase
             invalidRoomIds = invalidTargets
         });
     }
+
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/RoomInventories/{id}/toggle-active  [MANAGE_INVENTORY]
+    // Bật/tắt vật tư: is_active = 1 ↔ 0
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var item = await _db.RoomInventories.FindAsync(id);
+ 
+        if (item is null)
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
+ 
+        item.IsActive = !item.IsActive;
+        await _db.SaveChangesAsync();
+ 
+        var action = item.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        return Ok(new
+        {
+            message  = $"Đã {action} vật tư '{item.ItemName}'.",
+            item.Id,
+            item.ItemName,
+            item.IsActive
+        });
+    }
 }
 
 // ── Request DTOs ─────────────────────────────────────────────────────────────

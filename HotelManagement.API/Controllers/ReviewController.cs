@@ -164,7 +164,7 @@ public async Task<IActionResult> Create([FromForm] CreateReviewRequest request)
     if (booking == null)
         return BadRequest("Booking không tồn tại hoặc không thuộc về bạn");
 
-    if (booking.Status != "Confirmed")
+    if (booking.Status != "Completed")
         return BadRequest("Chỉ có thể đánh giá sau khi hoàn thành lưu trú");
 
     var roomTypeExists = await _context.RoomTypes.AnyAsync(rt => rt.Id == request.RoomTypeId);

@@ -300,4 +300,49 @@ public class RoomTypesController : ControllerBase
 
         return Ok(new { message = $"Đã đặt ảnh #{imageId} làm ảnh chính." });
     }
+
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/RoomTypes/{id}/toggle-active  [MANAGE_ROOMS]
+    // Bật/tắt loại phòng: is_active = 1 ↔ 0
+    // Không cho tắt khi đang có Booking active
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var roomType = await _db.RoomTypes.FindAsync(id);
+ 
+        if (roomType is null)
+            return NotFound(new { message = $"Không tìm thấy loại phòng #{id}." });
+ 
+        // Không cho tắt khi đang có booking active
+        if (roomType.IsActive)
+        {
+            var activeStatuses = new[] { "Pending", "Confirmed", "Checked_in" };
+ 
+            var hasActiveBooking = await _db.BookingDetails
+                .AnyAsync(bd =>
+                    bd.RoomTypeId == id &&
+                    bd.Booking != null &&
+                    activeStatuses.Contains(bd.Booking.Status));
+ 
+            if (hasActiveBooking)
+                return BadRequest(new
+                {
+                    message = "Không thể vô hiệu hóa loại phòng đang có booking chưa hoàn tất."
+                });
+        }
+ 
+        roomType.IsActive = !roomType.IsActive;
+        await _db.SaveChangesAsync();
+ 
+        var action = roomType.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        return Ok(new
+        {
+            message      = $"Đã {action} loại phòng '{roomType.Name}'.",
+            roomType.Id,
+            roomType.Name,
+            roomType.IsActive
+        });
+    }
 }

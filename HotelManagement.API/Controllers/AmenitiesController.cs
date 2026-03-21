@@ -143,32 +143,6 @@ public class AmenitiesController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────
-    // PATCH /api/Amenities/{id}/restore  [MANAGE_ROOMS]
-    // Khôi phục amenity đã bị soft delete (is_active = 0 → 1).
-    // ──────────────────────────────────────────────────────────────
-    [HttpPatch("{id:int}/restore")]
-    [RequirePermission(PermissionCodes.ManageRooms)]
-    public async Task<IActionResult> Restore(int id)
-    {
-        var amenity = await _db.Amenities
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsActive);
-
-        if (amenity is null)
-            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id} trong danh sách đã xóa." });
-
-        amenity.IsActive = true;
-        await _db.SaveChangesAsync();
-
-        return Ok(new
-        {
-            message = $"Đã khôi phục tiện nghi '{amenity.Name}'.",
-            amenity.Id,
-            amenity.Name,
-            amenity.IconUrl
-        });
-    }
-
-    // ──────────────────────────────────────────────────────────────
     // DELETE /api/Amenities/{id}  [MANAGE_ROOMS]
     // Soft Delete: is_active = 0.
     // Không phá FK với RoomType_Amenities — record vẫn còn trong DB.
@@ -187,6 +161,32 @@ public class AmenitiesController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { message = $"Đã xóa tiện nghi '{amenity.Name}'." });
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/Amenities/{id}/toggle-active  [MANAGE_ROOMS]
+    // Bật/tắt tiện nghi: is_active = 1 ↔ 0
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var amenity = await _db.Amenities.FindAsync(id);
+ 
+        if (amenity is null)
+            return NotFound(new { message = $"Không tìm thấy tiện nghi #{id}." });
+ 
+        amenity.IsActive = !amenity.IsActive;
+        await _db.SaveChangesAsync();
+ 
+        var action = amenity.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        return Ok(new
+        {
+            message  = $"Đã {action} tiện nghi '{amenity.Name}'.",
+            amenity.Id,
+            amenity.Name,
+            amenity.IsActive
+        });
     }
 }
 

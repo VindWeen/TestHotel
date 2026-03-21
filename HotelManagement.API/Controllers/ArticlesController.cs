@@ -269,6 +269,32 @@ public class ArticlesController : ControllerBase
         return Ok(new { message = $"Đã xoá bài viết #{id} thành công." });
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // PATCH /api/Articles/{id}/toggle-active  [MANAGE_CONTENT]
+    // Bật/tắt bài viết: is_active = 1 ↔ 0
+    // ──────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageContent)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var article = await _db.Articles.FindAsync(id);
+ 
+        if (article is null)
+            return NotFound(new { message = $"Bài viết #{id} không tồn tại." });
+ 
+        article.IsActive = !article.IsActive;
+        await _db.SaveChangesAsync();
+ 
+        var action = article.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        return Ok(new
+        {
+            message  = $"Đã {action} bài viết '{article.Title}'.",
+            article.Id,
+            article.Title,
+            article.IsActive
+        });
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // POST /api/Articles/{id}/thumbnail
     // [MANAGE_CONTENT]  Upload ảnh bìa lên Cloudinary.

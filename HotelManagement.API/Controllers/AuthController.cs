@@ -41,22 +41,18 @@ public class AuthController : ControllerBase
         if (user is null)
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
 
-        // 2. Kiểm tra Soft Delete
-        if (!user.IsActive)
-            return Unauthorized(new { message = "Tài khoản đã bị vô hiệu hóa." });
-
-        // 3. Kiểm tra bị khóa
+        // 2. Kiểm tra bị khóa (status = false)
         if (user.Status == false)
             return Unauthorized(new { message = "Tài khoản đang bị khóa. Vui lòng liên hệ quản trị viên." });
 
-        // 4. Verify password
+        // 3. Verify password
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
 
-        // 5. Lấy danh sách permission_code
+        // 4. Lấy danh sách permission_code
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
 
-        // 6. Tạo refresh token mới, lưu vào DB
+        // 5. Tạo refresh token mới, lưu vào DB
         var roleName     = user.Role?.Name ?? "Guest";
         var refreshToken = GenerateRefreshToken();
 
@@ -65,20 +61,20 @@ public class AuthController : ControllerBase
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
         await _db.SaveChangesAsync();
 
-        // 7. Tạo access token
+        // 6. Tạo access token
         var token = _jwt.GenerateToken(user, roleName, permissionCodes);
 
         return Ok(new
         {
             token,
             refreshToken,
-            expiresIn    = _config["Jwt:ExpiresInMinutes"],
-            userId       = user.Id,
-            fullName     = user.FullName,
-            email        = user.Email,
-            role         = roleName,
-            avatarUrl    = user.AvatarUrl,
-            permissions  = permissionCodes
+            expiresIn   = _config["Jwt:ExpiresInMinutes"],
+            userId      = user.Id,
+            fullName    = user.FullName,
+            email       = user.Email,
+            role        = roleName,
+            avatarUrl   = user.AvatarUrl,
+            permissions = permissionCodes
         });
     }
 
@@ -107,17 +103,16 @@ public class AuthController : ControllerBase
         // 4. Tạo user mới
         var user = new HotelManagement.Core.Entities.User
         {
-            FullName            = request.FullName.Trim(),
-            Email               = request.Email.Trim().ToLower(),
-            Phone               = request.Phone?.Trim(),
-            PasswordHash        = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            RoleId              = guestRole?.Id,
-            MembershipId        = defaultMembership?.Id,
-            Status              = true,
-            IsActive            = true,
-            CreatedAt           = DateTime.UtcNow,
-            RefreshToken        = refreshToken,
-            RefreshTokenExpiry  = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays),
+            FullName           = request.FullName.Trim(),
+            Email              = request.Email.Trim().ToLower(),
+            Phone              = request.Phone?.Trim(),
+            PasswordHash       = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            RoleId             = guestRole?.Id,
+            MembershipId       = defaultMembership?.Id,
+            Status             = true,
+            CreatedAt          = DateTime.UtcNow,
+            RefreshToken       = refreshToken,
+            RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays),
         };
 
         _db.Users.Add(user);
@@ -130,16 +125,16 @@ public class AuthController : ControllerBase
 
         return StatusCode(201, new
         {
-            message      = "Đăng ký thành công.",
+            message     = "Đăng ký thành công.",
             token,
             refreshToken,
-            expiresIn    = _config["Jwt:ExpiresInMinutes"],
-            userId       = user.Id,
-            fullName     = user.FullName,
-            email        = user.Email,
-            role         = roleName,
-            membership   = defaultMembership?.TierName,
-            permissions  = permissionCodes
+            expiresIn   = _config["Jwt:ExpiresInMinutes"],
+            userId      = user.Id,
+            fullName    = user.FullName,
+            email       = user.Email,
+            role        = roleName,
+            membership  = defaultMembership?.TierName,
+            permissions = permissionCodes
         });
     }
 
@@ -168,9 +163,9 @@ public class AuthController : ControllerBase
         if (user.RefreshTokenExpiry is null || user.RefreshTokenExpiry <= DateTime.UtcNow)
             return Unauthorized(new { message = "Refresh token đã hết hạn. Vui lòng đăng nhập lại." });
 
-        // 3. Kiểm tra tài khoản còn active không
-        if (!user.IsActive || user.Status == false)
-            return Unauthorized(new { message = "Tài khoản đã bị vô hiệu hóa hoặc khóa." });
+        // 3. Kiểm tra tài khoản có bị khóa không
+        if (user.Status == false)
+            return Unauthorized(new { message = "Tài khoản đang bị khóa. Vui lòng liên hệ quản trị viên." });
 
         // 4. Lấy permissions
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
@@ -205,14 +200,12 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        // Đọc userId từ JWT claim — không tin request body
         var userId = JwtHelper.GetUserId(User);
 
         var user = await _db.Users.FindAsync(userId);
         if (user is null)
             return NotFound(new { message = "Không tìm thấy tài khoản." });
 
-        // Xóa refresh token → phiên server-side bị vô hiệu hóa
         user.RefreshToken       = null;
         user.RefreshTokenExpiry = null;
         await _db.SaveChangesAsync();
@@ -233,9 +226,6 @@ public class AuthController : ControllerBase
                 (rp, p) => p.PermissionCode)
             .ToListAsync();
 
-    /// <summary>
-    /// Tạo refresh token ngẫu nhiên 64 bytes — không thể đoán, không phải JWT.
-    /// </summary>
     private static string GenerateRefreshToken()
         => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 }
@@ -247,10 +237,10 @@ public class AuthController : ControllerBase
 public record LoginRequest(string Email, string Password);
 
 public record RegisterRequest(
-    string FullName,
-    string Email,
-    string Password,
-    string ConfirmPassword,
+    string  FullName,
+    string  Email,
+    string  Password,
+    string  ConfirmPassword,
     string? Phone
 );
 
