@@ -43,7 +43,42 @@ dotnet run --project HotelManagement.API
 API sẽ chạy tại:
 - http://localhost:5279
 
+### 4. Chạy Frontend (React/Vite)
 
+Mở terminal và di chuyển vào thư mục frontend:
+
+```bash
+cd hotel-erp-frontend
+```
+
+Cài đặt thư viện (chỉ cần chạy lần đầu):
+
+```bash
+npm install
+```
+Chạy project:
+
+```bash
+npm run dev
+```
+
+Frontend sẽ chạy tại:
+
+- http://localhost:5173
+
+### ⚠️ Lưu ý
+Backend (API) và Frontend cần chạy song song. Nếu chưa chạy API, hãy mở terminal khác và chạy:
+
+```bash
+dotnet run --project HotelManagement.API
+```
+
+### 📌 Quy trình chạy tổng quát
+Chạy database (SQL Server)
+Mở terminal 1 → chạy API
+Mở terminal 2 → chạy Frontend
+Truy cập Frontend tại: 
+- http://localhost:5173
 
 # 🏨 HotelManagement — Tổng Hợp Dự Án
 
