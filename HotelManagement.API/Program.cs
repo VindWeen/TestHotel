@@ -1,4 +1,6 @@
 using System.Text;
+using HotelManagement.API.Hubs;           // ← THÊM MỚI
+using HotelManagement.API.Services;       // ← THÊM MỚI
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
@@ -12,6 +14,7 @@ using Microsoft.OpenApi.Models;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+
 // ── CORS ───────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
@@ -19,15 +22,15 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:5173",   // Vite dev server
-                "http://localhost:5174",   // Vite fallback port
-                "http://localhost:3000",   // React fallback
-                "http://127.0.0.1:5500",  // VS Code Live Server
-                "null"                     // file:// (mở HTML trực tiếp)
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:3000",
+                "http://127.0.0.1:5500",
+                "null"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowCredentials();   // ← BẮT BUỘC cho SignalR
     });
 });
 
@@ -62,6 +65,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
+            // ── THÊM MỚI: SignalR WebSocket không gửi được header
+            // → đọc token từ query string ?access_token=...
+            OnMessageReceived = ctx =>
+            {
+                var accessToken = ctx.Request.Query["access_token"];
+                var path = ctx.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/notificationHub"))
+                {
+                    ctx.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
+
             OnChallenge = ctx =>
             {
                 ctx.HandleResponse();
@@ -85,8 +103,9 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProv
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
-// ── 4. Helpers ───────────────────────────────────────────────────
+// ── 4. Helpers & Services ────────────────────────────────────────
 builder.Services.AddScoped<JwtHelper>();
+builder.Services.AddScoped<INotificationService, NotificationService>(); // ← THÊM MỚI
 
 // ── 4.5 Cloudinary ──────────────────────────────────────────────────
 var cloudCfg     = builder.Configuration.GetSection("Cloudinary");
@@ -104,11 +123,14 @@ builder.Services.AddMapster();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.ReferenceHandler = 
+        options.JsonSerializerOptions.ReferenceHandler =
             System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 
-// ── 7. Swagger với Bearer token ──────────────────────────────────
+// ── 7. SignalR ───────────────────────────────────────────────────
+builder.Services.AddSignalR();  // ← THÊM MỚI
+
+// ── 8. Swagger với Bearer token ──────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -118,7 +140,6 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1"
     });
 
-    // Thêm ô nhập Bearer token — tạo nút Authorize và ổ khóa trên mỗi endpoint
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name         = "Authorization",
@@ -144,29 +165,21 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-// ── Cloudinary ───────────────────────────────────────────
-var cloudinaryConfig = builder.Configuration.GetSection("Cloudinary");
-var cloudinary = new CloudinaryDotNet.Cloudinary(new CloudinaryDotNet.Account(
-    cloudinaryConfig["CloudName"],
-    cloudinaryConfig["ApiKey"],
-    cloudinaryConfig["ApiSecret"]
-));
-cloudinary.Api.Secure = true;
-builder.Services.AddSingleton(cloudinary);
-// ── Build ────────────────────────────────────────────────────────
+
+// ── Build ────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();  // mặc định mở tại /swagger
+    app.UseSwaggerUI();
 }
 
-// Thứ tự PHẢI đúng: Authentication trước Authorization
-// Thứ tự PHẢI đúng: CORS → Authentication → Authorization
-app.UseCors("AllowFrontend");   // ← thêm dòng này
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/notificationHub"); // ← THÊM MỚI
+
 app.Run();
