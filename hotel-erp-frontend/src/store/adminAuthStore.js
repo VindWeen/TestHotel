@@ -71,15 +71,21 @@ export const useAdminAuthStore = create((set) => ({
     },
 
     // hasPermission: kiểm tra quyền cụ thể (dùng trong RequirePermission)
-    // Ví dụ: useAdminAuthStore.getState().hasPermission('MANAGE_USERS')
     hasPermission: (permissionCode) => {
         const { permissions } = useAdminAuthStore.getState();
-        // permissions là mảng object { permissionCode, name, moduleName }
-        // hoặc mảng string tùy response backend
         return permissions.some(
             (p) =>
                 (typeof p === 'string' && p === permissionCode) ||
                 (typeof p === 'object' && p.permissionCode === permissionCode)
         );
+    },
+
+    // updateUser: gọi sau khi lấy được getMyProfile() để cập nhật avatar, v.v.
+    updateUser: (updatedData) => {
+        const { user: currentUser } = useAdminAuthStore.getState();
+        const newUser = { ...currentUser, ...updatedData };
+        
+        set({ user: newUser });
+        localStorage.setItem('user', JSON.stringify(newUser));
     },
 }));

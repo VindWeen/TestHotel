@@ -1,12 +1,14 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAdminAuthStore } from "../store/adminAuthStore";
 import { useLoadingStore } from "../store/loadingStore";
 import { logout } from "../api/authApi";
+import { getMyProfile } from "../api/userProfileApi";
 
 export default function AdminLayout() {
   const { user, permissions } = useAdminAuthStore();
   const clearAuth = useAdminAuthStore((s) => s.clearAuth);
+  const updateUser = useAdminAuthStore((s) => s.updateUser);
   const isLoading = useLoadingStore((s) => s.isLoading);
   const navigate = useNavigate();
 
@@ -22,6 +24,22 @@ export default function AdminLayout() {
     clearAuth();
     navigate("/login");
   };
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await getMyProfile();
+        if (res.data) {
+          updateUser(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err);
+      }
+    };
+    if (user?.id || user?.fullName) {
+        fetchProfile();
+    }
+  }, []);
 
   const onSearch = (val) => {
     setTopSearch(val);
@@ -392,22 +410,36 @@ export default function AdminLayout() {
                   {user?.role || "—"}
                 </p>
               </div>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: "rgba(79,100,91,.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#4f645b",
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                {ch}
-              </div>
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    border: "2px solid rgba(79,100,91,.1)",
+                  }}
+                  alt="Avatar"
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    background: "rgba(79,100,91,.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#4f645b",
+                    fontWeight: 700,
+                    fontSize: 14,
+                  }}
+                >
+                  {ch}
+                </div>
+              )}
             </div>
           </div>
         </header>
