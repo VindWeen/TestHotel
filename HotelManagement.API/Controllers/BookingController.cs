@@ -7,6 +7,7 @@ using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Helpers;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
