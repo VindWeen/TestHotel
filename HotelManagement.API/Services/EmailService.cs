@@ -1,0 +1,156 @@
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
+
+namespace HotelManagement.API.Services;
+
+// ── Interface ────────────────────────────────────────────────────────────────
+public interface IEmailService
+{
+    /// <summary>Gửi email xác nhận đặt phòng cho khách.</summary>
+    Task SendBookingConfirmationAsync(string toEmail, string guestName, string bookingCode, DateTime checkIn, DateTime checkOut, decimal totalAmount);
+
+    /// <summary>Gửi email thông báo tạo tài khoản nhân viên mới.</summary>
+    Task SendNewStaffAccountAsync(string toEmail, string fullName, string password, string roleName);
+
+    /// <summary>Gửi email thông báo đổi mật khẩu thành công.</summary>
+    Task SendPasswordChangedAsync(string toEmail, string fullName);
+}
+
+// ── Implementation ────────────────────────────────────────────────────────────
+public class EmailService : IEmailService
+{
+    private readonly IConfiguration _config;
+
+    public EmailService(IConfiguration config)
+    {
+        _config = config;
+    }
+
+    // ── Booking Confirmation ──────────────────────────────────────────────────
+    public async Task SendBookingConfirmationAsync(
+        string toEmail,
+        string guestName,
+        string bookingCode,
+        DateTime checkIn,
+        DateTime checkOut,
+        decimal totalAmount)
+    {
+        var subject = $"[Hotel] Xác nhận đặt phòng #{bookingCode}";
+
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">✅ Đặt phòng thành công!</h2>
+                <p>Xin chào <strong>{guestName}</strong>,</p>
+                <p>Đặt phòng của bạn đã được xác nhận. Dưới đây là thông tin chi tiết:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    <tr style="background: #f9f8f3;">
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Mã đặt phòng</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{bookingCode}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Check-in</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{checkIn:dd/MM/yyyy}</td>
+                    </tr>
+                    <tr style="background: #f9f8f3;">
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Check-out</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{checkOut:dd/MM/yyyy}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Tổng tiền dự kiến</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; color: #4f645b; font-weight: 700;">{totalAmount:N0} VNĐ</td>
+                    </tr>
+                </table>
+
+                <p style="color: #6b7280; font-size: 13px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ chúng tôi.</p>
+                <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        await SendAsync(toEmail, guestName, subject, body);
+    }
+
+    // ── New Staff Account ─────────────────────────────────────────────────────
+    public async Task SendNewStaffAccountAsync(
+        string toEmail,
+        string fullName,
+        string password,
+        string roleName)
+    {
+        var subject = "[Hotel] Tài khoản nhân viên của bạn đã được tạo";
+
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">👋 Chào mừng bạn đến với đội ngũ!</h2>
+                <p>Xin chào <strong>{fullName}</strong>,</p>
+                <p>Tài khoản nhân viên của bạn đã được tạo thành công. Dưới đây là thông tin đăng nhập:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    <tr style="background: #f9f8f3;">
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Email đăng nhập</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{toEmail}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Mật khẩu tạm thời</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 700; color: #dc2626;">{password}</td>
+                    </tr>
+                    <tr style="background: #f9f8f3;">
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Vai trò</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{roleName}</td>
+                    </tr>
+                </table>
+
+                <p style="color: #dc2626; font-size: 13px;">⚠️ Vui lòng đổi mật khẩu ngay sau khi đăng nhập lần đầu.</p>
+                <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        await SendAsync(toEmail, fullName, subject, body);
+    }
+
+    // ── Password Changed ──────────────────────────────────────────────────────
+    public async Task SendPasswordChangedAsync(string toEmail, string fullName)
+    {
+        var subject = "[Hotel] Mật khẩu của bạn vừa được thay đổi";
+
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">🔐 Mật khẩu đã được thay đổi</h2>
+                <p>Xin chào <strong>{fullName}</strong>,</p>
+                <p>Mật khẩu tài khoản của bạn vừa được thay đổi thành công vào lúc <strong>{DateTime.Now:HH:mm dd/MM/yyyy}</strong>.</p>
+
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                    <p style="margin: 0; color: #92400e;">⚠️ Nếu bạn <strong>không thực hiện</strong> thay đổi này, vui lòng liên hệ quản trị viên ngay lập tức.</p>
+                </div>
+
+                <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        await SendAsync(toEmail, fullName, subject, body);
+    }
+
+    // ── Core Send Method ──────────────────────────────────────────────────────
+    private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody)
+    {
+        var smtpHost    = _config["Email:SmtpHost"]!;
+        var smtpPort    = int.Parse(_config["Email:SmtpPort"]!);
+        var senderEmail = _config["Email:SenderEmail"]!;
+        var senderName  = _config["Email:SenderName"]!;
+        var password    = _config["Email:Password"]!;
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(senderName, senderEmail));
+        message.To.Add(new MailboxAddress(toName, toEmail));
+        message.Subject = subject;
+
+        message.Body = new TextPart("html") { Text = htmlBody };
+
+        using var client = new SmtpClient();
+        await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls);
+        await client.AuthenticateAsync(senderEmail, password);
+        await client.SendAsync(message);
+        await client.DisconnectAsync(true);
+    }
+}
