@@ -1,12 +1,12 @@
 // Khai báo toàn bộ nested routes
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
-import DashboardPage from "../pages/admin/dashboard/DashboardPage";
+import DashboardPage from "../pages/admin/DashboardPage";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import RequirePermission from "./RequirePermission";
-import UserListPage from "../pages/admin/staff/UserListPage";
-import RoleNPermissionManagement from "../pages/admin/roles/RoleNPermissionManagement";
+import UserListPage from "../pages/admin/UserListPage";
+import Role_Permission from "../pages/admin/Role_Permission";
 
 export default function AdminRoutes() {
   return (
@@ -45,7 +45,7 @@ export default function AdminRoutes() {
           path="roles"
           element={
             <RequirePermission permission="MANAGE_ROLES">
-              <RoleNPermissionManagement />
+              <Role_Permission />
             </RequirePermission>
           }
         />
