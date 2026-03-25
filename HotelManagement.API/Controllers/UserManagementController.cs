@@ -15,10 +15,12 @@ namespace HotelManagement.API.Controllers;
 public class UserManagementController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IEmailService _email;
 
-    public UserManagementController(AppDbContext db)
+    public UserManagementController(AppDbContext db, IEmailService email)
     {
         _db = db;
+        _email = email;
     }
 
     // GET /api/UserManagement?roleId=&page=&pageSize=
@@ -146,6 +148,7 @@ public class UserManagementController : ControllerBase
                 return BadRequest(new { message = $"Role #{request.RoleId} không tồn tại." });
         }
 
+        var plainPassword = request.Password; // lưu trước khi hash (để gửi email)
         var user = new User
         {
             FullName     = request.FullName.Trim(),
@@ -163,6 +166,17 @@ public class UserManagementController : ControllerBase
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
+        // Gửi email thông báo tài khoản mới
+        var roleName = request.RoleId.HasValue
+            ? (await _db.Roles.FindAsync(request.RoleId.Value))?.Name
+            : null;
+
+        _ = _email.SendNewStaffAccountAsync(
+            user.Email,
+            user.FullName,
+            plainPassword,
+            roleName ?? "Nhân viên"
+        );
 
         var currentUserId = JwtHelper.GetUserId(User);
         _db.AuditLogs.Add(new AuditLog

@@ -105,8 +105,8 @@ builder.Services.AddAuthorization();
 
 // ── 4. Helpers & Services ────────────────────────────────────────
 builder.Services.AddScoped<JwtHelper>();
-builder.Services.AddScoped<INotificationService, NotificationService>(); // ← THÊM MỚI
-
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 // ── 4.5 Cloudinary ──────────────────────────────────────────────────
 var cloudCfg     = builder.Configuration.GetSection("Cloudinary");
 var cloudAccount = new CloudinaryDotNet.Account(

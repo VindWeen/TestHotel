@@ -76,11 +76,13 @@ public class BookingsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConnectionMultiplexer _redis;
+    private readonly IEmailService _email;
 
-    public BookingsController(AppDbContext context, IConnectionMultiplexer redis)
+    public BookingsController(AppDbContext context, IConnectionMultiplexer redis, IEmailService email)
     {
         _context = context;
         _redis = redis;
+        _email = email;
     }
 
     private IDatabase RedisDb => _redis.GetDatabase();
@@ -377,6 +379,20 @@ public class BookingsController : ControllerBase
         });
 
         await _context.SaveChangesAsync();
+        // Gửi email xác nhận đặt phòng
+        var toEmail = b.GuestEmail ?? b.User?.Email;
+        if (!string.IsNullOrEmpty(toEmail))
+        {
+            var detail = b.BookingDetails.FirstOrDefault();
+            _ = _email.SendBookingConfirmationAsync(
+                toEmail,
+                b.GuestName ?? b.User?.FullName ?? "Quý khách",
+                b.BookingCode,
+                detail?.CheckInDate  ?? DateTime.Now,
+                detail?.CheckOutDate ?? DateTime.Now.AddDays(1),
+                b.TotalEstimatedAmount
+            );
+        }
 
         return Ok(MapToResponse(b));
     }

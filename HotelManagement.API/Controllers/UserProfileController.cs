@@ -15,11 +15,13 @@ public class UserProfileController : ControllerBase
 {
     private readonly AppDbContext    _db;
     private readonly IConfiguration _config;
+    private readonly IEmailService _email;
 
-    public UserProfileController(AppDbContext db, IConfiguration config)
+    public UserProfileController(AppDbContext db, IConfiguration config, IEmailService email)
     {
         _db     = db;
         _config = config;
+        _email  = email;
     }
 
     // GET /api/UserProfile/my-profile
@@ -83,6 +85,7 @@ public class UserProfileController : ControllerBase
         user.UpdatedAt   = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+        _ = _email.SendPasswordChangedAsync(user.Email, user.FullName);
 
         var notification = new Notification
         {
