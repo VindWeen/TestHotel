@@ -1,5 +1,4 @@
-// Sidebar + Header (Bell notification) + <Outlet />
-// Layout này dùng <Outlet /> của React Router v6 để render trang con mà không re-render sidebar/header.
+import { useState, useRef } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAdminAuthStore } from "../store/adminAuthStore";
 import { useLoadingStore } from "../store/loadingStore";
@@ -11,6 +10,9 @@ export default function AdminLayout() {
   const isLoading = useLoadingStore((s) => s.isLoading);
   const navigate = useNavigate();
 
+  const [topSearch, setTopSearch] = useState("");
+  const debounceRef = useRef(null);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -21,6 +23,11 @@ export default function AdminLayout() {
     navigate("/login");
   };
 
+  const onSearch = (val) => {
+    setTopSearch(val);
+    // Logic search global hoặc truyền qua context nếu cần
+  };
+
   const hasPermission = (code) =>
     permissions.some(
       (p) =>
@@ -28,207 +35,410 @@ export default function AdminLayout() {
         (typeof p === "object" && p.permissionCode === code),
     );
 
+  const ch = (user?.fullName || "A")[0].toUpperCase();
+
   return (
-    <div style={styles.shell}>
-      {/* ── Loading Overlay ── */}
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+        .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; }
+
+        @keyframes spin { to { transform:rotate(360deg) } }
+        .spinner-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.6); z-index:9999; display:flex; alignItems:center; justify-content:center; }
+        .spinner { width:40px; height:40px; border:4px solid #e5e7eb; border-top:4px solid #4f645b; border-radius:50%; animation:spin 0.8s linear infinite; }
+      `}</style>
+
       {isLoading && (
-        <div style={styles.loadingOverlay}>
-          <div style={styles.spinner} />
+        <div className="spinner-overlay">
+          <div className="spinner" />
         </div>
       )}
 
-      {/* ── Sidebar ── */}
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>🏨 HOTEL ERP</div>
-
-        <nav style={styles.nav}>
-          <NavLink to="/admin/dashboard" style={navStyle}>
-            Dashboard
-          </NavLink>
-
-          {hasPermission("MANAGE_USERS") && (
-            <NavLink to="/admin/staff" style={navStyle}>
-              Quản lý Nhân sự
-            </NavLink>
-          )}
-
-          {hasPermission("MANAGE_ROOMS") && (
-            <NavLink to="/admin/rooms" style={navStyle}>
-              Quản lý Phòng
-            </NavLink>
-          )}
-
-          {hasPermission("MANAGE_BOOKINGS") && (
-            <NavLink to="/admin/bookings" style={navStyle}>
-              Booking & Voucher
-            </NavLink>
-          )}
-          {hasPermission("MANAGE_ROLES") && (
-            <NavLink to="/admin/roles" style={navStyle}>
-              Vai trò & Phân quyền
-            </NavLink>
-          )}
-        </nav>
-
-        {/* ── User info bottom ── */}
-        <div style={styles.userBox}>
-          {user?.avatarUrl && (
-            <img src={user.avatarUrl} alt="avatar" style={styles.avatar} />
-          )}
-          <div style={styles.userInfo}>
-            <p style={styles.userName}>{user?.fullName}</p>
-            <p style={styles.userRole}>{user?.role}</p>
+      <div
+        style={{
+          fontFamily: "'Manrope', sans-serif",
+          background: "#f8f9fa",
+          minHeight: "100vh",
+        }}
+      >
+        {/* SideNavBar */}
+        <aside
+          style={{
+            width: 256,
+            height: "100vh",
+            position: "fixed",
+            left: 0,
+            top: 0,
+            borderRight: "1px solid #f1f0ea",
+            background: "white",
+            display: "flex",
+            flexDirection: "column",
+            padding: "32px 16px",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ marginBottom: 40, paddingLeft: 16 }}>
+            <h1
+              style={{
+                fontSize: 20,
+                fontWeight: 800,
+                letterSpacing: "0.15em",
+                color: "#1a3826",
+                textTransform: "uppercase",
+              }}
+            >
+              The Ethereal
+            </h1>
+            <p
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.2em",
+                color: "#6b7280",
+                textTransform: "uppercase",
+                marginTop: 4,
+              }}
+            >
+              Hotel ERP
+            </p>
           </div>
-        </div>
-      </aside>
 
-      {/* ── Main ── */}
-      <div style={styles.main}>
-        {/* Header */}
-        <header style={styles.header}>
-          <span style={styles.headerTitle}>Admin Panel</span>
-          <button onClick={handleLogout} style={styles.logoutBtn}>
-            Đăng xuất
-          </button>
+          <nav
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <NavLink to="/admin/dashboard" style={navStyle}>
+              {({ isActive }) => (
+                <>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontVariationSettings: isActive
+                        ? "'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24"
+                        : "'FILL' 0",
+                    }}
+                  >
+                    dashboard
+                  </span>
+                  <span>Dashboard</span>
+                </>
+              )}
+            </NavLink>
+
+            {hasPermission("MANAGE_ROOMS") && (
+              <NavLink to="/admin/rooms" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                      }}
+                    >
+                      meeting_room
+                    </span>
+                    <span>Quản lý Phòng</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_INVENTORY") && (
+              <NavLink to="/admin/items" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                      }}
+                    >
+                      inventory_2
+                    </span>
+                    <span>Vật tư & Minibar</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {/* Thêm các mục khác tương tự */}
+            {hasPermission("MANAGE_BOOKINGS") && (
+              <NavLink to="/admin/bookings" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                      }}
+                    >
+                      confirmation_number
+                    </span>
+                    <span>Booking & Voucher</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_USERS") && (
+              <NavLink to="/admin/staff" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                      }}
+                    >
+                      group
+                    </span>
+                    <span>Danh sách Nhân sự</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_ROLES") && (
+              <NavLink to="/admin/roles" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                      }}
+                    >
+                      shield_person
+                    </span>
+                    <span>Vai trò & Phân quyền</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+          </nav>
+
+          <div
+            style={{
+              marginTop: "auto",
+              paddingLeft: 16,
+              paddingRight: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <button
+              onClick={handleLogout}
+              style={{
+                width: "100%",
+                padding: "10px",
+                borderRadius: 12,
+                background: "none",
+                border: "1px solid #e2e8e1",
+                color: "#6b7280",
+                fontWeight: 500,
+                fontSize: 14,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18 }}
+              >
+                logout
+              </span>
+              Đăng xuất
+            </button>
+          </div>
+        </aside>
+
+        {/* TopNavBar */}
+        <header
+          style={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            width: "calc(100% - 256px)",
+            height: 64,
+            zIndex: 40,
+            background: "rgba(255,255,255,.8)",
+            backdropFilter: "blur(12px)",
+            borderBottom: "1px solid #f1f0ea",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 32px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+            <div style={{ position: "relative", width: 320 }}>
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#9ca3af",
+                  fontSize: 18,
+                }}
+              >
+                search
+              </span>
+              <input
+                value={topSearch}
+                onChange={(e) => onSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "#f3f4f6",
+                  border: "none",
+                  borderRadius: 9999,
+                  padding: "8px 16px 8px 40px",
+                  fontSize: 12,
+                  outline: "none",
+                }}
+                placeholder="Tìm kiếm tài nguyên..."
+              />
+            </div>
+            <nav style={{ display: "flex", gap: 24 }}>
+              {["Hotels", "Analytics", "Reports"].map((item, i) => (
+                <a
+                  key={item}
+                  href="#"
+                  style={{
+                    fontSize: 14,
+                    fontWeight: i === 1 ? 600 : 500,
+                    color: i === 1 ? "#1a3826" : "#6b7280",
+                    textDecoration: "none",
+                    borderBottom: i === 1 ? "2px solid #1a3826" : "none",
+                    paddingBottom: i === 1 ? 4 : 0,
+                  }}
+                >
+                  {item}
+                </a>
+              ))}
+            </nav>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                style={{
+                  padding: 8,
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  borderRadius: "50%",
+                  position: "relative",
+                }}
+              >
+                <span className="material-symbols-outlined">notifications</span>
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    width: 8,
+                    height: 8,
+                    background: "#ef4444",
+                    borderRadius: "50%",
+                    border: "2px solid white",
+                  }}
+                />
+              </button>
+              <button
+                style={{
+                  padding: 8,
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  borderRadius: "50%",
+                }}
+              >
+                <span className="material-symbols-outlined">help_outline</span>
+              </button>
+            </div>
+            <div style={{ width: 1, height: 32, background: "#e5e7eb" }} />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ textAlign: "right" }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#1c1917",
+                    margin: 0,
+                  }}
+                >
+                  {user?.fullName || "—"}
+                </p>
+                <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
+                  {user?.role || "—"}
+                </p>
+              </div>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  background: "rgba(79,100,91,.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#4f645b",
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                {ch}
+              </div>
+            </div>
+          </div>
         </header>
 
-        {/* Page content */}
-        <main style={styles.content}>
-          <Outlet />
+        {/* Main Content Area */}
+        <main
+          style={{
+            marginLeft: 256,
+            paddingTop: 64,
+            minHeight: "100vh",
+          }}
+        >
+          <div style={{ padding: 32 }}>
+            <Outlet />
+          </div>
         </main>
       </div>
-    </div>
+    </>
   );
 }
 
-// ── NavLink style helper ──────────────────────────────────────────────────────
 const navStyle = ({ isActive }) => ({
-  display: "block",
-  padding: "10px 16px",
-  marginBottom: 4,
-  borderRadius: 6,
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "12px 16px",
+  borderRadius: 12,
   textDecoration: "none",
   fontSize: 14,
   fontWeight: isActive ? 700 : 500,
-  background: isActive ? "#0ea5e9" : "transparent",
-  color: isActive ? "#fff" : "#374151",
+  color: isActive ? "#1a3826" : "#6b7280",
+  background: isActive ? "rgba(236,253,245,.5)" : "transparent",
+  transition: "all .15s",
 });
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-const styles = {
-  shell: {
-    display: "flex",
-    minHeight: "100vh",
-    fontFamily: "sans-serif",
-  },
-  loadingOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(255,255,255,0.6)",
-    zIndex: 9999,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: "4px solid #e5e7eb",
-    borderTop: "4px solid #0ea5e9",
-    borderRadius: "50%",
-    animation: "spin 0.8s linear infinite",
-  },
-  sidebar: {
-    width: 240,
-    background: "#fff",
-    borderRight: "1px solid #e5e7eb",
-    display: "flex",
-    flexDirection: "column",
-    padding: "24px 12px",
-    position: "fixed",
-    top: 0,
-    left: 0,
-    height: "100vh",
-  },
-  logo: {
-    fontSize: 18,
-    fontWeight: 800,
-    color: "#0ea5e9",
-    marginBottom: 28,
-    paddingLeft: 8,
-  },
-  nav: {
-    flex: 1,
-  },
-  userBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "12px 8px",
-    borderTop: "1px solid #e5e7eb",
-    marginTop: 16,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: "50%",
-    objectFit: "cover",
-  },
-  userInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  userName: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#111827",
-    margin: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  userRole: {
-    fontSize: 11,
-    color: "#6b7280",
-    margin: 0,
-  },
-  main: {
-    marginLeft: 240,
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    minHeight: "100vh",
-    background: "#f9fafb",
-  },
-  header: {
-    height: 56,
-    background: "#fff",
-    borderBottom: "1px solid #e5e7eb",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 24px",
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#374151",
-  },
-  logoutBtn: {
-    padding: "6px 14px",
-    background: "#ef4444",
-    color: "#fff",
-    border: "none",
-    borderRadius: 6,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-  },
-};

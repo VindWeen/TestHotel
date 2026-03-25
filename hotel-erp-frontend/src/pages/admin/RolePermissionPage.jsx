@@ -1,9 +1,10 @@
-// src/pages/admin/roles/Role_Permission.jsx
+// src/pages/admin/RolePermissionPage.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getRoles, getRoleById, assignPermission } from "../../api/rolesApi";
 import { useAdminAuthStore } from "../../store/adminAuthStore";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../api/authApi";
+
 
 // ─── Tất cả permissions trong hệ thống (map theo PermissionCodes.cs) ──────────
 const ALL_PERMISSIONS = [
@@ -547,7 +548,7 @@ function PermissionModal({ role, onClose, onSaved, showToast }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function Role_Permission() {
+export default function RolePermissionPage() {
   const { user: currentUser, permissions, clearAuth } = useAdminAuthStore();
   const navigate = useNavigate();
 
@@ -614,22 +615,11 @@ export default function Role_Permission() {
   return (
     <>
       <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
-                @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
-                .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; }
-
-                @keyframes spin { to { transform:rotate(360deg) } }
-                @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
-                @keyframes toastIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
-                @keyframes toastProgress { from{width:100%} to{width:0} }
-                @keyframes fadeRow { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
-                @keyframes modalIn { from{opacity:0;transform:scale(.96) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
-                @keyframes spin360 { to{transform:rotate(360deg)} }
-
                 .skel { background:linear-gradient(90deg,#e8e8e0 25%,#f2f2ea 50%,#e8e8e0 75%); background-size:600px; animation:shimmer 1.4s infinite; border-radius:6px; height:13px; }
-
                 .fade-row { animation:fadeRow .2s ease forwards; }
+
+                @keyframes fadeRow { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+                @keyframes spin360 { to{transform:rotate(360deg)} }
 
                 .perm-btn {
                     display:inline-flex; align-items:center; gap:6px;
@@ -681,602 +671,343 @@ export default function Role_Permission() {
         />
       )}
 
-      {/* ── Layout ── */}
-      <div
-        style={{
-          fontFamily: "'Manrope', sans-serif",
-          background: "#f8f9fa",
-          minHeight: "100vh",
-        }}
-      >
-        {/* Sidebar */}
-        <aside
+      {/* Content Area */}
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        {/* Page header */}
+        <div
           style={{
-            width: 256,
-            height: "100vh",
-            position: "fixed",
-            left: 0,
-            top: 0,
-            borderRight: "1px solid #f1f0ea",
-            background: "white",
             display: "flex",
-            flexDirection: "column",
-            padding: "32px 16px",
-            zIndex: 50,
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 32,
           }}
         >
-          <div style={{ marginBottom: 40, paddingLeft: 16 }}>
-            <h1
+          <div>
+            <h2
               style={{
-                fontSize: 20,
+                fontSize: 28,
                 fontWeight: 800,
-                letterSpacing: "0.15em",
-                color: "#1a3826",
-                textTransform: "uppercase",
+                color: "#1c1917",
+                letterSpacing: "-0.03em",
+                margin: "0 0 6px",
               }}
             >
-              The Ethereal
-            </h1>
+              Quản lý vai trò &amp; Quyền (RBAC)
+            </h2>
             <p
               style={{
-                fontSize: 10,
-                letterSpacing: "0.2em",
+                fontSize: 14,
                 color: "#6b7280",
-                textTransform: "uppercase",
-                marginTop: 4,
+                margin: 0,
+                maxWidth: 520,
               }}
             >
-              Hotel ERP
+              Phân định vai trò và gán quyền hạn truy cập cho từng bộ phận trong
+              hệ thống Grand Horizon.
             </p>
           </div>
-
-          <nav
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="refresh-btn"
           >
-            {[
-              {
-                icon: "dashboard",
-                label: "Dashboard",
-                path: "/admin/dashboard",
-              },
-              {
-                icon: "meeting_room",
-                label: "Quản lý Phòng",
-                path: "/admin/rooms",
-              },
-              {
-                icon: "inventory_2",
-                label: "Vật tư & Minibar",
-                path: "/admin/items",
-              },
-              {
-                icon: "confirmation_number",
-                label: "Booking & Voucher",
-                path: "/admin/bookings",
-              },
-              { icon: "group", label: "Quản lý Nhân sự", path: "/admin/staff" },
-            ].map((item) => (
-              <a
-                key={item.label}
-                href={item.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  textDecoration: "none",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "#6b7280",
-                  transition: "all .15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#065f46";
-                  e.currentTarget.style.background = "#ecfdf5";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#6b7280";
-                  e.currentTarget.style.background = "";
-                }}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span>{item.label}</span>
-              </a>
-            ))}
-            {/* Active */}
-            <a
-              href="#"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 16px",
-                borderRadius: 12,
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 700,
-                color: "#1a3826",
-                background: "rgba(236,253,245,.5)",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                shield_person
-              </span>
-              <span>Vai trò & Phân quyền</span>
-            </a>
-          </nav>
-
-          <div style={{ paddingLeft: 8, paddingRight: 8 }}>
-            <button
-              onClick={handleLogout}
-              style={{
-                width: "100%",
-                padding: "10px",
-                borderRadius: 12,
-                background: "none",
-                border: "1px solid #e2e8e1",
-                color: "#6b7280",
-                fontWeight: 500,
-                fontSize: 14,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                fontFamily: "'Manrope',sans-serif",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18 }}
-              >
-                logout
-              </span>
-              Đăng xuất
-            </button>
-          </div>
-        </aside>
-
-        {/* Header */}
-        <header
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: "calc(100% - 256px)",
-            height: 64,
-            zIndex: 40,
-            background: "rgba(255,255,255,.85)",
-            backdropFilter: "blur(12px)",
-            borderBottom: "1px solid #f1f0ea",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 32px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13,
-              color: "#9ca3af",
-            }}
-          >
-            <span>Hệ thống</span>
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 16 }}
-            >
-              chevron_right
-            </span>
-            <span style={{ color: "#1c1917", fontWeight: 600 }}>
-              Quản lý Vai trò & Phân quyền
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 1, height: 32, background: "#e5e7eb" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ textAlign: "right" }}>
-                <p
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#1c1917",
-                    margin: 0,
-                  }}
-                >
-                  {currentUser?.fullName || "—"}
-                </p>
-                <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
-                  {currentUser?.role || "—"}
-                </p>
-              </div>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: "rgba(79,100,91,.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#4f645b",
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                {ch}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main style={{ marginLeft: 256, paddingTop: 64 }}>
-          <div style={{ padding: "36px 32px 32px" }}>
-            {/* Page header */}
-            <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 32,
+                fontSize: 18,
+                animation: refreshing ? "spin360 .8s linear infinite" : "none",
               }}
             >
-              <div>
-                <h2
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: "#1c1917",
-                    letterSpacing: "-0.03em",
-                    margin: "0 0 6px",
-                  }}
-                >
-                  Quản lý vai trò &amp; Quyền (RBAC)
-                </h2>
-                <p
-                  style={{
-                    fontSize: 14,
-                    color: "#6b7280",
-                    margin: 0,
-                    maxWidth: 520,
-                  }}
-                >
-                  Phân định vai trò và gán quyền hạn truy cập cho từng bộ phận
-                  trong hệ thống Grand Horizon.
-                </p>
-              </div>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="refresh-btn"
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: 18,
-                    animation: refreshing
-                      ? "spin360 .8s linear infinite"
-                      : "none",
-                  }}
-                >
-                  refresh
-                </span>
-                Làm mới
-              </button>
-            </div>
+              refresh
+            </span>
+            Làm mới
+          </button>
+        </div>
 
-            {/* Table card */}
-            <div
+        {/* Table card */}
+        <div
+          style={{
+            background: "white",
+            borderRadius: 20,
+            boxShadow: "0 1px 4px rgba(0,0,0,.06)",
+            border: "1px solid #f1f0ea",
+            overflow: "hidden",
+          }}
+        >
+          {/* Card header */}
+          <div
+            style={{
+              padding: "20px 28px",
+              borderBottom: "1px solid #f1f0ea",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <h3
               style={{
-                background: "white",
-                borderRadius: 20,
-                boxShadow: "0 1px 4px rgba(0,0,0,.06)",
-                border: "1px solid #f1f0ea",
-                overflow: "hidden",
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#1c1917",
+                margin: 0,
               }}
             >
-              {/* Card header */}
-              <div
-                style={{
-                  padding: "20px 28px",
-                  borderBottom: "1px solid #f1f0ea",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: "#1c1917",
-                    margin: 0,
-                  }}
-                >
-                  Danh sách vai trò
-                </h3>
-                {!loading && (
-                  <span
-                    style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}
-                  >
-                    HIỂN THỊ {Math.min(paginatedRoles.length, pageSize)}/
-                    {roles.length}
-                  </span>
-                )}
-              </div>
+              Danh sách vai trò
+            </h3>
+            {!loading && (
+              <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}>
+                HIỂN THỊ {Math.min(paginatedRoles.length, pageSize)}/
+                {roles.length}
+              </span>
+            )}
+          </div>
 
-              {/* Table */}
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: "rgba(249,248,243,.5)" }}>
-                      {["ID", "TÊN VAI TRÒ", "MÔ TẢ", "THAO TÁC"].map(
-                        (h, i) => (
-                          <th
-                            key={h}
-                            style={{
-                              padding: "14px 28px",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              letterSpacing: ".1em",
-                              color: "#9ca3af",
-                              textAlign: i === 3 ? "right" : "left",
-                              whiteSpace: "nowrap",
-                              borderBottom: "1px solid #f1f0ea",
-                            }}
-                          >
-                            {h}
-                          </th>
-                        ),
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <SkeletonRows />
-                    ) : paginatedRoles.length === 0 ? (
-                      <tr>
+          {/* Table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "rgba(249,248,243,.5)" }}>
+                  {["ID", "TÊN VAI TRÒ", "MÔ TẢ", "THAO TÁC"].map((h, i) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "14px 28px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: ".1em",
+                        color: "#9ca3af",
+                        textAlign: i === 3 ? "right" : "left",
+                        whiteSpace: "nowrap",
+                        borderBottom: "1px solid #f1f0ea",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <SkeletonRows />
+                ) : paginatedRoles.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      style={{ padding: "60px 0", textAlign: "center" }}
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: 40,
+                          color: "#d1d5db",
+                          display: "block",
+                          marginBottom: 10,
+                        }}
+                      >
+                        shield_question
+                      </span>
+                      <p
+                        style={{
+                          color: "#9ca3af",
+                          fontWeight: 500,
+                          fontSize: 14,
+                        }}
+                      >
+                        Chưa có vai trò nào
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRoles.map((role, i) => {
+                    const dotColor = getRoleColor(role.name);
+                    const roleNum = (page - 1) * pageSize + i + 1;
+                    return (
+                      <tr
+                        key={role.id}
+                        className="fade-row"
+                        style={{
+                          borderBottom: "1px solid #fafaf8",
+                          animationDelay: `${Math.min(i * 30, 150)}ms`,
+                        }}
+                      >
                         <td
-                          colSpan={4}
-                          style={{ padding: "60px 0", textAlign: "center" }}
+                          style={{
+                            padding: "20px 28px",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#9ca3af",
+                            fontFamily: "monospace",
+                            letterSpacing: ".05em",
+                          }}
                         >
-                          <span
-                            className="material-symbols-outlined"
+                          ROLE-{String(roleNum).padStart(3, "0")}
+                        </td>
+                        <td style={{ padding: "20px 28px" }}>
+                          <div
                             style={{
-                              fontSize: 40,
-                              color: "#d1d5db",
-                              display: "block",
-                              marginBottom: 10,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
                             }}
                           >
-                            shield_question
-                          </span>
-                          <p
-                            style={{
-                              color: "#9ca3af",
-                              fontWeight: 500,
-                              fontSize: 14,
-                            }}
-                          >
-                            Chưa có vai trò nào
-                          </p>
+                            <div
+                              style={{
+                                width: 9,
+                                height: 9,
+                                borderRadius: "50%",
+                                background: dotColor,
+                                flexShrink: 0,
+                                boxShadow: `0 0 0 2px ${dotColor}22`,
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                color: "#1c1917",
+                              }}
+                            >
+                              {role.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td
+                          style={{
+                            padding: "20px 28px",
+                            fontSize: 14,
+                            color: "#6b7280",
+                          }}
+                        >
+                          {role.description || (
+                            <span
+                              style={{ color: "#d1d5db", fontStyle: "italic" }}
+                            >
+                              Chưa có mô tả
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          style={{ padding: "20px 28px", textAlign: "right" }}
+                        >
+                          {hasPermission("MANAGE_ROLES") && (
+                            <button
+                              className="perm-btn"
+                              onClick={() => setSelectedRole(role)}
+                            >
+                              <span
+                                className="material-symbols-outlined"
+                                style={{ fontSize: 16 }}
+                              >
+                                shield_lock
+                              </span>
+                              Phân quyền
+                            </button>
+                          )}
                         </td>
                       </tr>
-                    ) : (
-                      paginatedRoles.map((role, i) => {
-                        const dotColor = getRoleColor(role.name);
-                        const roleNum = (page - 1) * pageSize + i + 1;
-                        return (
-                          <tr
-                            key={role.id}
-                            className="fade-row"
-                            style={{
-                              borderBottom: "1px solid #fafaf8",
-                              animationDelay: `${Math.min(i * 30, 150)}ms`,
-                            }}
-                          >
-                            <td
-                              style={{
-                                padding: "20px 28px",
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: "#9ca3af",
-                                fontFamily: "monospace",
-                                letterSpacing: ".05em",
-                              }}
-                            >
-                              ROLE-{String(roleNum).padStart(3, "0")}
-                            </td>
-                            <td style={{ padding: "20px 28px" }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 10,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width: 9,
-                                    height: 9,
-                                    borderRadius: "50%",
-                                    background: dotColor,
-                                    flexShrink: 0,
-                                    boxShadow: `0 0 0 2px ${dotColor}22`,
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    color: "#1c1917",
-                                  }}
-                                >
-                                  {role.name}
-                                </span>
-                              </div>
-                            </td>
-                            <td
-                              style={{
-                                padding: "20px 28px",
-                                fontSize: 14,
-                                color: "#6b7280",
-                              }}
-                            >
-                              {role.description || (
-                                <span
-                                  style={{
-                                    color: "#d1d5db",
-                                    fontStyle: "italic",
-                                  }}
-                                >
-                                  Chưa có mô tả
-                                </span>
-                              )}
-                            </td>
-                            <td
-                              style={{
-                                padding: "20px 28px",
-                                textAlign: "right",
-                              }}
-                            >
-                              {hasPermission("MANAGE_ROLES") && (
-                                <button
-                                  className="perm-btn"
-                                  onClick={() => setSelectedRole(role)}
-                                >
-                                  <span
-                                    className="material-symbols-outlined"
-                                    style={{ fontSize: 16 }}
-                                  >
-                                    shield_lock
-                                  </span>
-                                  Phân quyền
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              {/* Pagination */}
-              {!loading && roles.length > 0 && (
-                <div
-                  style={{
-                    padding: "14px 28px",
-                    borderTop: "1px solid #f1f0ea",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-                    {start}–{end} /{" "}
-                    <span style={{ fontWeight: 600, color: "#6b7280" }}>
-                      {roles.length}
-                    </span>{" "}
-                    vai trò
-                  </p>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <button
-                      className="pg-btn"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
-                    >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 18 }}
-                      >
-                        chevron_left
-                      </span>
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (n) => (
-                        <button
-                          key={n}
-                          className={`pg-btn${n === page ? " active" : ""}`}
-                          onClick={() => setPage(n)}
-                        >
-                          {n}
-                        </button>
-                      ),
-                    )}
-                    <button
-                      className="pg-btn"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => p + 1)}
-                    >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 18 }}
-                      >
-                        chevron_right
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Info note */}
+          {/* Pagination */}
+          {!loading && roles.length > 0 && (
             <div
               style={{
-                marginTop: 20,
-                padding: "14px 20px",
-                background: "rgba(79,100,91,.06)",
-                borderRadius: 12,
-                border: "1px solid rgba(79,100,91,.12)",
+                padding: "14px 28px",
+                borderTop: "1px solid #f1f0ea",
                 display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              <span
-                className="material-symbols-outlined"
-                style={{
-                  fontSize: 18,
-                  color: "#4f645b",
-                  flexShrink: 0,
-                  marginTop: 1,
-                }}
-              >
-                info
-              </span>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#4b5563",
-                  margin: 0,
-                  lineHeight: 1.6,
-                }}
-              >
-                Chỉ tài khoản có quyền <strong>MANAGE_ROLES</strong> mới có thể
-                thay đổi phân quyền. Các thay đổi sẽ được áp dụng ngay khi người
-                dùng đăng nhập lại.
+              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                {start}–{end} /{" "}
+                <span style={{ fontWeight: 600, color: "#6b7280" }}>
+                  {roles.length}
+                </span>{" "}
+                vai trò
               </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  className="pg-btn"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 18 }}
+                  >
+                    chevron_left
+                  </span>
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    className={`pg-btn${n === page ? " active" : ""}`}
+                    onClick={() => setPage(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  className="pg-btn"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 18 }}
+                  >
+                    chevron_right
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
-        </main>
+          )}
+        </div>
+
+        {/* Info note */}
+        <div
+          style={{
+            marginTop: 20,
+            padding: "14px 20px",
+            background: "rgba(79,100,91,.06)",
+            borderRadius: 12,
+            border: "1px solid rgba(79,100,91,.12)",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 18,
+              color: "#4f645b",
+              flexShrink: 0,
+              marginTop: 1,
+            }}
+          >
+            info
+          </span>
+          <p
+            style={{
+              fontSize: 12,
+              color: "#4b5563",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            Chỉ tài khoản có quyền <strong>MANAGE_ROLES</strong> mới có thể thay
+            đổi phân quyền. Các thay đổi sẽ được áp dụng ngay khi người dùng
+            đăng nhập lại.
+          </p>
+        </div>
       </div>
     </>
   );
 }
+

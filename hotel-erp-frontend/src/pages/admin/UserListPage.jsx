@@ -11,7 +11,7 @@ import {
 } from "../../api/userManagementApi";
 import { getRoles } from "../../api/rolesApi";
 import { useAdminAuthStore } from "../../store/adminAuthStore";
-import { logout } from "../../api/authApi";
+
 import { useNavigate } from "react-router-dom";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ function SkeletonRows() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function UserListPage() {
-  const { user: currentUser, permissions, clearAuth } = useAdminAuthStore();
+  const { permissions } = useAdminAuthStore();
   const navigate = useNavigate();
 
   const [allUsers, setAllUsers] = useState([]);
@@ -565,19 +565,7 @@ export default function UserListPage() {
     showToast(`Đã xuất ${users.length} bản ghi.`, "success");
   };
 
-  // ── Logout ──
-  const handleLogout = async () => {
-    try {
-      const res = await logout();
-      showNotif(
-        res?.data?.notification,
-        res?.data?.message || "Đã đăng xuất.",
-        "info",
-      );
-    } catch {}
-    clearAuth();
-    setTimeout(() => navigate("/login"), 700);
-  };
+
 
   // ── Pagination ──
   const renderPagination = () => {
@@ -631,14 +619,13 @@ export default function UserListPage() {
     );
   };
 
-  const ch = (currentUser?.fullName || "A")[0].toUpperCase();
   const hasFilter = filters.search || filters.roleId || filters.status;
   const start = (page - 1) * pageSize + 1,
     end = Math.min(page * pageSize, filtered.length);
 
   return (
     <>
-      {/* ── Global Styles (khớp với UserManagement.html) ── */}
+      {/* ── Global Styles ── */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
@@ -680,14 +667,11 @@ export default function UserListPage() {
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* ═══════ MODAL: THÊM / SỬA ═══════ */}
+      {/* ══════ MODALS ══════ */}
       {addModalOpen && (
         <div
-          className="fixed inset-0 bg-black/50 modal-backdrop hidden flex items-center justify-center z-50"
-          style={{ display: "flex" }}
-          onClick={(e) =>
-            e.target === e.currentTarget && setAddModalOpen(false)
-          }
+          className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center z-50"
+          onClick={(e) => e.target === e.currentTarget && setAddModalOpen(false)}
         >
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">
@@ -703,9 +687,7 @@ export default function UserListPage() {
             </div>
             <form noValidate onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
-                  Họ và tên *
-                </label>
+                <label className="block text-sm font-medium mb-1">Họ và tên *</label>
                 <input
                   type="text"
                   placeholder="Nguyễn Văn A"
@@ -714,15 +696,11 @@ export default function UserListPage() {
                   className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition"
                 />
                 {fieldErrors.fullName && (
-                  <p className="text-xs mt-1 text-red-600">
-                    {fieldErrors.fullName}
-                  </p>
+                  <p className="text-xs mt-1 text-red-600">{fieldErrors.fullName}</p>
                 )}
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
-                  Email *
-                </label>
+                <label className="block text-sm font-medium mb-1">Email *</label>
                 <input
                   type="email"
                   placeholder="email@hotel.com"
@@ -732,9 +710,7 @@ export default function UserListPage() {
                   className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 {fieldErrors.email && (
-                  <p className="text-xs mt-1 text-red-600">
-                    {fieldErrors.email}
-                  </p>
+                  <p className="text-xs mt-1 text-red-600">{fieldErrors.email}</p>
                 )}
               </div>
               <div className="mb-4">
@@ -749,9 +725,7 @@ export default function UserListPage() {
               </div>
               {!editingId && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">
-                    Mật khẩu *
-                  </label>
+                  <label className="block text-sm font-medium mb-1">Mật khẩu *</label>
                   <input
                     type="password"
                     placeholder="Tối thiểu 6 ký tự"
@@ -760,16 +734,12 @@ export default function UserListPage() {
                     className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition"
                   />
                   {fieldErrors.password && (
-                    <p className="text-xs mt-1 text-red-600">
-                      {fieldErrors.password}
-                    </p>
+                    <p className="text-xs mt-1 text-red-600">{fieldErrors.password}</p>
                   )}
                 </div>
               )}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
-                  Vai trò
-                </label>
+                <label className="block text-sm font-medium mb-1">Vai trò</label>
                 <select
                   value={fRoleId}
                   onChange={(e) => setFRoleId(e.target.value)}
@@ -777,16 +747,12 @@ export default function UserListPage() {
                 >
                   <option value="">-- Chọn vai trò --</option>
                   {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
+                    <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
-                  Giới tính
-                </label>
+                <label className="block text-sm font-medium mb-1">Giới tính</label>
                 <select
                   value={fGender}
                   onChange={(e) => setFGender(e.target.value)}
@@ -800,12 +766,7 @@ export default function UserListPage() {
               </div>
               {formError && (
                 <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
-                  <span
-                    className="material-symbols-outlined text-red-500 mt-0.5"
-                    style={{ fontSize: 16 }}
-                  >
-                    error
-                  </span>
+                  <span className="material-symbols-outlined text-red-500 mt-0.5" style={{ fontSize: 16 }}>error</span>
                   <span>{formError}</span>
                 </div>
               )}
@@ -832,21 +793,14 @@ export default function UserListPage() {
         </div>
       )}
 
-      {/* ═══════ MODAL: CHI TIẾT ═══════ */}
       {detailModalOpen && (
         <div
           className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center z-50"
-          onClick={(e) =>
-            e.target === e.currentTarget && setDetailModalOpen(false)
-          }
+          onClick={(e) => e.target === e.currentTarget && setDetailModalOpen(false)}
         >
           <div
             className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
-            style={{
-              maxHeight: "90vh",
-              display: "flex",
-              flexDirection: "column",
-            }}
+            style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}
           >
             <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-stone-100 flex-shrink-0">
               <h3 className="text-xl font-bold">Chi tiết người dùng</h3>
@@ -860,56 +814,25 @@ export default function UserListPage() {
             <div className="px-8 py-5 overflow-y-auto flex-1">
               {detailLoading ? (
                 <div className="py-10 flex justify-center">
-                  <div
-                    className="spinner-dark"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderWidth: 3,
-                      display: "inline-block",
-                      border: "3px solid rgba(79,100,91,.2)",
-                      borderTopColor: "#4f645b",
-                      borderRadius: "50%",
-                      animation: "spin .65s linear infinite",
-                    }}
-                  />
+                  <div className="spinner-dark" style={{ width: 24, height: 24, border: "3px solid rgba(79,100,91,.2)", borderTopColor: "#4f645b", borderRadius: "50%", animation: "spin .65s linear infinite" }} />
                 </div>
               ) : detailUser ? (
                 <>
                   <div className="flex items-center gap-4 mb-5 pb-4 border-b border-stone-100">
-                    {detailUser.avatarUrl ? (
-                      <img
-                        src={detailUser.avatarUrl}
-                        className="w-14 h-14 rounded-full object-cover"
-                        alt=""
-                      />
-                    ) : (
-                      <div
-                        className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl"
-                        style={{
-                          background: "rgba(79,100,91,.2)",
-                          color: "#4f645b",
-                        }}
-                      >
-                        {(detailUser.fullName || "?")[0].toUpperCase()}
-                      </div>
-                    )}
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl"
+                      style={{ background: "rgba(79,100,91,.2)", color: "#4f645b" }}
+                    >
+                      {(detailUser.fullName || "?")[0].toUpperCase()}
+                    </div>
                     <div>
-                      <p className="text-lg font-bold">
-                        {detailUser.fullName || "—"}
-                      </p>
-                      <p className="text-sm text-stone-500">
-                        {detailUser.email || "—"}
-                      </p>
+                      <p className="text-lg font-bold">{detailUser.fullName || "—"}</p>
+                      <p className="text-sm text-stone-500">{detailUser.email || "—"}</p>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${detailUser.status ? "bg-emerald-50 text-emerald-600" : "bg-stone-100 text-stone-500"}`}
-                        >
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${detailUser.status ? "bg-emerald-50 text-emerald-600" : "bg-stone-100 text-stone-500"}`}>
                           {detailUser.status ? "Hoạt động" : "Đã khóa"}
                         </span>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${ROLE_BADGE[detailUser.roleName] || "bg-stone-100 text-stone-500"}`}
-                        >
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${ROLE_BADGE[detailUser.roleName] || "bg-stone-100 text-stone-500"}`}>
                           {detailUser.roleName || "—"}
                         </span>
                       </div>
@@ -926,48 +849,21 @@ export default function UserListPage() {
                       ["Điểm tích lũy", detailUser.loyaltyPoints ?? "-"],
                       ["Điểm khả dụng", detailUser.loyaltyPointsUsable ?? "-"],
                       ["Địa chỉ", detailUser.address || "—"],
-                      [
-                        "Đăng nhập lần cuối",
-                        detailUser.lastLoginAt
-                          ? new Date(detailUser.lastLoginAt).toLocaleString(
-                              "vi-VN",
-                            )
-                          : "—",
-                      ],
-                      [
-                        "Ngày tạo",
-                        detailUser.createdAt
-                          ? new Date(detailUser.createdAt).toLocaleDateString(
-                              "vi-VN",
-                            )
-                          : "—",
-                      ],
+                      ["Ngày tạo", detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleDateString("vi-VN") : "—"],
                     ].map(([k, v], i) => (
                       <div key={i} className="bg-stone-50 rounded-xl p-2.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-0.5">
-                          {k}
-                        </p>
-                        <p
-                          className="text-sm font-semibold text-stone-700 truncate"
-                          title={String(v)}
-                        >
-                          {String(v)}
-                        </p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-0.5">{k}</p>
+                        <p className="text-sm font-semibold text-stone-700 truncate" title={String(v)}>{String(v)}</p>
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-end mt-4 pt-4 border-t border-stone-100">
                     <button
-                      onClick={() => {
-                        setDetailModalOpen(false);
-                        openEdit(detailUser.id);
-                      }}
+                      onClick={() => { setDetailModalOpen(false); openEdit(detailUser.id); }}
                       className="px-4 py-2 text-sm font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-1.5"
                       style={{ background: "#4f645b", color: "#e7fef3" }}
                     >
-                      <span className="material-symbols-outlined text-base">
-                        edit_square
-                      </span>
+                      <span className="material-symbols-outlined text-base">edit_square</span>
                       Chỉnh sửa
                     </button>
                   </div>
@@ -978,326 +874,10 @@ export default function UserListPage() {
         </div>
       )}
 
-      {/* ═══════ LAYOUT CHÍNH ═══════ */}
-      <div
-        style={{
-          fontFamily: "'Manrope', sans-serif",
-          background: "#f8f9fa",
-          minHeight: "100vh",
-        }}
-      >
-        {/* SideNavBar — khớp UserManagement.html */}
-        <aside
-          style={{
-            width: 256,
-            height: "100vh",
-            position: "fixed",
-            left: 0,
-            top: 0,
-            borderRight: "1px solid #f1f0ea",
-            background: "white",
-            display: "flex",
-            flexDirection: "column",
-            padding: "32px 16px",
-            zIndex: 50,
-          }}
-        >
-          <div style={{ marginBottom: 40, paddingLeft: 16 }}>
-            <h1
-              style={{
-                fontSize: 20,
-                fontWeight: 800,
-                letterSpacing: "0.15em",
-                color: "#1a3826",
-                textTransform: "uppercase",
-              }}
-            >
-              The Ethereal
-            </h1>
-            <p
-              style={{
-                fontSize: 10,
-                letterSpacing: "0.2em",
-                color: "#6b7280",
-                textTransform: "uppercase",
-                marginTop: 4,
-              }}
-            >
-              Hotel ERP
-            </p>
-          </div>
 
-          <nav
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            {[
-              { icon: "dashboard", label: "Dashboard" },
-              { icon: "meeting_room", label: "Quản lý Phòng" },
-              { icon: "inventory_2", label: "Vật tư & Minibar" },
-              { icon: "confirmation_number", label: "Booking & Voucher" },
-            ].map((item) => (
-              <a
-                key={item.label}
-                href="#"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  textDecoration: "none",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "#6b7280",
-                  transition: "all .15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#065f46";
-                  e.currentTarget.style.background = "#ecfdf5";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#6b7280";
-                  e.currentTarget.style.background = "";
-                }}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span>{item.label}</span>
-              </a>
-            ))}
-            {/* Active item */}
-            <a
-              href="#"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 16px",
-                borderRadius: 12,
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 700,
-                color: "#1a3826",
-                background: "rgba(236,253,245,.5)",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{
-                  fontVariationSettings:
-                    "'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24",
-                }}
-              >
-                group
-              </span>
-              <span>Danh sách Nhân sự</span>
-            </a>
-          </nav>
-
-          <div
-            style={{
-              marginTop: "auto",
-              paddingLeft: 16,
-              paddingRight: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            {/* User info */}
-            <button
-              onClick={handleLogout}
-              style={{
-                width: "100%",
-                padding: "10px",
-                borderRadius: 12,
-                background: "none",
-                border: "1px solid #e2e8e1",
-                color: "#6b7280",
-                fontWeight: 500,
-                fontSize: 14,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18 }}
-              >
-                logout
-              </span>
-              Đăng xuất
-            </button>
-          </div>
-        </aside>
-
-        {/* TopNavBar — khớp UserManagement.html */}
-        <header
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: "calc(100% - 256px)",
-            height: 64,
-            zIndex: 40,
-            background: "rgba(255,255,255,.8)",
-            backdropFilter: "blur(12px)",
-            borderBottom: "1px solid #f1f0ea",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 32px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <div style={{ position: "relative", width: 320 }}>
-              <span
-                className="material-symbols-outlined"
-                style={{
-                  position: "absolute",
-                  left: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  color: "#9ca3af",
-                  fontSize: 18,
-                }}
-              >
-                search
-              </span>
-              <input
-                value={topSearch}
-                onChange={(e) => onSearch(e.target.value)}
-                style={{
-                  width: "100%",
-                  background: "#f3f4f6",
-                  border: "none",
-                  borderRadius: 9999,
-                  padding: "8px 16px 8px 40px",
-                  fontSize: 12,
-                  outline: "none",
-                }}
-                placeholder="Tìm kiếm tài nguyên..."
-              />
-            </div>
-            <nav style={{ display: "flex", gap: 24 }}>
-              {["Hotels", "Analytics", "Reports"].map((item, i) => (
-                <a
-                  key={item}
-                  href="#"
-                  style={{
-                    fontSize: 14,
-                    fontWeight: i === 1 ? 600 : 500,
-                    color: i === 1 ? "#1a3826" : "#6b7280",
-                    textDecoration: "none",
-                    borderBottom: i === 1 ? "2px solid #1a3826" : "none",
-                    paddingBottom: i === 1 ? 4 : 0,
-                  }}
-                >
-                  {item}
-                </a>
-              ))}
-            </nav>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              <button
-                style={{
-                  padding: 8,
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                  borderRadius: "50%",
-                  position: "relative",
-                }}
-              >
-                <span className="material-symbols-outlined">notifications</span>
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    width: 8,
-                    height: 8,
-                    background: "#ef4444",
-                    borderRadius: "50%",
-                    border: "2px solid white",
-                  }}
-                />
-              </button>
-              <button
-                style={{
-                  padding: 8,
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                  borderRadius: "50%",
-                }}
-              >
-                <span className="material-symbols-outlined">help_outline</span>
-              </button>
-            </div>
-            <div style={{ width: 1, height: 32, background: "#e5e7eb" }} />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ textAlign: "right" }}>
-                <p
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#1c1917",
-                    margin: 0,
-                  }}
-                >
-                  {currentUser?.fullName || "—"}
-                </p>
-                <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
-                  {currentUser?.role || "—"}
-                </p>
-              </div>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: "rgba(79,100,91,.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#4f645b",
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                {ch}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* ── Main Content ── */}
-        <main
-          style={{
-            marginLeft: -250,
-            paddingTop: 10,
-            padding: "96px 32px 32px 288px",
-          }}
-        >
-          {/* Page Header */}
+      {/* ── Main Content Area ── */}
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        {/* Page Header */}
           <div
             style={{
               display: "flex",
@@ -1856,11 +1436,9 @@ export default function UserListPage() {
                   </span>
                 )}
               </div>
-              {renderPagination()}
             </div>
           </div>
-        </main>
-      </div>
-    </>
-  );
-}
+        </div>
+      </>
+    );
+  }

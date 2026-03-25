@@ -6,7 +6,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import RequirePermission from "./RequirePermission";
 import UserListPage from "../pages/admin/UserListPage";
-import Role_Permission from "../pages/admin/Role_Permission";
+import RolePermissionPage from "../pages/admin/RolePermissionPage";
 
 export default function AdminRoutes() {
   return (
@@ -45,7 +45,7 @@ export default function AdminRoutes() {
           path="roles"
           element={
             <RequirePermission permission="MANAGE_ROLES">
-              <Role_Permission />
+              <RolePermissionPage />
             </RequirePermission>
           }
         />
