@@ -328,8 +328,6 @@ public class BookingsController : ControllerBase
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
-
             // Ghi Activity Log
             await _activityLog.LogAsync(
                 actionCode: "CREATE_BOOKING",
@@ -388,7 +386,7 @@ public class BookingsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CONFIRM_BOOKING",
             actionLabel: "Xác nhận đặt phòng",
-            message: $"Admin đã xác nhận booking {b.BookingCode} cho khách {b.GuestName}.",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xác nhận booking {b.BookingCode} cho khách {b.GuestName}.",
             entityType: "Booking",
             entityId: id,
             entityLabel: b.BookingCode,
@@ -460,7 +458,7 @@ public class BookingsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CANCEL_BOOKING",
             actionLabel: "Hủy đặt phòng",
-            message: $"Booking {b.BookingCode} đã bị hủy. Lý do: {reason}",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã hủy booking {b.BookingCode} của khách {b.GuestName}. Lý do: {reason}",
             entityType: "Booking",
             entityId: id,
             entityLabel: b.BookingCode,
@@ -522,7 +520,7 @@ public class BookingsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CHECKIN_BOOKING",
             actionLabel: "Check-in khách",
-            message: $"Khách {b.GuestName} đã check-in cho booking {b.BookingCode}.",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-in cho khách {b.GuestName} ({b.BookingCode}).",
             entityType: "Booking",
             entityId: id,
             entityLabel: b.BookingCode,
@@ -581,7 +579,7 @@ public class BookingsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CHECKOUT_BOOKING",
             actionLabel: "Check-out khách",
-            message: $"Khách {b.GuestName} đã làm thủ tục check-out ({b.BookingCode}).",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-out cho khách {b.GuestName} ({b.BookingCode}).",
             entityType: "Booking",
             entityId: id,
             entityLabel: b.BookingCode,

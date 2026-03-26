@@ -311,7 +311,7 @@ public class AttractionsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "DELETE_ATTRACTION",
             actionLabel: "Xóa địa điểm",
-            message: $"Admin đã xóa địa điểm \"{attraction.Name}\".",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa địa điểm \"{attraction.Name}\".",
             entityType: "Attraction",
             entityId: id,
             entityLabel: attraction.Name,

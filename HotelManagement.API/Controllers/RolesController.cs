@@ -5,6 +5,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -14,10 +15,12 @@ namespace HotelManagement.API.Controllers;
 public class RolesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IActivityLogService _activityLog;
 
-    public RolesController(AppDbContext db)
+    public RolesController(AppDbContext db, IActivityLogService activityLog)
     {
         _db = db;
+        _activityLog = activityLog;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -123,6 +126,20 @@ public class RolesController : ControllerBase
                 });
 
                 await _db.SaveChangesAsync();
+
+                var roleName = (await _db.Roles.FindAsync(request.RoleId))?.Name ?? $"Role #{request.RoleId}";
+                var permissionName = (await _db.Permissions.FindAsync(request.PermissionId))?.Name ?? $"Permission #{request.PermissionId}";
+                await _activityLog.LogAsync(
+                    actionCode: "GRANT_PERMISSION",
+                    actionLabel: "Cấp quyền cho vai trò",
+                    message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cấp quyền '{permissionName}' cho vai trò '{roleName}'.",
+                    entityType: "Role",
+                    entityId: request.RoleId,
+                    entityLabel: roleName,
+                    severity: "Warning",
+                    userId: currentUserId,
+                    roleName: User.FindFirst("role")?.Value
+                );
             }
 
             return Ok(new { message = "Đã gán permission thành công." });
@@ -148,6 +165,20 @@ public class RolesController : ControllerBase
                 });
 
                 await _db.SaveChangesAsync();
+
+                var roleName2 = (await _db.Roles.FindAsync(request.RoleId))?.Name ?? $"Role #{request.RoleId}";
+                var permissionName2 = (await _db.Permissions.FindAsync(request.PermissionId))?.Name ?? $"Permission #{request.PermissionId}";
+                await _activityLog.LogAsync(
+                    actionCode: "REVOKE_PERMISSION",
+                    actionLabel: "Thu hồi quyền khỏi vai trò",
+                    message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thu hồi quyền '{permissionName2}' khỏi vai trò '{roleName2}'.",
+                    entityType: "Role",
+                    entityId: request.RoleId,
+                    entityLabel: roleName2,
+                    severity: "Warning",
+                    userId: currentUserId,
+                    roleName: User.FindFirst("role")?.Value
+                );
             }
 
             return Ok(new { message = "Đã thu hồi permission thành công." });

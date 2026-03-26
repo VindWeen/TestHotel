@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 
 namespace HotelManagement.API.Hubs;
 
@@ -13,7 +14,8 @@ public class NotificationHub : Hub
     /// </summary>
     public override async Task OnConnectedAsync()
     {
-        var roleName = Context.User?.FindFirst("role")?.Value;
+        var roleName = Context.User?.FindFirst(ClaimTypes.Role)?.Value 
+                    ?? Context.User?.FindFirst("role")?.Value;
 
         if (!string.IsNullOrEmpty(roleName))
             await Groups.AddToGroupAsync(Context.ConnectionId, roleName);
@@ -23,7 +25,8 @@ public class NotificationHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var roleName = Context.User?.FindFirst("role")?.Value;
+        var roleName = Context.User?.FindFirst(ClaimTypes.Role)?.Value 
+                    ?? Context.User?.FindFirst("role")?.Value;
 
         if (!string.IsNullOrEmpty(roleName))
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, roleName);

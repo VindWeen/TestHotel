@@ -4,6 +4,8 @@ import { useAdminAuthStore } from "../store/adminAuthStore";
 import { useLoadingStore } from "../store/loadingStore";
 import { logout } from "../api/authApi";
 import { getMyProfile } from "../api/userProfileApi";
+import { useSignalR } from "../hooks/useSignalR";
+import NotificationMenu from "../components/NotificationMenu";
 
 export default function AdminLayout() {
   const { user, permissions } = useAdminAuthStore();
@@ -11,6 +13,8 @@ export default function AdminLayout() {
   const updateUser = useAdminAuthStore((s) => s.updateUser);
   const isLoading = useLoadingStore((s) => s.isLoading);
   const navigate = useNavigate();
+  
+  useSignalR(); // Initialize WebSocket connection global
 
   const [topSearch, setTopSearch] = useState("");
   const debounceRef = useRef(null);
@@ -348,31 +352,7 @@ export default function AdminLayout() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ display: "flex", gap: 4 }}>
-              <button
-                style={{
-                  padding: 8,
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                  borderRadius: "50%",
-                  position: "relative",
-                }}
-              >
-                <span className="material-symbols-outlined">notifications</span>
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    width: 8,
-                    height: 8,
-                    background: "#ef4444",
-                    borderRadius: "50%",
-                    border: "2px solid white",
-                  }}
-                />
-              </button>
+              <NotificationMenu />
               <button
                 style={{
                   padding: 8,

@@ -160,7 +160,7 @@ public class ArticlesController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CREATE_ARTICLE",
             actionLabel: "Tạo bài viết",
-            message: $"Admin đã tạo bài viết mới: \"{article.Title}\".",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo bài viết mới: \"{article.Title}\".",
             entityType: "Article",
             entityId: article.Id,
             entityLabel: article.Title,
@@ -307,7 +307,7 @@ public class ArticlesController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "DELETE_ARTICLE",
             actionLabel: "Xóa bài viết",
-            message: $"Admin đã xóa bài viết \"{article.Title}\".",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa bài viết \"{article.Title}\".",
             entityType: "Article",
             entityId: id,
             entityLabel: article.Title,

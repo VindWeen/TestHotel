@@ -151,6 +151,19 @@ public class RoomsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        var currentUserId2 = JwtHelper.GetUserId(User);
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_ROOM",
+            actionLabel: "Cập nhật phòng",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cập nhật thông tin phòng {room.RoomNumber}.",
+            entityType: "Room",
+            entityId: id,
+            entityLabel: room.RoomNumber,
+            severity: "Info",
+            userId: currentUserId2,
+            roleName: User.FindFirst("role")?.Value
+        );
+
         return Ok(new { message = "Cập nhật phòng thành công." });
     }
 
@@ -192,7 +205,7 @@ public class RoomsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CREATE_ROOM",
             actionLabel: "Tạo phòng mới",
-            message: $"Phòng {room.RoomNumber} đã được tạo.",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo phòng mới: {room.RoomNumber}.",
             entityType: "Room",
             entityId: room.Id,
             entityLabel: room.RoomNumber,
@@ -251,7 +264,7 @@ public class RoomsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "UPDATE_ROOM_STATUS",
             actionLabel: "Đổi trạng thái phòng",
-            message: $"Phòng {room.RoomNumber} đã chuyển sang trạng thái '{request.BusinessStatus}'.",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi trạng thái phòng {room.RoomNumber} sang '{request.BusinessStatus}'.",
             entityType: "Room",
             entityId: id,
             entityLabel: room.RoomNumber,
@@ -306,7 +319,7 @@ public class RoomsController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "UPDATE_ROOM_CLEANING",
             actionLabel: "Đổi trạng thái vệ sinh",
-            message: $"Trạng thái vệ sinh phòng {room.RoomNumber} đã đổi thành '{request.CleaningStatus}'.",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi trạng thái vệ sinh phòng {room.RoomNumber} thành '{request.CleaningStatus}'.",
             entityType: "Room",
             entityId: id,
             entityLabel: room.RoomNumber,
@@ -423,6 +436,19 @@ public class RoomsController : ControllerBase
                 UserAgent = Request.Headers.UserAgent.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
+
+            await _activityLog.LogAsync(
+                actionCode: "BULK_CREATE_ROOMS",
+                actionLabel: "Tạo nhiều phòng",
+                message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo {created.Count} phòng mới cùng lúc.",
+                entityType: "Room",
+                entityId: 0,
+                entityLabel: $"{created.Count} phòng",
+                severity: "Info",
+                userId: userId,
+                roleName: User.FindFirst("role")?.Value
+            );
+
             await _db.SaveChangesAsync();
         }
 

@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
+using HotelManagement.API.Policies;
 
 namespace HotelManagement.API.Services;
 
@@ -8,6 +9,7 @@ public interface IActivityLogService
 {
     /// <summary>
     /// Ghi log hoạt động vào DB và gửi thông báo Realtime nếu cần.
+    /// Danh sách role nhận thông báo được tra tự động từ NotificationPolicy.
     /// </summary>
     Task LogAsync(ActivityLog log, bool notify = true);
 
@@ -49,10 +51,9 @@ public class ActivityLogService : IActivityLogService
 
         if (notify)
         {
-            // Gửi thông báo cho Admin/Manager (hoặc tùy theo logic role)
-            // Ở đây tạm thời gửi cho nhóm Admin và Manager
-            var rolesToNotify = new[] { "Admin", "Manager" };
-            await _notification.SendToRolesAsync(rolesToNotify, log.ActionLabel, log.Message, log.ActionCode);
+            // Tra cứu từ NotificationPolicy — nguồn cấu hình duy nhất
+            var targets = NotificationPolicy.GetRolesForAction(log.ActionCode ?? "");
+            await _notification.SendToRolesAsync(targets, log.ActionLabel, log.Message, log.ActionCode);
         }
     }
 

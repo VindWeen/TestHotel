@@ -54,20 +54,6 @@ public class AuthController : ControllerBase
         user.RefreshToken = refreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
 
-        // Ghi Activity Log (Realtime notification for Admin/Manager to know who logged in)
-        await _activityLog.LogAsync(
-            actionCode: "LOGIN",
-            actionLabel: "Đăng nhập",
-            message: $"Người dùng {user.FullName} ({user.Role?.Name}) đã đăng nhập vào hệ thống.",
-            entityType: "User",
-            entityId: user.Id,
-            entityLabel: user.Email,
-            severity: "Info",
-            userId: user.Id,
-            roleName: user.Role?.Name,
-            notify: false // Không cần push notification chuông làm phiền Admin mỗi lần login
-        );
-
         _context.AuditLogs.Add(new AuditLog
         {
             UserId = user.Id,
@@ -246,20 +232,6 @@ public class AuthController : ControllerBase
 
         user.RefreshToken = null;
         user.RefreshTokenExpiry = null;
-
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "LOGOUT",
-            actionLabel: "Đăng xuất",
-            message: $"Người dùng {user.FullName} đã đăng xuất khỏi hệ thống.",
-            entityType: "User",
-            entityId: userId,
-            entityLabel: user.Email,
-            severity: "Info",
-            userId: userId,
-            roleName: User.FindFirst("role")?.Value,
-            notify: false // Log thôi, không cần chuông
-        );
 
         // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog

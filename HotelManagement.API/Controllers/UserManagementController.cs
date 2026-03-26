@@ -1,4 +1,4 @@
-﻿using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
@@ -187,7 +187,7 @@ public class UserManagementController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "CREATE_USER",
             actionLabel: "Tạo tài khoản mới",
-            message: $"Admin đã tạo tài khoản nhân viên mới cho {user.FullName} ({roleName ?? "N/A"}).",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo tài khoản nhân viên mới cho {user.FullName} ({roleName ?? "N/A"}).",
             entityType: "User",
             entityId: user.Id,
             entityLabel: user.Email,
@@ -242,6 +242,20 @@ public class UserManagementController : ControllerBase
         user.UpdatedAt   = DateTime.UtcNow;
 
         var currentUserId = JwtHelper.GetUserId(User);
+
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_USER",
+            actionLabel: "Cập nhật thông tin nhân viên",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cập nhật thông tin của {user.FullName}.",
+            entityType: "User",
+            entityId: id,
+            entityLabel: user.Email,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -303,6 +317,18 @@ public class UserManagementController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        await _activityLog.LogAsync(
+            actionCode: "LOCK_ACCOUNT",
+            actionLabel: "Khóa tài khoản",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã khóa tài khoản của {user.FullName} ({user.Email}).",
+            entityType: "User",
+            entityId: id,
+            entityLabel: user.Email,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
         var notification = new Notification
         {
             Title   = "Khoá tài khoản",
@@ -332,13 +358,15 @@ public class UserManagementController : ControllerBase
         user.RoleId    = request.NewRoleId;
         user.UpdatedAt = DateTime.UtcNow;
 
+        var oldRoleName = (await _db.Roles.FindAsync(oldRoleId))?.Name ?? $"ID {oldRoleId}";
+
         await _db.SaveChangesAsync();
         var currentUserId = JwtHelper.GetUserId(User);
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "CHANGE_ROLE",
             actionLabel: "Đổi quyền người dùng",
-            message: $"Đã đổi quyền của {user.FullName} từ ID {oldRoleId} sang {role.Name}.",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi quyền của {user.FullName} từ '{oldRoleName}' sang '{role.Name}'.",
             entityType: "User",
             entityId: id,
             entityLabel: user.Email,
@@ -393,7 +421,7 @@ public class UserManagementController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: user.Status == true ? "UNLOCK_ACCOUNT" : "LOCK_ACCOUNT",
             actionLabel: user.Status == true ? "Mở khóa tài khoản" : "Khóa tài khoản",
-            message: $"Admin đã {(user.Status == true ? "mở khóa" : "khóa")} tài khoản của {user.FullName} ({user.Email}).",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã {(user.Status == true ? "mở khóa" : "khóa")} tài khoản của {user.FullName} ({user.Email}).",
             entityType: "User",
             entityId: id,
             entityLabel: user.Email,
@@ -415,8 +443,6 @@ public class UserManagementController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
-
-        await _db.SaveChangesAsync();
 
         await _db.SaveChangesAsync();
 

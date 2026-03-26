@@ -157,7 +157,7 @@ public class RoomTypesController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "DELETE_ROOM_TYPE",
             actionLabel: "Xóa loại phòng",
-            message: $"Admin đã xóa loại phòng '{roomType.Name}'.", // Changed rt.Name to roomType.Name
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa loại phòng '{roomType.Name}'.", // Changed rt.Name to roomType.Name
             entityType: "RoomType",
             entityId: id,
             entityLabel: roomType.Name, // Changed rt.Name to roomType.Name

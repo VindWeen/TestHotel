@@ -1,4 +1,4 @@
-﻿using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
@@ -205,7 +205,7 @@ public class AmenitiesController : ControllerBase
         await _activityLog.LogAsync(
             actionCode: "DELETE_AMENITY",
             actionLabel: "Xóa tiện nghi",
-            message: $"Admin đã xóa tiện nghi \"{amenity.Name}\".",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa tiện nghi \"{amenity.Name}\".",
             entityType: "Amenity",
             entityId: id,
             entityLabel: amenity.Name,
