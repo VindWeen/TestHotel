@@ -6,6 +6,7 @@ using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Helpers;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -50,10 +51,12 @@ public class ValidateVoucherRequest
 public class VouchersController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IActivityLogService _activityLog;
 
-    public VouchersController(AppDbContext context)
+    public VouchersController(AppDbContext context, IActivityLogService activityLog)
     {
         _context = context;
+        _activityLog = activityLog;
     }
 
     // ================= GET ALL =================
@@ -151,6 +154,20 @@ public class VouchersController : ControllerBase
         await _context.SaveChangesAsync();
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CREATE_VOUCHER",
+            actionLabel: "Tạo Voucher mới",
+            message: $"Đã tạo voucher khuyến mãi mới: {voucher.Code} (Giảm {voucher.DiscountValue}{(voucher.DiscountType == "PERCENT" ? "%" : "đ")}).",
+            entityType: "Voucher",
+            entityId: voucher.Id,
+            entityLabel: voucher.Code,
+            severity: "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -206,6 +223,20 @@ public class VouchersController : ControllerBase
         if (request.IsActive         .HasValue) v.IsActive           = request.IsActive.Value;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_VOUCHER",
+            actionLabel: "Cập nhật Voucher",
+            message: $"Đã cập nhật thông tin cho voucher {v.Code}.",
+            entityType: "Voucher",
+            entityId: id,
+            entityLabel: v.Code,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -218,6 +249,8 @@ public class VouchersController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _context.SaveChangesAsync();
 
         await _context.SaveChangesAsync();
         return Ok(v);
@@ -234,6 +267,20 @@ public class VouchersController : ControllerBase
         v.IsActive = false; // ← Soft delete, không xóa khỏi DB
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "DELETE_VOUCHER",
+            actionLabel: "Vô hiệu hóa Voucher",
+            message: $"Voucher {v.Code} đã bị ngừng áp dụng.",
+            entityType: "Voucher",
+            entityId: id,
+            entityLabel: v.Code,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -246,6 +293,8 @@ public class VouchersController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _context.SaveChangesAsync();
 
         await _context.SaveChangesAsync();
 

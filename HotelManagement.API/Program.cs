@@ -107,6 +107,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 // ── 4.5 Cloudinary ──────────────────────────────────────────────────
 var cloudCfg     = builder.Configuration.GetSection("Cloudinary");
 var cloudAccount = new CloudinaryDotNet.Account(

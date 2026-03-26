@@ -10,6 +10,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -19,11 +20,13 @@ public class ArticlesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly Cloudinary   _cloudinary;
+    private readonly IActivityLogService _activityLog;
 
-    public ArticlesController(AppDbContext db, Cloudinary cloudinary)
+    public ArticlesController(AppDbContext db, Cloudinary cloudinary, IActivityLogService activityLog)
     {
-        _db         = db;
+        _db    = db;
         _cloudinary = cloudinary;
+        _activityLog = activityLog;
     }
 
     // GET /api/Articles
@@ -153,9 +156,23 @@ public class ArticlesController : ControllerBase
         _db.Articles.Add(article);
         await _db.SaveChangesAsync();
 
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CREATE_ARTICLE",
+            actionLabel: "Tạo bài viết",
+            message: $"Admin đã tạo bài viết mới: \"{article.Title}\".",
+            entityType: "Article",
+            entityId: article.Id,
+            entityLabel: article.Title,
+            severity: "Success",
+            userId: JwtHelper.GetUserId(User),
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId    = authorId,
+            UserId    = JwtHelper.GetUserId(User),
             Action    = "CREATE_ARTICLE",
             TableName = "Articles",
             RecordId  = article.Id,
@@ -232,6 +249,22 @@ public class ArticlesController : ControllerBase
             article.MetaDescription = request.MetaDescription.Trim();
 
         var currentUserId = JwtHelper.GetUserId(User);
+        await _db.SaveChangesAsync();
+
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_ARTICLE",
+            actionLabel: "Cập nhật bài viết",
+            message: $"Nội dung bài viết \"{article.Title}\" đã được cập nhật.",
+            entityType: "Article",
+            entityId: id,
+            entityLabel: article.Title,
+            severity: "Info",
+            userId: JwtHelper.GetUserId(User),
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -270,6 +303,20 @@ public class ArticlesController : ControllerBase
         article.IsActive = false;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "DELETE_ARTICLE",
+            actionLabel: "Xóa bài viết",
+            message: $"Admin đã xóa bài viết \"{article.Title}\".",
+            entityType: "Article",
+            entityId: id,
+            entityLabel: article.Title,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -282,6 +329,8 @@ public class ArticlesController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _db.SaveChangesAsync();
 
         await _db.SaveChangesAsync();
 
@@ -310,18 +359,34 @@ public class ArticlesController : ControllerBase
         article.IsActive = !article.IsActive;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: article.IsActive ? "ENABLE_ARTICLE" : "DISABLE_ARTICLE",
+            actionLabel: article.IsActive ? "Kích hoạt bài viết" : "Ẩn bài viết",
+            message: $"Bài viết \"{article.Title}\" đã {(article.IsActive ? "được kích hoạt" : "bị ẩn")}.",
+            entityType: "Article",
+            entityId: id,
+            entityLabel: article.Title,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
-            Action    = "TOGGLE_ARTICLE",
+            Action    = article.IsActive ? "ENABLE_ARTICLE" : "DISABLE_ARTICLE",
             TableName = "Articles",
             RecordId  = id,
-            OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
+            OldValue  = $"{{\"isActive\": {(!article.IsActive).ToString().ToLower()}}}",
             NewValue  = $"{{\"isActive\": {article.IsActive.ToString().ToLower()}}}",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _db.SaveChangesAsync();
 
         await _db.SaveChangesAsync();
 

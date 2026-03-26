@@ -1,10 +1,11 @@
-using HotelManagement.Core.Authorization;
+﻿using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -13,10 +14,12 @@ namespace HotelManagement.API.Controllers;
 public class AmenitiesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IActivityLogService _activityLog;
 
-    public AmenitiesController(AppDbContext db)
+    public AmenitiesController(AppDbContext db, IActivityLogService activityLog)
     {
         _db = db;
+        _activityLog = activityLog;
     }
 
     // GET /api/Amenities
@@ -79,8 +82,21 @@ public class AmenitiesController : ControllerBase
 
         _db.Amenities.Add(amenity);
         await _db.SaveChangesAsync();
-
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CREATE_AMENITY",
+            actionLabel: "Thêm tiện nghi",
+            message: $"Đã thêm tiện nghi mới: \"{amenity.Name}\".",
+            entityType: "Amenity",
+            entityId: amenity.Id,
+            entityLabel: amenity.Name,
+            severity: "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+        
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -129,7 +145,22 @@ public class AmenitiesController : ControllerBase
         amenity.Name    = request.Name.Trim();
         amenity.IconUrl = request.IconUrl?.Trim();
 
+        await _db.SaveChangesAsync();
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_AMENITY",
+            actionLabel: "Cập nhật tiện nghi",
+            message: $"Đã cập nhật thông tin tiện nghi \"{amenity.Name}\".",
+            entityType: "Amenity",
+            entityId: id,
+            entityLabel: amenity.Name,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+        
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -170,6 +201,20 @@ public class AmenitiesController : ControllerBase
         amenity.IsActive = false;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "DELETE_AMENITY",
+            actionLabel: "Xóa tiện nghi",
+            message: $"Admin đã xóa tiện nghi \"{amenity.Name}\".",
+            entityType: "Amenity",
+            entityId: id,
+            entityLabel: amenity.Name,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,

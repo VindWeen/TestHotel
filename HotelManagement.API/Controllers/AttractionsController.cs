@@ -6,6 +6,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -14,10 +15,12 @@ namespace HotelManagement.API.Controllers;
 public class AttractionsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IActivityLogService _activityLog;
 
-    public AttractionsController(AppDbContext db)
+    public AttractionsController(AppDbContext db, IActivityLogService activityLog)
     {
         _db = db;
+        _activityLog = activityLog;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -143,10 +146,25 @@ public class AttractionsController : ControllerBase
         _db.Attractions.Add(attraction);
         await _db.SaveChangesAsync();
 
-        var currentUserId = JwtHelper.GetUserId(User);
+        await _db.SaveChangesAsync();
+
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CREATE_ATTRACTION",
+            actionLabel: "Tạo địa điểm",
+            message: $"Đã thêm địa điểm tham quan mới: \"{attraction.Name}\" ({attraction.Category}).",
+            entityType: "Attraction",
+            entityId: attraction.Id,
+            entityLabel: attraction.Name,
+            severity: "Success",
+            userId: JwtHelper.GetUserId(User),
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId    = currentUserId,
+            UserId    = JwtHelper.GetUserId(User),
             Action    = "CREATE_ATTRACTION",
             TableName = "Attractions",
             RecordId  = attraction.Id,
@@ -230,6 +248,20 @@ public class AttractionsController : ControllerBase
             attraction.MapEmbedLink = request.MapEmbedLink.Trim();
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_ATTRACTION",
+            actionLabel: "Cập nhật địa điểm",
+            message: $"Thông tin địa điểm \"{attraction.Name}\" đã được chỉnh sửa.",
+            entityType: "Attraction",
+            entityId: id,
+            entityLabel: attraction.Name,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -242,6 +274,8 @@ public class AttractionsController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _db.SaveChangesAsync();
 
         await _db.SaveChangesAsync();
 
@@ -273,6 +307,20 @@ public class AttractionsController : ControllerBase
         attraction.IsActive = false;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "DELETE_ATTRACTION",
+            actionLabel: "Xóa địa điểm",
+            message: $"Admin đã xóa địa điểm \"{attraction.Name}\".",
+            entityType: "Attraction",
+            entityId: id,
+            entityLabel: attraction.Name,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -285,6 +333,8 @@ public class AttractionsController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _db.SaveChangesAsync();
 
         await _db.SaveChangesAsync();
 

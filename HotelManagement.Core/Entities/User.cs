@@ -45,4 +45,5 @@ public class User
     public ICollection<LoyaltyTransaction> LoyaltyTransactions { get; set; } = [];
     public ICollection<VoucherUsage> VoucherUsages { get; set; } = [];
     public ICollection<LossAndDamage> ReportedDamages { get; set; } = [];
+    public ICollection<ActivityLog> ActivityLogs { get; set; } = [];
 }

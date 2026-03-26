@@ -78,12 +78,14 @@ public class BookingsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IConnectionMultiplexer _redis;
     private readonly IEmailService _email;
+    private readonly IActivityLogService _activityLog;
 
-    public BookingsController(AppDbContext context, IConnectionMultiplexer redis, IEmailService email)
+    public BookingsController(AppDbContext context, IConnectionMultiplexer redis, IEmailService email, IActivityLogService activityLog)
     {
         _context = context;
         _redis = redis;
         _email = email;
+        _activityLog = activityLog;
     }
 
     private IDatabase RedisDb => _redis.GetDatabase();
@@ -326,6 +328,22 @@ public class BookingsController : ControllerBase
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
+            await _context.SaveChangesAsync();
+
+            // Ghi Activity Log
+            await _activityLog.LogAsync(
+                actionCode: "CREATE_BOOKING",
+                actionLabel: "Đặt phòng mới",
+                message: $"Khách hàng {booking.GuestName} đã đặt phòng thành công ({booking.BookingCode}). Tổng: {booking.TotalEstimatedAmount:N0}đ",
+                entityType: "Booking",
+                entityId: booking.Id,
+                entityLabel: booking.BookingCode,
+                severity: "Success",
+                userId: currentUserId,
+                roleName: User.FindFirst("role")?.Value
+            );
+
+            // Khôi phục AuditLog
             _context.AuditLogs.Add(new AuditLog
             {
                 UserId    = currentUserId,
@@ -366,6 +384,20 @@ public class BookingsController : ControllerBase
         b.Status = "Confirmed";
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CONFIRM_BOOKING",
+            actionLabel: "Xác nhận đặt phòng",
+            message: $"Admin đã xác nhận booking {b.BookingCode} cho khách {b.GuestName}.",
+            entityType: "Booking",
+            entityId: id,
+            entityLabel: b.BookingCode,
+            severity: "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -424,6 +456,20 @@ public class BookingsController : ControllerBase
         }
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CANCEL_BOOKING",
+            actionLabel: "Hủy đặt phòng",
+            message: $"Booking {b.BookingCode} đã bị hủy. Lý do: {reason}",
+            entityType: "Booking",
+            entityId: id,
+            entityLabel: b.BookingCode,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -472,6 +518,20 @@ public class BookingsController : ControllerBase
         b.CheckInTime = DateTime.UtcNow;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CHECKIN_BOOKING",
+            actionLabel: "Check-in khách",
+            message: $"Khách {b.GuestName} đã check-in cho booking {b.BookingCode}.",
+            entityType: "Booking",
+            entityId: id,
+            entityLabel: b.BookingCode,
+            severity: "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -517,6 +577,20 @@ public class BookingsController : ControllerBase
         b.CheckOutTime = DateTime.UtcNow;
 
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CHECKOUT_BOOKING",
+            actionLabel: "Check-out khách",
+            message: $"Khách {b.GuestName} đã làm thủ tục check-out ({b.BookingCode}).",
+            entityType: "Booking",
+            entityId: id,
+            entityLabel: b.BookingCode,
+            severity: "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,

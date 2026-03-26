@@ -8,6 +8,7 @@ using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Helpers;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -34,11 +35,13 @@ public class ReviewsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly Cloudinary _cloudinary;
+    private readonly IActivityLogService _activityLog;
 
-    public ReviewsController(AppDbContext context, Cloudinary cloudinary)
+    public ReviewsController(AppDbContext context, Cloudinary cloudinary, IActivityLogService activityLog)
     {
         _context = context;
         _cloudinary = cloudinary;
+        _activityLog = activityLog;
     }
 
     // ================= UPLOAD ẢNH =================
@@ -262,7 +265,25 @@ public async Task<IActionResult> Create([FromForm] CreateReviewRequest request)
 
         await _context.SaveChangesAsync();
 
+        await _context.SaveChangesAsync();
+
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log (Thông báo chuông)
+        await _activityLog.LogAsync(
+            actionCode: request.IsApproved ? "APPROVE_REVIEW" : "REJECT_REVIEW",
+            actionLabel: request.IsApproved ? "Duyệt đánh giá" : "Từ chối đánh giá",
+            message: request.IsApproved
+                ? $"Đã duyệt đánh giá của khách {review.User?.FullName ?? "vô danh"} cho {review.RoomType?.Name}"
+                : $"Đã từ chối đánh giá #{id}. Lý do: {request.RejectionReason}",
+            entityType: "Review",
+            entityId: id,
+            entityLabel: $"Review #{id}",
+            severity: request.IsApproved ? "Success" : "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog (Ghi hệ thống)
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,

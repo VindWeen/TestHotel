@@ -1,4 +1,4 @@
-using HotelManagement.Core.Authorization;
+﻿using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
@@ -17,11 +17,13 @@ public class UserManagementController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IEmailService _email;
+    private readonly IActivityLogService _activityLog;
 
-    public UserManagementController(AppDbContext db, IEmailService email)
+    public UserManagementController(AppDbContext db, IEmailService email, IActivityLogService activityLog)
     {
         _db = db;
         _email = email;
+        _activityLog = activityLog;
     }
 
     // GET /api/UserManagement?roleId=&page=&pageSize=
@@ -179,7 +181,22 @@ public class UserManagementController : ControllerBase
             roleName ?? "Nhân viên"
         );
 
+        await _db.SaveChangesAsync();
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CREATE_USER",
+            actionLabel: "Tạo tài khoản mới",
+            message: $"Admin đã tạo tài khoản nhân viên mới cho {user.FullName} ({roleName ?? "N/A"}).",
+            entityType: "User",
+            entityId: user.Id,
+            entityLabel: user.Email,
+            severity: "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -315,7 +332,22 @@ public class UserManagementController : ControllerBase
         user.RoleId    = request.NewRoleId;
         user.UpdatedAt = DateTime.UtcNow;
 
+        await _db.SaveChangesAsync();
         var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CHANGE_ROLE",
+            actionLabel: "Đổi quyền người dùng",
+            message: $"Đã đổi quyền của {user.FullName} từ ID {oldRoleId} sang {role.Name}.",
+            entityType: "User",
+            entityId: id,
+            entityLabel: user.Email,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -357,6 +389,20 @@ public class UserManagementController : ControllerBase
         user.Status    = !(user.Status ?? true);
         user.UpdatedAt = DateTime.UtcNow;
 
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: user.Status == true ? "UNLOCK_ACCOUNT" : "LOCK_ACCOUNT",
+            actionLabel: user.Status == true ? "Mở khóa tài khoản" : "Khóa tài khoản",
+            message: $"Admin đã {(user.Status == true ? "mở khóa" : "khóa")} tài khoản của {user.FullName} ({user.Email}).",
+            entityType: "User",
+            entityId: id,
+            entityLabel: user.Email,
+            severity: user.Status == true ? "Success" : "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -369,6 +415,8 @@ public class UserManagementController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
+
+        await _db.SaveChangesAsync();
 
         await _db.SaveChangesAsync();
 

@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
     // ── Cluster 2: Room Management ───────────────────────────────
     public DbSet<Amenity> Amenities => Set<Amenity>();
@@ -68,6 +69,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ArticleCategory>().ToTable("Article_Categories");
         modelBuilder.Entity<LoyaltyTransaction>().ToTable("Loyalty_Transactions");
         modelBuilder.Entity<VoucherUsage>().ToTable("Voucher_Usage");
+        modelBuilder.Entity<ActivityLog>().ToTable("Activity_Logs");
+        modelBuilder.Entity<ActivityLog>()
+            .HasIndex(a => new { a.UserId, a.CreatedAt });
+
+        modelBuilder.Entity<ActivityLog>()
+            .HasIndex(a => new { a.EntityType, a.EntityId });
 
         // ── 2. Composite Primary Keys cho bảng join ──────────────
         modelBuilder.Entity<RolePermission>()

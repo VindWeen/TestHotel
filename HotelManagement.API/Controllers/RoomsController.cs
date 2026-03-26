@@ -5,6 +5,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -14,10 +15,12 @@ namespace HotelManagement.API.Controllers;
 public class RoomsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IActivityLogService _activityLog;
 
-    public RoomsController(AppDbContext db)
+    public RoomsController(AppDbContext db, IActivityLogService activityLog)
     {
         _db = db;
+        _activityLog = activityLog;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -182,19 +185,34 @@ public class RoomsController : ControllerBase
         };
 
         _db.Rooms.Add(room);
-        await _db.SaveChangesAsync();
+        // await _db.SaveChangesAsync(); // Removed this extra SaveChangesAsync
 
-        var userId = JwtHelper.GetUserId(User);
+        var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "CREATE_ROOM",
+            actionLabel: "Tạo phòng mới",
+            message: $"Phòng {room.RoomNumber} đã được tạo.",
+            entityType: "Room",
+            entityId: room.Id,
+            entityLabel: room.RoomNumber,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value,
+            metadata: $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}, \"viewType\": \"{room.ViewType}\"}}"
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId    = userId,
+            UserId    = currentUserId,
             Action    = "CREATE_ROOM",
             TableName = "Rooms",
             RecordId  = room.Id,
             OldValue  = null,
-            NewValue  = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"roomTypeId\": {room.RoomTypeId}}}",
+            NewValue  = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}}}",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = Request.Headers.UserAgent.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
         await _db.SaveChangesAsync();
@@ -228,18 +246,32 @@ public class RoomsController : ControllerBase
         // Đồng bộ legacy status (tuỳ chọn giữ tương thích)
         room.Status = request.BusinessStatus;
 
-        // Ghi Audit_Log
-        var userId = JwtHelper.GetUserId(User);
+        var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_ROOM_STATUS",
+            actionLabel: "Đổi trạng thái phòng",
+            message: $"Phòng {room.RoomNumber} đã chuyển sang trạng thái '{request.BusinessStatus}'.",
+            entityType: "Room",
+            entityId: id,
+            entityLabel: room.RoomNumber,
+            severity: "Info",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value,
+            metadata: $"{{\"oldStatus\": \"{oldValue}\", \"newStatus\": \"{request.BusinessStatus}\"}}"
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId    = userId,
-            Action    = "UPDATE_BUSINESS_STATUS",
+            UserId    = currentUserId,
+            Action    = "UPDATE_ROOM_STATUS",
             TableName = "Rooms",
             RecordId  = id,
-            OldValue  = oldValue,
-            NewValue  = request.BusinessStatus,
+            OldValue  = $"{{\"businessStatus\": \"{oldValue}\"}}",
+            NewValue  = $"{{\"businessStatus\": \"{request.BusinessStatus}\"}}",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = Request.Headers.UserAgent.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
 
@@ -269,17 +301,32 @@ public class RoomsController : ControllerBase
         var oldCleaningStatus = room.CleaningStatus;
         room.CleaningStatus = request.CleaningStatus;
 
-        var userId = JwtHelper.GetUserId(User);
+        var currentUserId = JwtHelper.GetUserId(User);
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "UPDATE_ROOM_CLEANING",
+            actionLabel: "Đổi trạng thái vệ sinh",
+            message: $"Trạng thái vệ sinh phòng {room.RoomNumber} đã đổi thành '{request.CleaningStatus}'.",
+            entityType: "Room",
+            entityId: id,
+            entityLabel: room.RoomNumber,
+            severity: request.CleaningStatus == "Dirty" ? "Warning" : "Success",
+            userId: currentUserId,
+            roleName: User.FindFirst("role")?.Value,
+            metadata: $"{{\"oldStatus\": \"{oldCleaningStatus}\", \"newStatus\": \"{request.CleaningStatus}\"}}"
+        );
+
+        // Khôi phục AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId    = userId,
-            Action    = "UPDATE_CLEANING_STATUS",
+            UserId    = currentUserId,
+            Action    = "UPDATE_ROOM_CLEANING",
             TableName = "Rooms",
             RecordId  = id,
-            OldValue  = oldCleaningStatus,
-            NewValue  = request.CleaningStatus,
+            OldValue  = $"{{\"cleaningStatus\": \"{oldCleaningStatus}\"}}",
+            NewValue  = $"{{\"cleaningStatus\": \"{request.CleaningStatus}\"}}",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = Request.Headers.UserAgent.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
 

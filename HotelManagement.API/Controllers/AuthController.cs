@@ -6,6 +6,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -13,24 +14,26 @@ namespace HotelManagement.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly AppDbContext    _db;
-    private readonly JwtHelper       _jwt;
-    private readonly IConfiguration  _config;
+    private readonly AppDbContext _context;
+    private readonly JwtHelper _jwt;
+    private readonly IConfiguration _config;
+    private readonly IActivityLogService _activityLog;
 
     private const int RefreshTokenExpiryDays = 7;
 
-    public AuthController(AppDbContext db, JwtHelper jwt, IConfiguration config)
+    public AuthController(AppDbContext context, JwtHelper jwt, IConfiguration config, IActivityLogService activityLog)
     {
-        _db     = db;
-        _jwt    = jwt;
+        _context = context;
+        _jwt = jwt;
         _config = config;
+        _activityLog = activityLog;
     }
 
     // POST /api/Auth/login
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var user = await _db.Users
+        var user = await _context.Users
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Email == request.Email);
 
@@ -44,34 +47,48 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
 
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
-        var roleName        = user.Role?.Name ?? "Guest";
-        var refreshToken    = GenerateRefreshToken();
+        var roleName = user.Role?.Name ?? "Guest";
+        var refreshToken = GenerateRefreshToken();
 
-        user.LastLoginAt        = DateTime.UtcNow;
-        user.RefreshToken       = refreshToken;
+        user.LastLoginAt = DateTime.UtcNow;
+        user.RefreshToken = refreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
 
-        _db.AuditLogs.Add(new AuditLog
+        // Ghi Activity Log (Realtime notification for Admin/Manager to know who logged in)
+        await _activityLog.LogAsync(
+            actionCode: "LOGIN",
+            actionLabel: "Đăng nhập",
+            message: $"Người dùng {user.FullName} ({user.Role?.Name}) đã đăng nhập vào hệ thống.",
+            entityType: "User",
+            entityId: user.Id,
+            entityLabel: user.Email,
+            severity: "Info",
+            userId: user.Id,
+            roleName: user.Role?.Name,
+            notify: false // Không cần push notification chuông làm phiền Admin mỗi lần login
+        );
+
+        _context.AuditLogs.Add(new AuditLog
         {
-            UserId    = user.Id,
-            Action    = "LOGIN",
+            UserId = user.Id,
+            Action = "LOGIN",
             TableName = "Users",
-            RecordId  = user.Id,
-            OldValue  = null,
-            NewValue  = $"{{\"email\": \"{user.Email}\"}}",
+            RecordId = user.Id,
+            OldValue = null,
+            NewValue = $"{{\"email\": \"{user.Email}\"}}",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
 
-        await _db.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
         var notification = new Notification
         {
-            Title   = "Thông báo đăng nhập",
+            Title = "Thông báo đăng nhập",
             Message = $"Chào mừng {user.FullName} đã đăng nhập thành công!",
-            Type    = NotificationType.Success,
-            Action  = NotificationAction.LoginAccount
+            Type = NotificationType.Success,
+            Action = NotificationAction.LoginAccount
         };
 
         var token = _jwt.GenerateToken(user, roleName, permissionCodes);
@@ -80,12 +97,12 @@ public class AuthController : ControllerBase
         {
             token,
             refreshToken,
-            expiresIn   = _config["Jwt:ExpiresInMinutes"],
-            userId      = user.Id,
-            fullName    = user.FullName,
-            email       = user.Email,
-            role        = roleName,
-            avatarUrl   = user.AvatarUrl,
+            expiresIn = _config["Jwt:ExpiresInMinutes"],
+            userId = user.Id,
+            fullName = user.FullName,
+            email = user.Email,
+            role = roleName,
+            avatarUrl = user.AvatarUrl,
             permissions = permissionCodes,
             notification
         });
@@ -95,34 +112,48 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        if (await _db.Users.AnyAsync(u => u.Email == request.Email))
+        if (await _context.Users.AnyAsync(u => u.Email == request.Email))
             return Conflict(new { message = "Email này đã được sử dụng." });
 
         if (request.Password != request.ConfirmPassword)
             return BadRequest(new { message = "Mật khẩu xác nhận không khớp." });
 
-        var guestRole         = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "Guest");
-        var defaultMembership = await _db.Memberships.FirstOrDefaultAsync(m => m.MinPoints == 0);
-        var refreshToken      = GenerateRefreshToken();
+        var guestRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Guest");
+        var defaultMembership = await _context.Memberships.FirstOrDefaultAsync(m => m.MinPoints == 0);
+        var refreshToken = GenerateRefreshToken();
 
         var user = new HotelManagement.Core.Entities.User
         {
-            FullName           = request.FullName.Trim(),
-            Email              = request.Email.Trim().ToLower(),
-            Phone              = request.Phone?.Trim(),
-            PasswordHash       = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            RoleId             = guestRole?.Id,
-            MembershipId       = defaultMembership?.Id,
-            Status             = true,
-            CreatedAt          = DateTime.UtcNow,
-            RefreshToken       = refreshToken,
+            FullName = request.FullName.Trim(),
+            Email = request.Email.Trim().ToLower(),
+            Phone = request.Phone?.Trim(),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            RoleId = guestRole?.Id,
+            MembershipId = defaultMembership?.Id,
+            Status = true,
+            CreatedAt = DateTime.UtcNow,
+            RefreshToken = refreshToken,
             RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays),
         };
 
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
 
-        _db.AuditLogs.Add(new AuditLog
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "REGISTER",
+            actionLabel: "Đăng ký tài khoản",
+            message: $"Khách hàng mới đã đăng ký: {user.FullName} ({user.Email}).",
+            entityType: "User",
+            entityId: user.Id,
+            entityLabel: user.Email,
+            severity: "Success",
+            userId: user.Id,
+            roleName: "Customer"
+        );
+
+        // Khôi phục AuditLog
+        _context.AuditLogs.Add(new AuditLog
         {
             UserId    = user.Id,
             Action    = "REGISTER",
@@ -134,31 +165,31 @@ public class AuthController : ControllerBase
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
-        await _db.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
-        var roleName        = guestRole?.Name ?? "Guest";
-        var token           = _jwt.GenerateToken(user, roleName, permissionCodes);
+        var roleName = guestRole?.Name ?? "Guest";
+        var token = _jwt.GenerateToken(user, roleName, permissionCodes);
 
         var notification = new Notification
         {
-            Title   = "Thông báo đăng ký",
+            Title = "Thông báo đăng ký",
             Message = $"Chào mừng {user.FullName} đã đăng ký tài khoản thành công!",
-            Type    = NotificationType.Success,
-            Action  = NotificationAction.CreateAccount
+            Type = NotificationType.Success,
+            Action = NotificationAction.CreateAccount
         };
 
         return StatusCode(201, new
         {
-            message     = "Đăng ký thành công.",
+            message = "Đăng ký thành công.",
             token,
             refreshToken,
-            expiresIn   = _config["Jwt:ExpiresInMinutes"],
-            userId      = user.Id,
-            fullName    = user.FullName,
-            email       = user.Email,
-            role        = roleName,
-            membership  = defaultMembership?.TierName,
+            expiresIn = _config["Jwt:ExpiresInMinutes"],
+            userId = user.Id,
+            fullName = user.FullName,
+            email = user.Email,
+            role = roleName,
+            membership = defaultMembership?.TierName,
             permissions = permissionCodes,
             notification
         });
@@ -171,7 +202,7 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
             return BadRequest(new { message = "Refresh token không được để trống." });
 
-        var user = await _db.Users
+        var user = await _context.Users
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
 
@@ -187,18 +218,18 @@ public class AuthController : ControllerBase
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
         var newRefreshToken = GenerateRefreshToken();
 
-        user.RefreshToken       = newRefreshToken;
+        user.RefreshToken = newRefreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpiryDays);
-        await _db.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
         var roleName = user.Role?.Name ?? "Guest";
-        var token    = _jwt.GenerateToken(user, roleName, permissionCodes);
+        var token = _jwt.GenerateToken(user, roleName, permissionCodes);
 
         return Ok(new
         {
             token,
             refreshToken = newRefreshToken,
-            expiresIn    = _config["Jwt:ExpiresInMinutes"],
+            expiresIn = _config["Jwt:ExpiresInMinutes"],
         });
     }
 
@@ -209,14 +240,29 @@ public class AuthController : ControllerBase
     {
         var userId = JwtHelper.GetUserId(User);
 
-        var user = await _db.Users.FindAsync(userId);
+        var user = await _context.Users.FindAsync(userId);
         if (user is null)
             return NotFound(new { message = "Không tìm thấy tài khoản." });
 
-        user.RefreshToken       = null;
+        user.RefreshToken = null;
         user.RefreshTokenExpiry = null;
 
-        _db.AuditLogs.Add(new AuditLog
+        // Ghi Activity Log
+        await _activityLog.LogAsync(
+            actionCode: "LOGOUT",
+            actionLabel: "Đăng xuất",
+            message: $"Người dùng {user.FullName} đã đăng xuất khỏi hệ thống.",
+            entityType: "User",
+            entityId: userId,
+            entityLabel: user.Email,
+            severity: "Info",
+            userId: userId,
+            roleName: User.FindFirst("role")?.Value,
+            notify: false // Log thôi, không cần chuông
+        );
+
+        // Khôi phục AuditLog
+        _context.AuditLogs.Add(new AuditLog
         {
             UserId    = userId,
             Action    = "LOGOUT",
@@ -229,7 +275,7 @@ public class AuthController : ControllerBase
             CreatedAt = DateTime.UtcNow
         });
 
-        await _db.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Đăng xuất thành công." });
     }
@@ -237,11 +283,11 @@ public class AuthController : ControllerBase
     // ── Private helpers ────────────────────────────────────────────────────────
 
     private async Task<List<string>> GetPermissionCodesAsync(int? roleId)
-        => await _db.RolePermissions
+        => await _context.RolePermissions
             .Where(rp => rp.RoleId == roleId)
-            .Join(_db.Permissions,
+            .Join(_context.Permissions,
                 rp => rp.PermissionId,
-                p  => p.Id,
+                p => p.Id,
                 (rp, p) => p.PermissionCode)
             .ToListAsync();
 
