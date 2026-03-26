@@ -62,4 +62,18 @@ public static class NotificationPolicy
     /// </summary>
     public static bool CanRoleViewAction(string roleName, string actionCode)
         => GetRolesForAction(actionCode).Contains(roleName, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Trả về HashSet ActionCode bị chặn với role này.
+    /// = Các action CÓ explicit mapping nhưng KHÔNG bao gồm role này.
+    /// Actions không có trong map → default [Admin, Manager] → không chặn.
+    /// Dùng blacklist thay whitelist để không vô tình ẩn các action "default".
+    /// </summary>
+    public static HashSet<string> GetBlockedActionCodesForRole(string roleName)
+    {
+        return ActionRoleMap
+            .Where(kv => !kv.Value.Contains(roleName, StringComparer.OrdinalIgnoreCase))
+            .Select(kv => kv.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
 }

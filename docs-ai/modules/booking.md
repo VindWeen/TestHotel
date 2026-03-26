@@ -25,8 +25,11 @@ Quản lý toàn bộ vòng đời đặt phòng: từ tạo booking đến chec
    - Check-out phải sau check-in.
    - Kiểm tra overlap: không đặt cùng loại phòng trong cùng khoảng ngày.
    - Dùng Redis lock để tránh race condition khi 2 người đặt cùng lúc.
-   - `BookingCode` = `BK{yyyyMMddHHmmss}`.
+   - Load toàn bộ RoomType cần thiết **1 query duy nhất** (tránh N+1), fetch song song với Voucher bằng `Task.WhenAll`.
+   - `BookingCode` = `BK{yyyyMMddHHmmss}{4 ký tự GUID}` — đảm bảo unique kể cả khi concurrent same-second.
    - Voucher logic: kiểm tra hợp lệ, hạn dùng, giới hạn lượt.
+   - `AuditLog` được add trước `SaveChangesAsync` duy nhất (chỉ 1 lần ghi DB).
+
 
 2. **Confirm** (`PATCH /api/Bookings/{id}/confirm`):
    - Chỉ từ trạng thái `Pending`.
@@ -66,3 +69,17 @@ Quản lý toàn bộ vòng đời đặt phòng: từ tạo booking đến chec
 - `BookingDetail` — chi tiết từng phòng trong booking
 - `Room` — phòng vật lý được assign khi check-in
 - `Voucher`, `VoucherUsage` — giảm giá
+
+---
+
+## DTOs
+
+Tất cả DTO của module Booking nằm trong:
+**`HotelManagement.Core/DTOs/BookingDTOs.cs`**
+
+| DTO | Mục đích |
+|---|---|
+| `CreateBookingRequest` | Payload tạo mới booking |
+| `CreateBookingDetailRequest` | Từng item chi tiết trong booking |
+| `BookingResponse` | Trả về booking cho client |
+| `BookingDetailResponse` | Trả về booking detail (kèm RoomName, RoomTypeName) |

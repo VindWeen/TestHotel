@@ -135,3 +135,18 @@ entity_type, entity_id, entity_label,
 message, metadata, severity (Info|Success|Warning|Error),
 is_read (bool), created_at
 ```
+
+---
+
+## SQL Indexes
+
+### Activity_Logs — Chỉ mục tối ưu
+
+| Index | Cột | Mục đích |
+|---|---|---|
+| `IX_Activity_Logs_UserId_CreatedAt` | `(user_id, created_at DESC)` | Query log theo user |
+| `IX_Activity_Logs_EntityType_EntityId` | `(entity_type, entity_id)` | Query log theo entity |
+| `IX_Activity_Logs_IsRead_CreatedAt` | `(is_read, created_at DESC)` | Màn hình thông báo, đếm unread |
+| `IX_Activity_Logs_ActionCode` | `(action_code)` | Filter theo actionCode trong Policy |
+
+> **Lưu ý khi thêm cột mới vào Activity_Logs:** Nếu cột mới sẽ được dùng trong `WHERE` clause thường xuyên, hãy bổ sung index tương ứng vào `Bổ sung Activity_Logs.sql` và `AppDbContext.cs`.

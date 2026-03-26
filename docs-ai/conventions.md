@@ -150,6 +150,21 @@ export const useExampleStore = create((set) => ({
 4. **Xóa mềm (Soft Delete)** — không xóa cứng entity khỏi DB; dùng `IsActive = false` + endpoint `PATCH /{id}/toggle-active`.
 5. **Không duplicate SaveChangesAsync** — chỉ gọi 1 lần sau khi add/update xong.
 6. **Tên người thực hiện trong log** — luôn dùng `User.FindFirst("full_name")?.Value` thay vì hardcode role.
+7. **`AsNoTracking()` cho query read-only** — luôn thêm khi chỉ đọc dữ liệu, không cần track thay đổi.
+8. **Không dùng `.Include()` cùng `.Select()`** — nếu đã dùng `.Select()`, EF tự JOIN; Include thừa gây nhiễu.
+9. **Bulk update dùng `ExecuteUpdateAsync`** — thay vì load entity vào RAM rồi foreach.
+10. **DTOs đặt trong `HotelManagement.Core/DTOs/`** — KHÔNG định nghĩa DTO trực tiếp bên trong file Controller. File đặt theo module, ví dụ: `BookingDTOs.cs`, `RoomTypeDTOs.cs`.
+11. **Modal / Popup — fetch trước, mở sau** — luôn gọi API lấy dữ liệu trước khi set state `open = true`. Tránh mở modal rỗng rồi mới fetch (gây flash skeleton khó chịu).
+    ```js
+    // ✅ Đúng: fetch → điền data → mở modal
+    const openEdit = async (id) => {
+      const res = await getById(id);
+      setFormData(res.data);
+      setModalOpen(true);   // chỉ mở sau khi có data
+    };
+    // ❌ Sai: mở modal → fetch → điền (gây flash loading)
+    ```
+
 
 ---
 

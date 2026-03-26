@@ -238,40 +238,24 @@ function SkeletonRows() {
 }
 
 // ─── Permission Modal ─────────────────────────────────────────────────────────
-function PermissionModal({ role, onClose, onSaved, showToast }) {
-  const [currentPerms, setCurrentPerms] = useState([]);
-  const [checked, setChecked] = useState({});
-  const [loading, setLoading] = useState(true);
+function PermissionModal({ role, initialPerms, onClose, onSaved, showToast }) {
+  const [currentPerms, setCurrentPerms] = useState(initialPerms || []);
+  const [checked, setChecked] = useState(() => {
+    const map = {};
+    ALL_PERMISSIONS.forEach((p) => {
+      map[p.id] = (initialPerms || []).some(
+        (cp) => cp.permissionCode === p.permissionCode || cp.id === p.id,
+      );
+    });
+    return map;
+  });
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await getRoleById(role.id);
-        const perms = res.data?.permissions || [];
-        setCurrentPerms(perms);
-        const map = {};
-        ALL_PERMISSIONS.forEach((p) => {
-          map[p.id] = perms.some(
-            (cp) => cp.permissionCode === p.permissionCode || cp.id === p.id,
-          );
-        });
-        setChecked(map);
-      } catch {
-        showToast("Không thể tải quyền của vai trò.", "error");
-        onClose();
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [role.id]);
 
   const toggle = (id) => setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const handleSave = async () => {
     setSaving(true);
+
     try {
       const promises = [];
       ALL_PERMISSIONS.forEach((p) => {
@@ -401,22 +385,7 @@ function PermissionModal({ role, onClose, onSaved, showToast }) {
         <div
           style={{ padding: "20px 28px 0", maxHeight: 440, overflowY: "auto" }}
         >
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  border: "3px solid #e5e7eb",
-                  borderTopColor: "#4f645b",
-                  borderRadius: "50%",
-                  animation: "spin .65s linear infinite",
-                  margin: "0 auto",
-                }}
-              />
-            </div>
-          ) : (
-            Object.entries(grouped).map(([module, perms]) => (
+          {Object.entries(grouped).map(([module, perms]) => (
               <div key={module} style={{ marginBottom: 20 }}>
                 <p
                   style={{
@@ -481,8 +450,8 @@ function PermissionModal({ role, onClose, onSaved, showToast }) {
                   ))}
                 </div>
               </div>
-            ))
-          )}
+            ))}
+
         </div>
 
         {/* Footer */}
@@ -511,7 +480,7 @@ function PermissionModal({ role, onClose, onSaved, showToast }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || loading}
+            disabled={saving}
             style={{
               padding: "10px 22px",
               borderRadius: 10,
@@ -524,7 +493,7 @@ function PermissionModal({ role, onClose, onSaved, showToast }) {
               display: "flex",
               alignItems: "center",
               gap: 8,
-              opacity: saving || loading ? 0.6 : 1,
+              opacity: saving ? 0.6 : 1,
             }}
           >
             {saving && (
@@ -556,6 +525,7 @@ export default function RolePermissionPage() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedRolePerms, setSelectedRolePerms] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -589,6 +559,17 @@ export default function RolePermissionPage() {
   }, []);
 
   const handleRefresh = () => loadRoles(true);
+
+  // Fetch trước khi mở modal — tránh flash skeleton
+  const openPermission = async (role) => {
+    try {
+      const res = await getRoleById(role.id);
+      setSelectedRolePerms(res.data?.permissions || []);
+      setSelectedRole(role);
+    } catch {
+      showToast("Không thể tải quyền của vai trò.", "error");
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -665,11 +646,13 @@ export default function RolePermissionPage() {
       {selectedRole && (
         <PermissionModal
           role={selectedRole}
-          onClose={() => setSelectedRole(null)}
+          initialPerms={selectedRolePerms}
+          onClose={() => { setSelectedRole(null); setSelectedRolePerms([]); }}
           onSaved={() => loadRoles()}
           showToast={showToast}
         />
       )}
+
 
       {/* Content Area */}
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -892,7 +875,7 @@ export default function RolePermissionPage() {
                           {hasPermission("MANAGE_ROLES") && (
                             <button
                               className="perm-btn"
-                              onClick={() => setSelectedRole(role)}
+                              onClick={() => openPermission(role)}
                             >
                               <span
                                 className="material-symbols-outlined"

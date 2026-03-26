@@ -40,8 +40,6 @@ public class UserManagementController : ControllerBase
 
         var query = _db.Users
             .AsNoTracking()
-            .Include(u => u.Role)
-            .Include(u => u.Membership)
             .AsQueryable();
 
         if (roleId.HasValue)

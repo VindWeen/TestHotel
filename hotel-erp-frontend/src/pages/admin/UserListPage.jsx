@@ -389,22 +389,17 @@ export default function UserListPage() {
     }
   };
 
-  // ── Detail modal ──
+  // ── Detail modal — fetch trước, mở modal sau (tránh flash skeleton) ──
   const openDetail = async (userId) => {
-    setDetailUser(null);
-    setDetailModalOpen(true);
-    setDetailLoading(true);
     try {
       const res = await getUserById(userId);
       setDetailUser(res.data);
+      setDetailModalOpen(true);
     } catch (e) {
-      setDetailModalOpen(false);
       showToast(
         e?.response?.data?.message || "Không thể tải thông tin.",
         "error",
       );
-    } finally {
-      setDetailLoading(false);
     }
   };
 
@@ -416,19 +411,19 @@ export default function UserListPage() {
   };
 
   const openEdit = async (userId) => {
-    setEditingId(userId);
-    resetForm();
-    setAddModalOpen(true);
     try {
       const res = await getUserById(userId);
       const u = res.data;
+      setEditingId(userId);
       setFFullName(u.fullName || "");
       setFEmail(u.email || "");
       setFPhone(u.phone || "");
       setFGender(u.gender || "");
       setFRoleId(u.roleId?.toString() || "");
+      setFormError("");
+      setFieldErrors({});
+      setAddModalOpen(true);
     } catch (e) {
-      setAddModalOpen(false);
       showToast(
         e?.response?.data?.message || "Không thể tải thông tin.",
         "error",
@@ -470,16 +465,16 @@ export default function UserListPage() {
     setFormError("");
     try {
       if (editingId) {
-        const res = await updateUser(editingId, {
-          fullName: fFullName,
-          phone: fPhone || null,
-          gender: fGender || null,
-        });
         const cur = allUsers.find((u) => u.id === editingId);
-        if (fRoleId && cur && parseInt(fRoleId) !== cur.roleId) {
-          const rRes = await changeRole(editingId, parseInt(fRoleId));
-          showNotif(rRes.data?.notification);
-        }
+        const roleChanged = fRoleId && cur && parseInt(fRoleId) !== cur.roleId;
+
+        const promises = [
+          updateUser(editingId, { fullName: fFullName, phone: fPhone || null, gender: fGender || null }),
+          ...(roleChanged ? [changeRole(editingId, parseInt(fRoleId))] : []),
+        ];
+
+        const [res, rRes] = await Promise.all(promises);
+        if (roleChanged && rRes) showNotif(rRes.data?.notification);
         showNotif(
           res.data?.notification,
           res.data?.message || "Cập nhật thành công!",
@@ -1436,6 +1431,9 @@ export default function UserListPage() {
                   </span>
                 )}
               </div>
+
+              {/* Nút chuyển trang (1, 2, 3...) gọi từ hàm cũ */}
+              {renderPagination()}
             </div>
           </div>
         </div>

@@ -76,6 +76,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ActivityLog>()
             .HasIndex(a => new { a.EntityType, a.EntityId });
 
+        // Index cho màn hình thông báo: query theo IsRead = false hoặc OrderBy CreatedAt DESC
+        modelBuilder.Entity<ActivityLog>()
+            .HasIndex(a => new { a.IsRead, a.CreatedAt });
+
+        // Index cho filter ActionCode
+        modelBuilder.Entity<ActivityLog>()
+            .HasIndex(a => a.ActionCode);
+
         // ── 2. Composite Primary Keys cho bảng join ──────────────
         modelBuilder.Entity<RolePermission>()
             .HasKey(rp => new { rp.RoleId, rp.PermissionId });

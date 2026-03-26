@@ -58,6 +58,11 @@ private static readonly Dictionary<string, string[]> ActionRoleMap = new()
 };
 ```
 
+**Các method public trong policy:**
+- `GetRolesForAction(actionCode)` — dùng trong `ActivityLogService` khi push SignalR.
+- `CanRoleViewAction(role, actionCode)` — kiểm tra nhanh 1 action.
+- `GetBlockedActionCodesForRole(role)` — dùng trong `ActivityLogsController` để filter tại DB theo **blacklist** (loại các action có explicit mapping nhưng không bao gồm role này). Actions không có trong map → default hiển cho cả hai.
+
 **Để thêm rule mới:** Chỉ cần thêm 1 dòng vào dictionary. Không cần sửa bất kỳ file nào khác.
 
 ---

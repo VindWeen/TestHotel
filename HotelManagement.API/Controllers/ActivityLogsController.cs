@@ -27,13 +27,18 @@ public class ActivityLogsController : ControllerBase
         // Hiện tại luồng thông báo chỉ hướng tới Admin và Manager
         if (roleName != "Admin" && roleName != "Manager")
         {
-            return Ok(new List<object>()); 
+            return Ok(new List<object>());
         }
 
+        // Blacklist: lấy ActionCode bị chặn với role này
+        // (action không có trong map → mặc định hiển cho Admin+Manager, không bị chặn)
+        var blockedCodes = NotificationPolicy.GetBlockedActionCodesForRole(roleName!);
+
         var logs = await _db.ActivityLogs
+            .Where(x => x.ActionCode == null || !blockedCodes.Contains(x.ActionCode))
             .OrderByDescending(x => x.CreatedAt)
             .Take(50)
-            .Select(x => new 
+            .Select(x => new
             {
                 id = x.Id,
                 message = x.Message ?? x.ActionLabel,
@@ -43,12 +48,7 @@ public class ActivityLogsController : ControllerBase
             })
             .ToListAsync();
 
-        // Lọc theo NotificationPolicy — chỉ giữ lại log mà role này có quyền xem
-        var filtered = logs
-            .Where(x => NotificationPolicy.CanRoleViewAction(roleName!, x.action ?? ""))
-            .ToList();
-
-        return Ok(filtered);
+        return Ok(logs);
     }
 
     [HttpPut("{id}/mark-read")]
@@ -72,12 +72,10 @@ public class ActivityLogsController : ControllerBase
         var roleName = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
         if (roleName != "Admin" && roleName != "Manager") return Forbid();
 
-        var unreadLogs = await _db.ActivityLogs.Where(x => !x.IsRead).ToListAsync();
-        foreach (var log in unreadLogs)
-        {
-            log.IsRead = true;
-        }
-        await _db.SaveChangesAsync();
+        // Dùng ExecuteUpdateAsync — 1 câu SQL UPDATE, không load entity vào RAM
+        await _db.ActivityLogs
+            .Where(x => !x.IsRead)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsRead, true));
 
         return NoContent();
     }

@@ -44,19 +44,17 @@ export const useSignalR = () => {
     useEffect(() => {
         if (!connection) return;
 
-        // Fetch Notification History from API
+        // Fetch Notification History từ API (REST, không cần đợi SignalR)
         const fetchHistory = async () => {
             try {
                 const res = await getMyNotifications();
-                if (res.data) {
-                    setNotifications(res.data);
-                }
+                if (res.data) setNotifications(res.data);
             } catch (err) {
                 console.error('Failed to fetch notification history: ', err);
             }
         };
-        fetchHistory();
 
+        // Kết nối SignalR Hub với retry
         const startConnection = async () => {
             try {
                 if (connection.state === signalR.HubConnectionState.Disconnected) {
@@ -65,10 +63,12 @@ export const useSignalR = () => {
                 }
             } catch (err) {
                 console.error('SignalR Connection Error: ', err);
-                setTimeout(startConnection, 5000); // Retry logic
+                setTimeout(startConnection, 5000);
             }
         };
 
+        // Chạy song song — độc lập nhau
+        fetchHistory();
         startConnection();
 
         connection.on('ReceiveNotification', (notification) => {
@@ -81,21 +81,11 @@ export const useSignalR = () => {
             });
         });
 
-        connection.on('ReceiveActivityLog', (log) => {
-            addNotification({
-                id: log.id || Date.now().toString(),
-                message: log.action || 'New activity logged',
-                createdAt: log.timestamp || new Date().toISOString(),
-                isRead: false,
-                ...log
-            });
-        });
-
         return () => {
             connection.off('ReceiveNotification');
-            connection.off('ReceiveActivityLog');
         };
     }, [connection, addNotification, setNotifications]);
+
 
     return { connection };
 };

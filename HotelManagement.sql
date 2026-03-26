@@ -600,6 +600,16 @@ CREATE NONCLUSTERED INDEX [IX_Activity_Logs_EntityType_EntityId]
     ON [dbo].[Activity_Logs] ([entity_type] ASC, [entity_id] ASC)
 GO
 
+-- Index cho màn hình thông báo: query theo IsRead = false hoặc OrderBy CreatedAt DESC
+CREATE NONCLUSTERED INDEX [IX_Activity_Logs_IsRead_CreatedAt]
+    ON [dbo].[Activity_Logs] ([is_read] ASC, [created_at] DESC)
+GO
+
+-- Index cho filter ActionCode trong backend
+CREATE NONCLUSTERED INDEX [IX_Activity_Logs_ActionCode]
+    ON [dbo].[Activity_Logs] ([action_code] ASC)
+GO
+
 -- ============================================================
 -- SEED DATA — THỨ TỰ CHA TRƯỚC CON
 -- ============================================================

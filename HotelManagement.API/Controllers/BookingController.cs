@@ -7,70 +7,9 @@ using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Helpers;
-using HotelManagement.API.Services;
+using HotelManagement.API.Services;using HotelManagement.Core.DTOs;
 
 namespace HotelManagement.API.Controllers;
-
-#region DTOs
-public class CreateBookingRequest
-{
-    public int? UserId { get; set; }
-    public string GuestName { get; set; } = null!;
-    public string GuestPhone { get; set; } = null!;
-    public string GuestEmail { get; set; } = null!;
-    public int NumAdults { get; set; }
-    public int NumChildren { get; set; }
-    public int? VoucherId { get; set; }
-    public string? Source { get; set; }
-    public string? Note { get; set; }
-    public List<CreateBookingDetailRequest> Details { get; set; } = new();
-}
-
-public class CreateBookingDetailRequest
-{
-    public int RoomTypeId { get; set; }
-    public DateTime CheckInDate { get; set; }
-    public DateTime CheckOutDate { get; set; }
-}
-
-public class BookingDetailResponse
-{
-    public int Id { get; set; }
-    public int BookingId { get; set; }
-    public int? RoomId { get; set; }
-    public int? RoomTypeId { get; set; }
-    public DateTime CheckInDate { get; set; }
-    public DateTime CheckOutDate { get; set; }
-    public decimal PricePerNight { get; set; }
-    public string? Note { get; set; }
-    public string? RoomName { get; set; }
-    public string? RoomTypeName { get; set; }
-}
-
-public class BookingResponse
-{
-    public int Id { get; set; }
-    public int? UserId { get; set; }
-    public string? GuestName { get; set; }
-    public string? GuestPhone { get; set; }
-    public string? GuestEmail { get; set; }
-    public int NumAdults { get; set; }
-    public int NumChildren { get; set; }
-    public string BookingCode { get; set; } = null!;
-    public int? VoucherId { get; set; }
-    public decimal TotalEstimatedAmount { get; set; }
-    public decimal? DepositAmount { get; set; }
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
-    public string? Status { get; set; }
-    public string Source { get; set; } = "online";
-    public string? Note { get; set; }
-    public string? CancellationReason { get; set; }
-    public DateTime? CancelledAt { get; set; }
-    public List<BookingDetailResponse> BookingDetails { get; set; } = new();
-}
-#endregion
-
 [ApiController]
 [Route("api/[controller]")]
 public class BookingsController : ControllerBase
@@ -137,6 +76,7 @@ public class BookingsController : ControllerBase
         int pageSize = 10)
     {
         var query = _context.Bookings
+            .AsNoTracking()
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
@@ -172,6 +112,7 @@ public class BookingsController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var booking = await _context.Bookings
+            .AsNoTracking()
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
@@ -190,11 +131,13 @@ public class BookingsController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
         var bookings = await _context.Bookings
+            .AsNoTracking()
             .Where(b => b.UserId == userId)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.RoomType)
+            .OrderByDescending(b => b.Id)
             .ToListAsync();
 
         return Ok(bookings.Select(MapToResponse));
@@ -255,21 +198,33 @@ public class BookingsController : ControllerBase
                 Status = "Pending",
                 Source = request.Source ?? "online",
                 Note = request.Note,
-                BookingCode = $"BK{DateTime.UtcNow:yyyyMMddHHmmss}"
+                // Thêm 4 ký tự random để tránh trùng khi concurrent same-second
+                BookingCode = $"BK{DateTime.UtcNow:yyyyMMddHHmmss}{Guid.NewGuid().ToString("N")[..4].ToUpper()}"
             };
 
             decimal total = 0;
 
+            // ===== LOAD ALL ROOMTYPES + VOUCHER SONG SONG (Task.WhenAll) =====
+            var roomTypeIds = request.Details.Select(d => d.RoomTypeId).Distinct().ToList();
+            var roomTypesTask = _context.RoomTypes
+                .Where(rt => roomTypeIds.Contains(rt.Id))
+                .ToDictionaryAsync(rt => rt.Id);
+            var voucherTask = request.VoucherId.HasValue
+                ? _context.Vouchers.FindAsync(request.VoucherId.Value).AsTask()
+                : Task.FromResult<Voucher?>(null);
+
+            await Task.WhenAll(roomTypesTask, voucherTask);
+            var roomTypesDict = roomTypesTask.Result;
+
             foreach (var d in request.Details)
             {
-                var rt = await _context.RoomTypes.FindAsync(d.RoomTypeId);
-                if (rt == null) return BadRequest("RoomType không tồn tại");
+                if (!roomTypesDict.TryGetValue(d.RoomTypeId, out var rt))
+                    return BadRequest($"RoomType #{d.RoomTypeId} không tồn tại");
 
                 var nights = (d.CheckOutDate - d.CheckInDate).Days;
                 if (nights <= 0) return BadRequest("Ngày check-out phải sau check-in");
 
-                var amount = nights * rt.BasePrice;
-                total += amount;
+                total += nights * rt.BasePrice;
 
                 booking.BookingDetails.Add(new BookingDetail
                 {
@@ -281,10 +236,9 @@ public class BookingsController : ControllerBase
             }
 
             // ===== APPLY VOUCHER =====
+            var v = voucherTask.Result;
             if (request.VoucherId.HasValue)
             {
-                var v = await _context.Vouchers.FindAsync(request.VoucherId.Value);
-
                 if (v == null || !v.IsActive)
                     return BadRequest("Voucher không hợp lệ");
 
@@ -326,22 +280,8 @@ public class BookingsController : ControllerBase
             booking.DepositAmount = booking.TotalEstimatedAmount * 0.3m;
 
             _context.Bookings.Add(booking);
-            await _context.SaveChangesAsync();
 
-            // Ghi Activity Log
-            await _activityLog.LogAsync(
-                actionCode: "CREATE_BOOKING",
-                actionLabel: "Đặt phòng mới",
-                message: $"Khách hàng {booking.GuestName} đã đặt phòng thành công ({booking.BookingCode}). Tổng: {booking.TotalEstimatedAmount:N0}đ",
-                entityType: "Booking",
-                entityId: booking.Id,
-                entityLabel: booking.BookingCode,
-                severity: "Success",
-                userId: currentUserId,
-                roleName: User.FindFirst("role")?.Value
-            );
-
-            // Khôi phục AuditLog
+            // Ghi AuditLog trước SaveChanges (gộp chung 1 lần)
             _context.AuditLogs.Add(new AuditLog
             {
                 UserId    = currentUserId,
@@ -354,7 +294,20 @@ public class BookingsController : ControllerBase
                 UserAgent = Request.Headers["User-Agent"].ToString(),
                 CreatedAt = DateTime.UtcNow
             });
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(); // Chỉ 1 lần
+
+            // Ghi Activity Log (push SignalR)
+            await _activityLog.LogAsync(
+                actionCode: "CREATE_BOOKING",
+                actionLabel: "Đặt phòng mới",
+                message: $"Khách hàng {booking.GuestName} đã đặt phòng thành công ({booking.BookingCode}). Tổng: {booking.TotalEstimatedAmount:N0}đ",
+                entityType: "Booking",
+                entityId: booking.Id,
+                entityLabel: booking.BookingCode,
+                severity: "Success",
+                userId: currentUserId,
+                roleName: User.FindFirst("role")?.Value
+            );
 
             return Ok(MapToResponse(booking));
         }
