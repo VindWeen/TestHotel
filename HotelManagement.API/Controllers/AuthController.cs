@@ -33,9 +33,11 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        var normalizedEmail = request.Email?.Trim().ToLower() ?? "";
+        
         var user = await _context.Users
             .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.Email == request.Email);
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user is null)
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
@@ -98,7 +100,9 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+        var normalizedEmail = request.Email?.Trim().ToLower() ?? "";
+
+        if (await _context.Users.AnyAsync(u => u.Email == normalizedEmail))
             return Conflict(new { message = "Email này đã được sử dụng." });
 
         if (request.Password != request.ConfirmPassword)

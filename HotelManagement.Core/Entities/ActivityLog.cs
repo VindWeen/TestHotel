@@ -21,10 +21,11 @@ public class ActivityLog
     public string Message { get; set; } = null!;
     public string? Metadata { get; set; }           // JSON nếu cần thêm dữ liệu
 
-    // Trạng thái đọc (cho notification bell)
-    public bool IsRead { get; set; } = false;
+    // Trạng thái đọc (per-user — xem ActivityLogRead)
+    // IsRead cũ đã được tách sang bảng ActivityLogRead để hỗ trợ nhiều user.
     public DateTime CreatedAt { get; set; }
 
     // Navigation
     public User? User { get; set; }
+    public ICollection<ActivityLogRead> Reads { get; set; } = [];
 }

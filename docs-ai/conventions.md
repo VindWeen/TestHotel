@@ -164,8 +164,8 @@ export const useExampleStore = create((set) => ({
     };
     // ❌ Sai: mở modal → fetch → điền (gây flash loading)
     ```
-
-
+12. **Chuẩn hóa Email (Normalization)** — luôn gọi `.Trim().ToLower()` đối với mọi input liên quan đến tra cứu hoặc lưu trữ Email (nhất là trong luồng Authentication như Login, Register, CreateUser) để tránh tạo tài khoản trùng lặp do dư khoảng trắng.
+13. **Sinh Random Password chuẩn bôi đen** — Khi sinh random password gửi qua Email, tuyệt đối KHÔNG random ra các ký tự HTML Entity (`&`, `<`, `>`) để tránh lỗi render. Giao diện Email gửi pass cần có `user-select: all` ở thẻ bọc password.
 ---
 
 ## Soft Delete Pattern

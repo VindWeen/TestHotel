@@ -8,6 +8,7 @@ import {
   updateUser,
   toggleStatus,
   changeRole,
+  resetUserPassword,
 } from "../../api/userManagementApi";
 import { getRoles } from "../../api/rolesApi";
 import { useAdminAuthStore } from "../../store/adminAuthStore";
@@ -262,6 +263,7 @@ export default function UserListPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailUser, setDetailUser] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   const [topSearch, setTopSearch] = useState("");
   const debounceRef = useRef(null);
@@ -402,6 +404,31 @@ export default function UserListPage() {
       );
     }
   };
+
+  // ── Reset Password ──
+  const handleResetPassword = async (userId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn thiết lập lại mật khẩu cho người dùng này? Mật khẩu mới sẽ được gởi qua email.")) {
+      return;
+    }
+    setResetPasswordLoading(true);
+    try {
+      const res = await resetUserPassword(userId);
+      showNotif(
+        res.data?.notification,
+        res.data?.message || "Đã reset mật khẩu thành công.",
+        "success"
+      );
+    } catch (e) {
+      showNotif(
+        e?.response?.data?.notification,
+        e?.response?.data?.message || "Không thể reset mật khẩu.",
+        "error"
+      );
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
+
 
   // ── Add/Edit modal ──
   const openAdd = () => {
@@ -852,7 +879,20 @@ export default function UserListPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex justify-end mt-4 pt-4 border-t border-stone-100">
+                  <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-stone-100">
+                    <button
+                      onClick={() => handleResetPassword(detailUser.id)}
+                      disabled={resetPasswordLoading}
+                      className="px-4 py-2 text-sm font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fee2e2" }}
+                    >
+                      {resetPasswordLoading ? (
+                        <span className="spinner-dark" style={{ borderColor: "rgba(220,38,38,0.2)", borderTopColor: "#dc2626", width: 16, height: 16 }} />
+                      ) : (
+                        <span className="material-symbols-outlined text-base">key</span>
+                      )}
+                      Quên mật khẩu
+                    </button>
                     <button
                       onClick={() => { setDetailModalOpen(false); openEdit(detailUser.id); }}
                       className="px-4 py-2 text-sm font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-1.5"
@@ -1334,34 +1374,6 @@ export default function UserListPage() {
                                   style={{ fontSize: 22 }}
                                 >
                                   visibility
-                                </span>
-                              </button>
-                              <button
-                                onClick={() => openEdit(u.id)}
-                                style={{
-                                  padding: 8,
-                                  color: "#9ca3af",
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  borderRadius: 8,
-                                  transition: "all .15s",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "#f3f4f6";
-                                  e.currentTarget.style.color = "#4f645b";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = "";
-                                  e.currentTarget.style.color = "#9ca3af";
-                                }}
-                                title="Chỉnh sửa"
-                              >
-                                <span
-                                  className="material-symbols-outlined"
-                                  style={{ fontSize: 22 }}
-                                >
-                                  edit_square
                                 </span>
                               </button>
                             </div>

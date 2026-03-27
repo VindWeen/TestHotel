@@ -72,6 +72,7 @@
 |---|---|
 | `Audit_Logs` | Nhật ký kiểm tra (ai, làm gì, khi nào, IP) |
 | `Activity_Logs` | Log sự kiện nghiệp vụ + nền tảng push thông báo |
+| `Activity_Log_Reads` | Bảng junction lưu trạng thái đã đọc thông báo của từng User |
 
 ---
 
@@ -132,9 +133,12 @@ cancellation_reason, cancelled_at
 ```sql
 id, user_id, role_name, action_code, action_label,
 entity_type, entity_id, entity_label,
-message, metadata, severity (Info|Success|Warning|Error),
-is_read (bool), created_at
+message, metadata, severity (Info|Success|Warning|Error), created_at
 ```
+
+### Activity_Log_Reads
+```sql
+id, activity_log_id, user_id, read_at
 
 ---
 
@@ -146,7 +150,8 @@ is_read (bool), created_at
 |---|---|---|
 | `IX_Activity_Logs_UserId_CreatedAt` | `(user_id, created_at DESC)` | Query log theo user |
 | `IX_Activity_Logs_EntityType_EntityId` | `(entity_type, entity_id)` | Query log theo entity |
-| `IX_Activity_Logs_IsRead_CreatedAt` | `(is_read, created_at DESC)` | Màn hình thông báo, đếm unread |
+| `UK_ActivityLog_User` | `(activity_log_id, user_id)` | Ràng buộc mỗi user chỉ đọc 1 lần / log (bảng `Activity_Log_Reads`) |
+| `IX_Activity_Log_Reads_UserId` | `(user_id)` | Query nhanh các log user r, dùng subquery EXISTS |
 | `IX_Activity_Logs_ActionCode` | `(action_code)` | Filter theo actionCode trong Policy |
 
 > **Lưu ý khi thêm cột mới vào Activity_Logs:** Nếu cột mới sẽ được dùng trong `WHERE` clause thường xuyên, hãy bổ sung index tương ứng vào `Bổ sung Activity_Logs.sql` và `AppDbContext.cs`.

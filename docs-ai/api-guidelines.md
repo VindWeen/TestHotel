@@ -73,6 +73,7 @@ GET /api/UserManagement?page=1&pageSize=10&roleId=2
 ```http
 POST /api/Auth/login
 Body: { "email": "...", "password": "..." }
+* Lưu ý: "email" luôn được hệ thống tự động loại bỏ khoảng trắng dư (Trim) và chuyển thành chữ thường (ToLower) để tránh lỗi không tìm thấy user.
 
 Response: {
   "token": "...",

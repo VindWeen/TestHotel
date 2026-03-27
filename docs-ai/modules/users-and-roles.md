@@ -24,6 +24,12 @@ Quản lý tài khoản nhân viên, phân quyền, khóa/mở khóa tài khoả
 - Không được tự khóa chính mình.
 - Chỉ khóa tài khoản đang active.
 
+### Reset mật khẩu từ Admin (`POST /api/UserManagement/{id}/reset-password`)
+- Phải có quyền `MANAGE_USERS`.
+- Sẽ phát sinh mật khẩu ngẫu nhiên siêu an toàn (12 ký tự).
+- Gửi trực tiếp Email mật khẩu mới (Template tùy biến đẹp, Background Fire-and-Forget).
+- Mã hóa DB qua BCrypt và tạo lưu vết vĩnh viễn trên Audit_Logs (có record email) + Activity_Logs.
+
 ### Bật/tắt tài khoản - Toggle (`PATCH /api/UserManagement/{id}/toggle-status`)
 - Toggle `user.Status` (true → false → true).
 - ActivityLog: `LOCK_ACCOUNT` hoặc `UNLOCK_ACCOUNT` tùy trạng thái mới.
@@ -65,6 +71,7 @@ GET /api/Roles/my-permissions
 | `LOCK_ACCOUNT` | Warning | Admin, Manager |
 | `UNLOCK_ACCOUNT` | Success | Admin, Manager |
 | `CHANGE_ROLE` | Warning | Admin, Manager |
+| `RESET_PASSWORD` | Warning | Admin, Manager |
 | `GRANT_PERMISSION` | Warning | **Admin only** |
 | `REVOKE_PERMISSION` | Warning | **Admin only** |
 

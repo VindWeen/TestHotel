@@ -82,7 +82,6 @@ public class ActivityLogService : IActivityLogService
             Severity = severity,
             Message = message,
             Metadata = metadata,
-            IsRead = false,
             CreatedAt = DateTime.UtcNow
         };
 

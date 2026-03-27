@@ -15,6 +15,9 @@ public interface IEmailService
 
     /// <summary>Gửi email thông báo đổi mật khẩu thành công.</summary>
     Task SendPasswordChangedAsync(string toEmail, string fullName);
+
+    /// <summary>Admin reset mật khẩu người dùng và gửi mật khẩu mới qua email.</summary>
+    Task SendPasswordResetByAdminAsync(string toEmail, string fullName, string newPassword);
 }
 
 // ── Implementation ────────────────────────────────────────────────────────────
@@ -124,6 +127,33 @@ public class EmailService : IEmailService
                     <p style="margin: 0; color: #92400e;">⚠️ Nếu bạn <strong>không thực hiện</strong> thay đổi này, vui lòng liên hệ quản trị viên ngay lập tức.</p>
                 </div>
 
+                <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        await SendAsync(toEmail, fullName, subject, body);
+    }
+
+    // ── Password Reset By Admin ──────────────────────────────────────
+    public async Task SendPasswordResetByAdminAsync(string toEmail, string fullName, string newPassword)
+    {
+        var subject = "[Hotel] Mật khẩu của bạn đã được thiết lập lại";
+
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">&#128274; Mật khẩu đã được thiết lập lại</h2>
+                <p>Xin chào <strong>{fullName}</strong>,</p>
+                <p>Quản trị viên đã thiết lập lại mật khẩu tài khoản của bạn. Dưới đây là mật khẩu mới:</p>
+
+                <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
+                    <span style="font-size: 24px; font-weight: 700; letter-spacing: 0.1em; color: #15803d; font-family: monospace; padding: 4px 8px; background: #dcfce7; border-radius: 4px; user-select: all; cursor: copy;">{System.Net.WebUtility.HtmlEncode(newPassword)}</span>
+                </div>
+
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                    <p style="margin: 0; color: #92400e;">&#9888;&#65039; Vui lòng đăng nhập và <strong>đổi mật khẩu ngay</strong> sau khi nhận được email này.</p>
+                </div>
+
+                <p style="color: #6b7280; font-size: 13px;">Nếu bạn không yêu cầu điều này, vui lòng liên hệ quản trị viên ngay lập tức.</p>
                 <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
             </div>
             """;

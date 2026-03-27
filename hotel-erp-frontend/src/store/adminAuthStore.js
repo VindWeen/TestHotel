@@ -7,13 +7,18 @@ import { create } from 'zustand';
 // → Cần khôi phục từ localStorage để user không bị logout.
 const getInitialState = () => {
     try {
+        // Ưu tiên đọc từ sessionStorage (nếu người dùng không check Remember me),
+        // sau đó mới đọc từ localStorage (nếu có check)
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token') || null;
+        const userStr = sessionStorage.getItem('user') || localStorage.getItem('user') || 'null';
+        const permissionsStr = sessionStorage.getItem('permissions') || localStorage.getItem('permissions') || '[]';
+
         return {
-            token: localStorage.getItem('token') || null,
-            user: JSON.parse(localStorage.getItem('user') || 'null'),
-            permissions: JSON.parse(localStorage.getItem('permissions') || '[]'),
+            token,
+            user: JSON.parse(userStr),
+            permissions: JSON.parse(permissionsStr),
         };
     } catch {
-        // Nếu JSON.parse lỗi (data bị corrupt) → reset sạch
         return { token: null, user: null, permissions: [] };
     }
 };
@@ -35,9 +40,8 @@ export const useAdminAuthStore = create((set) => ({
     // ── Actions ────────────────────────────────────────────────────────────────
 
     // setAuth: gọi sau khi login thành công
-    // Nhận toàn bộ response từ POST /api/Auth/login
-    setAuth: ({ token, user, permissions, role, fullName, email, avatarUrl }) => {
-        // Chuẩn hóa object user từ response backend
+    // Nhận toàn bộ response từ POST /api/Auth/login và cờ rememberMe
+    setAuth: ({ token, user, permissions, role, fullName, email, avatarUrl, rememberMe = false }) => {
         const userData = user || {
             id: null,
             fullName: fullName || '',
@@ -46,28 +50,37 @@ export const useAdminAuthStore = create((set) => ({
             avatarUrl: avatarUrl || null,
         };
 
-        // Lưu vào Zustand store (reactive — component tự update)
         set({
             token,
             user: userData,
             permissions: permissions || [],
         });
 
-        // Lưu vào localStorage (persist — tồn tại qua reload)
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('permissions', JSON.stringify(permissions || []));
+        const storage = rememberMe ? localStorage : sessionStorage;
+        const otherStorage = rememberMe ? sessionStorage : localStorage;
+
+        // Xóa data ở storage không dùng tới để tránh xung đột
+        otherStorage.removeItem('token');
+        otherStorage.removeItem('user');
+        otherStorage.removeItem('permissions');
+
+        // Lưu vào storage được chọn
+        storage.setItem('token', token);
+        storage.setItem('user', JSON.stringify(userData));
+        storage.setItem('permissions', JSON.stringify(permissions || []));
     },
 
     // clearAuth: gọi khi logout hoặc token hết hạn (401)
     clearAuth: () => {
-        // Xóa Zustand store
         set({ token: null, user: null, permissions: [] });
 
-        // Xóa localStorage
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('permissions');
+
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('permissions');
     },
 
     // hasPermission: kiểm tra quyền cụ thể (dùng trong RequirePermission)
@@ -86,6 +99,12 @@ export const useAdminAuthStore = create((set) => ({
         const newUser = { ...currentUser, ...updatedData };
         
         set({ user: newUser });
-        localStorage.setItem('user', JSON.stringify(newUser));
+        
+        // Cập nhật vào storage đang chứa session
+        if (sessionStorage.getItem('token')) {
+            sessionStorage.setItem('user', JSON.stringify(newUser));
+        } else if (localStorage.getItem('token')) {
+            localStorage.setItem('user', JSON.stringify(newUser));
+        }
     },
 }));

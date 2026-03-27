@@ -73,7 +73,7 @@ private static readonly Dictionary<string, string[]> ActionRoleMap = new()
 2. Các action `GRANT_PERMISSION`, `REVOKE_PERMISSION` → chỉ gửi cho `Admin`.
 3. Log `LOGIN`, `LOGOUT`, `REGISTER` → không push thông báo (lưu AuditLog thôi).
 4. History khi F5 được filter bởi cùng `NotificationPolicy` → luôn đồng bộ với realtime.
-5. Mỗi user đọc độc lập (isRead track theo session, không theo user cụ thể).
+5. Mỗi user đọc độc lập (isRead track riêng biệt cho từng user thông qua bảng phụ `Activity_Log_Reads`, tránh ghi đè toàn hệ thống khi 1 người đọc).
 
 ---
 

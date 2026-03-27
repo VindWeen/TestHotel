@@ -15,9 +15,9 @@ const axiosClient = axios.create({
 //   2. Bật loading spinner toàn màn hình
 axiosClient.interceptors.request.use(
     (config) => {
-        // Lấy token từ localStorage (persist qua reload)
-        // Zustand store không thể gọi hook ở đây → dùng localStorage trực tiếp
-        const token = localStorage.getItem('token');
+        // Lấy token từ sessionStorage hoặc localStorage
+        // Zustand store không thể gọi hook ở đây → đọc Storage trực tiếp
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

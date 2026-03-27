@@ -580,7 +580,6 @@ CREATE TABLE [dbo].[Activity_Logs](
     [severity]      [nvarchar](20)   NOT NULL DEFAULT 'Info',     -- Info / Warning / Success / Critical
     [message]       [nvarchar](max)  NOT NULL,                    -- nội dung thông báo hiển thị
     [metadata]      [nvarchar](max)  NULL,                        -- JSON thêm nếu cần
-    [is_read]       [bit]            NOT NULL DEFAULT 0,          -- đã đọc chưa (cho UI bell icon)
     [created_at]    [datetime]       NOT NULL DEFAULT GETDATE(),
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
@@ -600,14 +599,29 @@ CREATE NONCLUSTERED INDEX [IX_Activity_Logs_EntityType_EntityId]
     ON [dbo].[Activity_Logs] ([entity_type] ASC, [entity_id] ASC)
 GO
 
--- Index cho màn hình thông báo: query theo IsRead = false hoặc OrderBy CreatedAt DESC
-CREATE NONCLUSTERED INDEX [IX_Activity_Logs_IsRead_CreatedAt]
-    ON [dbo].[Activity_Logs] ([is_read] ASC, [created_at] DESC)
-GO
-
 -- Index cho filter ActionCode trong backend
 CREATE NONCLUSTERED INDEX [IX_Activity_Logs_ActionCode]
     ON [dbo].[Activity_Logs] ([action_code] ASC)
+GO
+
+-- Tạo lại bảng với tên cột dạng snake_case (theo đúng convention của AppDbContext)
+CREATE TABLE [dbo].[Activity_Log_Reads] (
+    [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [activity_log_id] INT NOT NULL,
+    [user_id] INT NOT NULL,
+    [read_at] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    
+    CONSTRAINT [fk_activity_log_reads_activity_logs] FOREIGN KEY ([activity_log_id]) REFERENCES [dbo].[Activity_Logs] ([id]) ON DELETE CASCADE,
+    CONSTRAINT [fk_activity_log_reads_users] FOREIGN KEY ([user_id]) REFERENCES [dbo].[Users] ([id]) ON DELETE CASCADE
+);
+GO
+
+-- Tạo lại Index unique
+CREATE UNIQUE INDEX [uk_activity_log_user] ON [dbo].[Activity_Log_Reads] ([activity_log_id], [user_id]);
+GO
+
+-- Tạo index cho user_id để truy vấn nhanh
+CREATE INDEX [ix_activity_log_reads_user_id] ON [dbo].[Activity_Log_Reads] ([user_id]);
 GO
 
 -- ============================================================

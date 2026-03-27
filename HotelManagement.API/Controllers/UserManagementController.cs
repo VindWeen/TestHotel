@@ -6,6 +6,7 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
@@ -191,7 +192,7 @@ public class UserManagementController : ControllerBase
             entityLabel: user.Email,
             severity: "Success",
             userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
+            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
         );
 
         // Khôi phục AuditLog
@@ -251,7 +252,7 @@ public class UserManagementController : ControllerBase
             entityLabel: user.Email,
             severity: "Info",
             userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
+            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
         );
 
         _db.AuditLogs.Add(new AuditLog
@@ -324,7 +325,7 @@ public class UserManagementController : ControllerBase
             entityLabel: user.Email,
             severity: "Warning",
             userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
+            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
         );
 
         var notification = new Notification
@@ -370,7 +371,7 @@ public class UserManagementController : ControllerBase
             entityLabel: user.Email,
             severity: "Info",
             userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
+            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
         );
 
         // Khôi phục AuditLog
@@ -425,7 +426,7 @@ public class UserManagementController : ControllerBase
             entityLabel: user.Email,
             severity: user.Status == true ? "Success" : "Warning",
             userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
+            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
         );
 
         // Khôi phục AuditLog
@@ -454,7 +455,97 @@ public class UserManagementController : ControllerBase
 
         return Ok(new { notification, userId = id, status = user.Status });
     }
+
+    // POST /api/UserManagement/{id}/reset-password
+    [HttpPost("{id:int}/reset-password")]
+    [RequirePermission(PermissionCodes.ManageUsers)]
+    public async Task<IActionResult> ResetPassword(int id)
+    {
+        var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
+        if (user is null)
+            return NotFound(new { message = $"Không tìm thấy người dùng #{id}." });
+
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return BadRequest(new { message = "Người dùng này không có email." });
+
+        // Generate mật khẩu random 12 ký tự: chữ hoa + thường + số + đặc biệt
+        var newPassword = GenerateRandomPassword(12);
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.UpdatedAt    = DateTime.UtcNow;
+
+        var currentUserId = JwtHelper.GetUserId(User);
+
+        // Ghi AuditLog
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId    = currentUserId,
+            Action    = "RESET_PASSWORD",
+            TableName = "Users",
+            RecordId  = id,
+            OldValue  = null,
+            NewValue  = $"{{\"resetBy\": {currentUserId}, \"targetUser\": \"{user.Email}\"}}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        // Ghi ActivityLog
+        await _activityLog.LogAsync(
+            actionCode: "RESET_PASSWORD",
+            actionLabel: "Reset mật khẩu",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã reset mật khẩu cho {user.FullName} ({user.Email}).",
+            entityType: "User",
+            entityId: id,
+            entityLabel: user.Email,
+            severity: "Warning",
+            userId: currentUserId,
+            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
+        );
+
+        // Gửi email (fire-and-forget — không block response)
+        _ = _email.SendPasswordResetByAdminAsync(user.Email, user.FullName, newPassword);
+
+        var notification = new Notification
+        {
+            Title   = "Reset mật khẩu thành công",
+            Message = $"Đã reset mật khẩu và gửi email cho {user.FullName} ({user.Email}).",
+            Type    = NotificationType.Success,
+            Action  = NotificationAction.UpdateUser
+        };
+
+        return Ok(new { message = "Đã reset mật khẩu và gửi email thành công.", notification });
+    }
+
+    // ── Helper: generate random password ──────────────────────────────────────
+    private static string GenerateRandomPassword(int length)
+    {
+        const string upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // Bỏ O, I
+        const string lower   = "abcdefghjkmnpqrstuvwxyz";  // Bỏ o, i, l
+        const string digits  = "23456789";                 // Bỏ 0, 1
+        const string special = "@#$%*!?";                  // Bỏ & < > để tránh mâu thuẫn HTML, thêm !?
+        const string all     = upper + lower + digits + special;
+
+        var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        var bytes = new byte[length];
+        rng.GetBytes(bytes);
+
+        var chars = new char[length];
+        // Đảm bảo có ít nhất 1 ký tự mỗi loại
+        chars[0] = upper[bytes[0]  % upper.Length];
+        chars[1] = lower[bytes[1]  % lower.Length];
+        chars[2] = digits[bytes[2] % digits.Length];
+        chars[3] = special[bytes[3] % special.Length];
+        for (int i = 4; i < length; i++)
+            chars[i] = all[bytes[i] % all.Length];
+
+        // Shuffle để không lộ pattern vị trí
+        return new string(chars.OrderBy(_ => System.Security.Cryptography.RandomNumberGenerator.GetInt32(length)).ToArray());
+    }
 }
+
 
 public record CreateUserRequest(
     string    FullName,

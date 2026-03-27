@@ -60,6 +60,7 @@ export default function LoginPage() {
           avatarUrl: data.avatarUrl,
         },
         permissions: data.permissions || [],
+        rememberMe: remember,
       });
       if (remember)
         localStorage.setItem("hm_remember_email", loginEmail.trim());

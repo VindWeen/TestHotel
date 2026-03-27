@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<ActivityLogRead> ActivityLogReads => Set<ActivityLogRead>();
 
     // ── Cluster 2: Room Management ───────────────────────────────
     public DbSet<Amenity> Amenities => Set<Amenity>();
@@ -76,13 +77,37 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ActivityLog>()
             .HasIndex(a => new { a.EntityType, a.EntityId });
 
-        // Index cho màn hình thông báo: query theo IsRead = false hoặc OrderBy CreatedAt DESC
+        // Index cho màn hình thông báo: OrderBy CreatedAt DESC
         modelBuilder.Entity<ActivityLog>()
-            .HasIndex(a => new { a.IsRead, a.CreatedAt });
+            .HasIndex(a => a.CreatedAt);
 
         // Index cho filter ActionCode
         modelBuilder.Entity<ActivityLog>()
             .HasIndex(a => a.ActionCode);
+
+        // ── ActivityLogRead: per-user read status ─────────────────
+        modelBuilder.Entity<ActivityLogRead>().ToTable("Activity_Log_Reads");
+
+        // Unique: mỗi user chỉ đọc 1 lần / 1 log entry
+        modelBuilder.Entity<ActivityLogRead>()
+            .HasIndex(r => new { r.ActivityLogId, r.UserId })
+            .IsUnique();
+
+        // Index tìm nhanh: "chưa đọc của user X"
+        modelBuilder.Entity<ActivityLogRead>()
+            .HasIndex(r => r.UserId);
+
+        modelBuilder.Entity<ActivityLogRead>()
+            .HasOne(r => r.ActivityLog)
+            .WithMany(a => a.Reads)
+            .HasForeignKey(r => r.ActivityLogId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ActivityLogRead>()
+            .HasOne(r => r.User)
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // ── 2. Composite Primary Keys cho bảng join ──────────────
         modelBuilder.Entity<RolePermission>()

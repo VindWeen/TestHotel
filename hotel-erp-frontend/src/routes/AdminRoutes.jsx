@@ -5,13 +5,22 @@ import DashboardPage from "../pages/admin/DashboardPage";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import RequirePermission from "./RequirePermission";
+import PublicOnlyRoute from "./PublicOnlyRoute";
 import UserListPage from "../pages/admin/UserListPage";
 import RolePermissionPage from "../pages/admin/RolePermissionPage";
 
 export default function AdminRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      {/* Route công khai — đã đăng nhập sẽ bị redirect theo role */}
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
 
       <Route
         path="/403"
@@ -32,7 +41,6 @@ export default function AdminRoutes() {
       >
         <Route path="dashboard" element={<DashboardPage />} />
 
-        {/* ← thêm vào đây */}
         <Route
           path="staff"
           element={
@@ -51,7 +59,15 @@ export default function AdminRoutes() {
         />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Wildcard: đã đăng nhập → redirect theo role, chưa đăng nhập → /login */}
+      <Route
+        path="*"
+        element={
+          <PublicOnlyRoute>
+            <Navigate to="/login" replace />
+          </PublicOnlyRoute>
+        }
+      />
     </Routes>
   );
 }

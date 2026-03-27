@@ -56,3 +56,11 @@ export const changeRole = (id, newRoleId) =>
  */
 export const toggleStatus = (id) =>
     axiosClient.patch(`/UserManagement/${id}/toggle-status`);
+
+/**
+ * POST /api/UserManagement/{id}/reset-password  [MANAGE_USERS]
+ * Response: { message, notification }
+ */
+export const resetUserPassword = (id) =>
+    axiosClient.post(`/UserManagement/${id}/reset-password`);
+
