@@ -53,6 +53,7 @@ Core → (nothing — pure domain)
 - Hết hạn sau **7 ngày**.
 - Mỗi lần refresh token → cấp token mới **và** revoke token cũ (chống replay attack).
 - Khi logout hoặc khóa tài khoản → refresh token bị xóa/revoke.
+- **Remember Me:** Nếu người dùng tick "Remember me" khi đăng nhập, `token` và `user` info được lưu ở `localStorage` (vĩnh viễn). Nếu không, dữ liệu được lưu ở `sessionStorage` (mất khi đóng tab). Logic này được quản lý tập trung tại `adminAuthStore.js` và `axios.js`.
 
 ### Permission-based Authorization
 ```csharp
@@ -85,6 +86,7 @@ Frontend
             └→ Listen: connection.on("ReceiveNotification", handler)
                 └→ notificationStore.addNotification(...)
                         └→ NotificationMenu.jsx (UI)
+9. **Per-user Read Tracking:** Hệ thống không dùng cờ `IsRead` chung trên bảng `ActivityLog`. Thay vào đó, mỗi lần user click xem thông báo, một bản ghi sẽ được tạo trong bảng `Activity_Log_Reads`. Query lấy thông báo sẽ `LEFT JOIN` với bảng này để xác định trạng thái đã đọc riêng cho từng người.
 ```
 
 ### Notification Policy (Nguồn cấu hình duy nhất)

@@ -166,6 +166,7 @@ export const useExampleStore = create((set) => ({
     ```
 12. **Chuẩn hóa Email (Normalization)** — luôn gọi `.Trim().ToLower()` đối với mọi input liên quan đến tra cứu hoặc lưu trữ Email (nhất là trong luồng Authentication như Login, Register, CreateUser) để tránh tạo tài khoản trùng lặp do dư khoảng trắng.
 13. **Sinh Random Password chuẩn bôi đen** — Khi sinh random password gửi qua Email, tuyệt đối KHÔNG random ra các ký tự HTML Entity (`&`, `<`, `>`) để tránh lỗi render. Giao diện Email gửi pass cần có `user-select: all` ở thẻ bọc password.
+14. **Lưu trữ Authentication (Storage Choice)** — Luôn sử dụng `adminAuthStore.js` để quản lý Token. Logic phải hỗ trợ chuyển đổi linh hoạt giữa `localStorage` và `sessionStorage` dựa trên cờ `rememberMe` để đảm bảo trải nghiệm người dùng và bảo mật.
 ---
 
 ## Soft Delete Pattern

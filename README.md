@@ -1,163 +1,122 @@
-# 🏨 HotelManagement
-
-## ⚙️ Yêu cầu môi trường
-
-### .NET 10
-
-Kiểm tra phiên bản .NET đang có bằng lệnh:
-
-```bash
-dotnet --version
-```
-
-Nếu chưa có hoặc phiên bản thấp hơn 10, tải SDK tại:
-**[Download .NET 10.0 (Linux, macOS, and Windows) | .NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)**
-> Chọn bản **SDK x64** hoặc **x86** tùy theo máy.
-
----
-
-## 🚀 Hướng dẫn chạy project
-
-### 1. Tạo branch cho bản thân
-
-Nếu chưa có branch riêng, tạo và chuyển sang branch mới:
-
-```bash
-git checkout -b ten-cua-ban
-```
-
-### 2. Tạo database
-
-Chạy file `HotelManagement.sql` trên SQL Server để tạo database, các bảng và dữ liệu mẫu.
-
-> **Tài khoản Admin mặc định có trong dữ liệu mẫu:**
-> - 📧 Email: `admin@hotel.com`
-> - 🔑 Password: `Admin@123`
-
-### 3. Chạy API
-
-```bash
-dotnet run --project HotelManagement.API
-```
-
-API sẽ chạy tại:
-- http://localhost:5279
-
-### 4. Chạy Frontend (React/Vite)
-
-Mở terminal và di chuyển vào thư mục frontend:
-
-```bash
-cd hotel-erp-frontend
-```
-
-Cài đặt thư viện (chỉ cần chạy lần đầu):
-
-```bash
-npm install
-```
-Chạy project:
-
-```bash
-npm run dev
-```
-
-Frontend sẽ chạy tại:
-
-- http://localhost:5173
-
-### ⚠️ Lưu ý
-Backend (API) và Frontend cần chạy song song. Nếu chưa chạy API, hãy mở terminal khác và chạy:
-
-```bash
-dotnet run --project HotelManagement.API
-```
-
-### 📌 Quy trình chạy tổng quát
-Chạy database (SQL Server)
-Mở terminal 1 → chạy API
-Mở terminal 2 → chạy Frontend
-Truy cập Frontend tại: 
-- http://localhost:5173
-
 # 🏨 HotelManagement — Tổng Hợp Dự Án
 
-> **Stack:** .NET 10 · ASP.NET Core Web API · Entity Framework Core 10 · SQL Server · Redis · Cloudinary · JWT  
-> **Kiến trúc:** 3-layer — `HotelManagement.Core` · `HotelManagement.Infrastructure` · `HotelManagement.API`
+> **Stack:** .NET 10 (Preview) · ASP.NET Core Web API · Entity Framework Core 10 · SQL Server · Redis · Cloudinary · JWT · MailKit · SignalR  
+> **Kiến trúc:** 3-layer — `HotelManagement.Core` · `HotelManagement.Infrastructure` · `HotelManagement.API`  
+> **Frontend:** React 19 + Vite 8 · Ant Design 6 · Zustand · Axios · React Router DOM v7 · @microsoft/signalr
 
 ---
 
 ## 1. Cấu Trúc Solution
 
+### Backend Structure
+
 ```
 HotelManagement/
 ├── HotelManagement.Core/           # Entities, DTOs, Authorization helpers, JwtHelper
-├── HotelManagement.Infrastructure/ # AppDbContext, EF Core migrations
-└── HotelManagement.API/            # Controllers, Program.cs, appsettings
+│   ├── Authorization/              # PermissionCodes, RequirePermissionAttribute, Handler, Provider
+│   ├── DTOs/                       # BookingDTOs, RoomTypeDTO, AmenitiesDTO, UploadImageDTO
+│   ├── Entities/                   # 30+ entity classes
+│   ├── Helpers/                    # JwtHelper
+│   └── Models/Enums/               # NotificationEnums
+├── HotelManagement.Infrastructure/
+│   └── Data/                       # AppDbContext (EF Core, snake_case convention)
+└── HotelManagement.API/
+    ├── Controllers/                 # 15+ controllers
+    ├── Hubs/                        # NotificationHub (SignalR)
+    ├── Policies/                    # NotificationPolicy (RBAC cho thông báo)
+    ├── Services/                    # EmailService, ActivityLogService, NotificationService
+    └── Program.cs
+```
+
+### Frontend Structure
+
+```
+hotel-erp-frontend/
+├── src/
+│   ├── api/           # 14 file API client (authApi, userManagementApi, bookingsApi, ...)
+│   ├── components/    # NotificationMenu.jsx
+│   ├── hooks/         # useSignalR.js
+│   ├── layouts/       # AdminLayout.jsx (sidebar + topbar + spinner overlay)
+│   ├── pages/         # LoginPage.jsx, UserListPage.jsx, RolePermissionPage.jsx
+│   ├── routes/        # AdminRoutes, ProtectedRoute, RequirePermission, PublicOnlyRoute
+│   ├── store/         # adminAuthStore, loadingStore, notificationStore
+│   └── utils/         # formatters, buildQueryString
+├── tailwind.config.js
+├── vite.config.js
+└── package.json
 ```
 
 ---
 
-## 2. Cơ Sở Dữ Liệu — 7 Cluster
+## 2. Cơ Sở Dữ Liệu — Hệ thống 7 Clusters
 
 ### Cluster 1: System, Auth & HR
-| Bảng | Mô tả |
-|---|---|
-| `Roles` | Vai trò: Admin, Manager, Receptionist, Accountant, Housekeeping, Security, Chef, Waiter, IT Support, Guest |
-| `Permissions` | Quyền hạn với `permission_code` (VD: `MANAGE_ROOMS`) và `module_name` |
-| `Role_Permissions` | Composite PK — gán nhiều permission cho 1 role |
-| `Memberships` | 10 hạng thành viên từ Khách Mới → Signature, kèm `discount_percent` và `color_hex` |
-| `Users` | Thông tin đầy đủ: auth, loyalty points, refresh token, avatar Cloudinary |
-| `Audit_Logs` | Ghi lại mọi thao tác thay đổi dữ liệu quan trọng |
+
+| Bảng                 | Mô tả                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Roles`              | 10 vai trò: Admin, Manager, Receptionist, Accountant, Housekeeping, Security, Chef, Waiter, IT Support, Guest |
+| `Permissions`        | 10 quyền với `permission_code` và `module_name`                                                               |
+| `Role_Permissions`   | Composite PK — gán nhiều permission cho 1 role                                                                |
+| `Memberships`        | 10 hạng từ Khách Mới → Signature, kèm `discount_percent`, `color_hex`                                         |
+| `Users`              | Auth đầy đủ, loyalty points, refresh token, avatar Cloudinary                                                 |
+| `Audit_Logs`         | Ghi lại mọi thao tác thay đổi dữ liệu quan trọng                                                              |
+| `Activity_Logs`      | Thông báo realtime (SignalR): `action_code`, `severity`, `entity_type/id/label`                               |
+| `Activity_Log_Reads` | Per-user read status (junction table, unique idx trên `activity_log_id + user_id`)                            |
 
 ### Cluster 2: Room Management
-| Bảng | Mô tả |
-|---|---|
-| `Room_Types` | 10 loại phòng với `slug`, `base_price`, `capacity`, `bed_type`, `view_type` |
-| `Rooms` | Tách 2 trục trạng thái: `business_status` (Available/Occupied/Disabled) + `cleaning_status` (Clean/Dirty) |
-| `Amenities` | Tiện nghi phòng (Wifi, Smart TV, Điều hòa…) với soft delete |
-| `RoomType_Amenities` | Bảng join many-to-many giữa Room_Types và Amenities |
-| `Room_Images` | Ảnh Cloudinary: `is_primary`, `sort_order`, soft delete |
-| `Room_Inventory` | Vật tư phòng (Asset / Minibar): `price_if_lost`, soft delete |
+
+| Bảng                 | Mô tả                                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `Room_Types`         | 10 loại phòng với `slug`, `base_price`, `capacity`, `bed_type`, `view_type`                          |
+| `Rooms`              | 2 trục trạng thái: `business_status` (Available/Occupied/Disabled) + `cleaning_status` (Clean/Dirty) |
+| `Amenities`          | Tiện nghi với soft delete                                                                            |
+| `RoomType_Amenities` | Many-to-many giữa Room_Types và Amenities                                                            |
+| `Room_Images`        | Ảnh Cloudinary: `is_primary`, `sort_order`, `cloudinary_public_id`, soft delete                      |
+| `Room_Inventory`     | Vật tư phòng (Asset / Minibar): `price_if_lost`, soft delete                                         |
 
 ### Cluster 3: Booking & Promotions
-| Bảng | Mô tả |
-|---|---|
-| `Vouchers` | Mã giảm giá: PERCENT / FIXED_AMOUNT, `usage_limit`, `max_uses_per_user`, thời hạn |
-| `Bookings` | Đặt phòng: thông tin khách, booking code unique, trạng thái, nguồn (online/walk_in/phone) |
-| `Booking_Details` | Chi tiết từng phòng trong booking: ngày CI/CO, `price_per_night` khóa tại thời điểm đặt |
-| `Voucher_Usage` | Theo dõi lịch sử dùng voucher theo từng user/booking |
+
+| Bảng              | Mô tả                                                                          |
+| ----------------- | ------------------------------------------------------------------------------ |
+| `Vouchers`        | PERCENT / FIXED_AMOUNT, `usage_limit`, `max_uses_per_user`, thời hạn           |
+| `Bookings`        | Booking code unique, thông tin khách, trạng thái, nguồn (online/walk_in/phone) |
+| `Booking_Details` | Chi tiết phòng: ngày CI/CO, `price_per_night` khóa tại thời điểm đặt           |
+| `Voucher_Usage`   | Lịch sử dùng voucher theo user/booking                                         |
 
 ### Cluster 4: Services & Operations
-| Bảng | Mô tả |
-|---|---|
-| `Service_Categories` | Nhóm dịch vụ (Nhà hàng, Spa, Di chuyển, Giặt ủi…) |
-| `Services` | Dịch vụ cụ thể với `price`, `unit`, `image_url`, soft delete |
-| `Order_Services` | Đơn đặt dịch vụ gắn với `booking_detail_id` |
-| `Order_Service_Details` | Chi tiết từng dịch vụ trong đơn |
-| `Loss_And_Damages` | Biên bản mất/hỏng vật tư: `penalty_amount`, `reported_by` (Housekeeping) |
+
+| Bảng                    | Mô tả                                              |
+| ----------------------- | -------------------------------------------------- |
+| `Service_Categories`    | Nhóm dịch vụ                                       |
+| `Services`              | Dịch vụ cụ thể với soft delete                     |
+| `Order_Services`        | Đơn đặt dịch vụ gắn với `booking_detail_id`        |
+| `Order_Service_Details` | Chi tiết từng dịch vụ trong đơn                    |
+| `Loss_And_Damages`      | Biên bản mất/hỏng: `penalty_amount`, `reported_by` |
 
 ### Cluster 5: Billing, Reviews & CMS
-| Bảng | Mô tả |
-|---|---|
-| `Invoices` | Hóa đơn: tổng phòng, dịch vụ, hư hỏng, giảm giá, thuế, `final_total` |
-| `Payments` | Thanh toán: Deposit / Final_Settlement / Refund, nhiều phương thức |
-| `Reviews` | Đánh giá: rating 1–5, ảnh Cloudinary, workflow duyệt (pending → approved/rejected) |
-| `Article_Categories` | Danh mục bài viết với `slug` unique |
-| `Articles` | Bài viết: Draft → Pending_Review → Published, SEO meta, thumbnail Cloudinary |
-| `Attractions` | Địa điểm du lịch: tọa độ GPS, khoảng cách km, Google Maps embed |
+
+| Bảng                 | Mô tả                                                                    |
+| -------------------- | ------------------------------------------------------------------------ |
+| `Invoices`           | Tổng phòng/dịch vụ/hư hỏng, giảm giá, thuế, `final_total`                |
+| `Payments`           | Deposit / Final_Settlement / Refund, nhiều phương thức                   |
+| `Reviews`            | Rating 1–5, ảnh Cloudinary, workflow duyệt (pending → approved/rejected) |
+| `Article_Categories` | Danh mục bài viết với `slug` unique                                      |
+| `Articles`           | Draft → Pending_Review → Published, SEO meta, thumbnail Cloudinary       |
+| `Attractions`        | Địa điểm du lịch: tọa độ GPS, khoảng cách km, Google Maps embed          |
 
 ### Cluster 6 & 7: HR & Loyalty
-| Bảng | Mô tả |
-|---|---|
-| `Shifts` | Ca làm việc: Morning/Afternoon/Night, kế hoạch vs thực tế, bàn giao ca |
-| `Loyalty_Transactions` | Lịch sử điểm thưởng: earned / redeemed / expired |
+
+| Bảng                   | Mô tả                                                                  |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `Shifts`               | Ca làm việc: Morning/Afternoon/Night, kế hoạch vs thực tế, bàn giao ca |
+| `Loyalty_Transactions` | Lịch sử điểm thưởng: earned / redeemed / expired                       |
 
 ---
 
 ## 3. Hệ Thống Phân Quyền (RBAC)
 
-### Permission Codes
+### Permission Codes tiêu biểu
+
 ```
 VIEW_DASHBOARD   MANAGE_USERS    MANAGE_ROLES
 MANAGE_ROOMS     MANAGE_BOOKINGS MANAGE_INVOICES
@@ -166,315 +125,113 @@ MANAGE_INVENTORY
 ```
 
 ### Cơ chế hoạt động
-1. **`PermissionRequirement`** — mang `permission_code` cần kiểm tra
-2. **`PermissionPolicyProvider`** — tự động tạo `AuthorizationPolicy` từ tên policy = permission code (không cần đăng ký tay)
-3. **`PermissionAuthorizationHandler`** — đọc claims `"permission"` trong JWT và so khớp
-4. **`[RequirePermission(PermissionCodes.ManageRooms)]`** — attribute tiện lợi thay cho `[Authorize(Policy = "MANAGE_ROOMS")]`
 
-### JWT Token chứa
-- `sub` (userId), `email`, `jti`, `role`, `full_name`
-- Nhiều claim `"permission"` (mỗi permission_code là 1 claim riêng)
+1. **`PermissionRequirement`**: Mang `permission_code` cần kiểm tra.
+2. **`PermissionPolicyProvider`**: Tự động tạo `AuthorizationPolicy` từ policy name.
+3. **`PermissionAuthorizationHandler`**: Đọc claims `"permission"` trong JWT và so khớp.
+4. **Custom Attribute**: `[RequirePermission(PermissionCodes.ManageRooms)]` thay cho `[Authorize(Policy = "...")]`.
 
 ---
 
-## 4. Authentication — Auth Flow
+## 4. Authentication & Security
 
 ### Endpoints
-| Method | Route | Mô tả |
-|---|---|---|
-| POST | `/api/Auth/login` | Đăng nhập → access token + refresh token |
-| POST | `/api/Auth/register` | Đăng ký khách hàng mới |
-| POST | `/api/Auth/refresh-token` | Lấy access token mới bằng refresh token |
-| POST | `/api/Auth/logout` | Xóa refresh token phía server |
 
-### Đặc điểm
-- **Refresh Token Rotation**: mỗi lần refresh cấp token mới, hủy token cũ → chống replay attack
-- **Refresh token** lưu server-side trong DB (`refresh_token`, `refresh_token_expiry`), có thể revoke khi logout hoặc khóa tài khoản
-- **BCrypt** hash password
-- Token hết hạn sau 60 phút, refresh token hết hạn sau 7 ngày
+- **POST** `/api/Auth/login`: Đăng nhập → access token + refresh token.
+- **POST** `/api/Auth/register`: Đăng ký khách hàng mới (role: Guest).
+- **POST** `/api/Auth/refresh-token`: Xoay vòng (Rotate) Token.
+- **POST** `/api/Auth/logout`: Vô hiệu hóa session.
 
----
+### Bảo mật
 
-## 5. Controllers & API Endpoints
-
-### AuthController
-| Method | Route | Auth |
-|---|---|---|
-| POST | `/api/Auth/login` | Public |
-| POST | `/api/Auth/register` | Public |
-| POST | `/api/Auth/refresh-token` | Public |
-| POST | `/api/Auth/logout` | `[Authorize]` |
-
-### UserManagementController
-| Method | Route | Permission |
-|---|---|---|
-| GET | `/api/UserManagement` | `MANAGE_USERS` |
-| GET | `/api/UserManagement/{id}` | `MANAGE_USERS` |
-| POST | `/api/UserManagement` | `MANAGE_USERS` |
-| PUT | `/api/UserManagement/{id}` | `MANAGE_USERS` |
-| DELETE | `/api/UserManagement/{id}` | `MANAGE_USERS` (khóa tài khoản) |
-| PUT | `/api/UserManagement/{id}/change-role` | `MANAGE_USERS` + `MANAGE_ROLES` |
-| PATCH | `/api/UserManagement/{id}/toggle-status` | `MANAGE_USERS` |
-
-### UserProfileController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/UserProfile/my-profile` | `[Authorize]` |
-| PUT | `/api/UserProfile/update-profile` | `[Authorize]` |
-| PUT | `/api/UserProfile/change-password` | `[Authorize]` |
-| POST | `/api/UserProfile/upload-avatar` | `[Authorize]` |
-
-### RolesController
-| Method | Route | Permission |
-|---|---|---|
-| POST | `/api/Roles/assign-permission` | `MANAGE_ROLES` |
-| GET | `/api/Roles/my-permissions` | `[Authorize]` |
-
-### RoomTypesController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/RoomTypes` | Public |
-| GET | `/api/RoomTypes/{id}` | Public |
-| DELETE | `/api/RoomTypes/{id}` | `MANAGE_ROOMS` |
-| POST | `/api/RoomTypes/{id}/images` | `MANAGE_ROOMS` |
-| DELETE | `/api/RoomTypes/images/{imageId}` | `MANAGE_ROOMS` |
-| PATCH | `/api/RoomTypes/{roomTypeId}/images/{imageId}/set-primary` | `MANAGE_ROOMS` |
-| PATCH | `/api/RoomTypes/{id}/toggle-active` | `MANAGE_ROOMS` |
-
-### RoomsController
-| Method | Route | Permission |
-|---|---|---|
-| GET | `/api/Rooms` | `MANAGE_ROOMS` |
-| GET | `/api/Rooms/{id}` | `MANAGE_ROOMS` |
-| POST | `/api/Rooms` | `MANAGE_ROOMS` |
-| PUT | `/api/Rooms/{id}` | `MANAGE_ROOMS` |
-| PATCH | `/api/Rooms/{id}/status` | `MANAGE_ROOMS` |
-| PATCH | `/api/Rooms/{id}/cleaning-status` | `MANAGE_ROOMS` |
-| POST | `/api/Rooms/bulk-create` | `MANAGE_ROOMS` |
-
-### AmenitiesController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/Amenities` | Public (admin thấy cả inactive) |
-| GET | `/api/Amenities/{id}` | Public |
-| POST | `/api/Amenities` | `MANAGE_ROOMS` |
-| PUT | `/api/Amenities/{id}` | `MANAGE_ROOMS` |
-| DELETE | `/api/Amenities/{id}` | `MANAGE_ROOMS` |
-| PATCH | `/api/Amenities/{id}/toggle-active` | `MANAGE_ROOMS` |
-
-### RoomInventoriesController
-| Method | Route | Permission |
-|---|---|---|
-| GET | `/api/RoomInventories/room/{roomId}` | `MANAGE_INVENTORY` |
-| GET | `/api/RoomInventories/{id}` | `MANAGE_INVENTORY` |
-| POST | `/api/RoomInventories` | `MANAGE_INVENTORY` |
-| PUT | `/api/RoomInventories/{id}` | `MANAGE_INVENTORY` |
-| DELETE | `/api/RoomInventories/{id}` | `MANAGE_INVENTORY` |
-| POST | `/api/RoomInventories/clone` | `MANAGE_INVENTORY` |
-| PATCH | `/api/RoomInventories/{id}/toggle-active` | `MANAGE_INVENTORY` |
-
-### BookingsController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/Bookings` | `MANAGE_BOOKINGS` |
-| GET | `/api/Bookings/{id}` | `MANAGE_BOOKINGS` |
-| GET | `/api/Bookings/my-bookings` | `[Authorize]` |
-| POST | `/api/Bookings` | `[AllowAnonymous]` |
-| PATCH | `/api/Bookings/{id}/confirm` | `MANAGE_BOOKINGS` |
-| PATCH | `/api/Bookings/{id}/cancel` | `[Authorize]` |
-| PATCH | `/api/Bookings/{id}/check-in` | `MANAGE_BOOKINGS` |
-| PATCH | `/api/Bookings/{id}/check-out` | `MANAGE_BOOKINGS` |
-
-### VouchersController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/Vouchers` | `MANAGE_BOOKINGS` |
-| GET | `/api/Vouchers/{id}` | `MANAGE_BOOKINGS` |
-| POST | `/api/Vouchers` | `MANAGE_BOOKINGS` |
-| PUT | `/api/Vouchers/{id}` | `MANAGE_BOOKINGS` |
-| DELETE | `/api/Vouchers/{id}` | `MANAGE_BOOKINGS` (soft delete) |
-| POST | `/api/Vouchers/validate` | `[Authorize]` |
-
-### ReviewsController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/Reviews` | Public (default: chỉ approved) |
-| POST | `/api/Reviews` | `[Authorize]` |
-| POST | `/api/Reviews/upload-image` | `[Authorize]` |
-| PATCH | `/api/Reviews/{id}/approve` | `MANAGE_CONTENT` |
-
-### ArticleCategoriesController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/ArticleCategories` | Public |
-| GET | `/api/ArticleCategories/{id}` | Public |
-| POST | `/api/ArticleCategories` | `MANAGE_CONTENT` |
-| PUT | `/api/ArticleCategories/{id}` | `MANAGE_CONTENT` |
-| DELETE | `/api/ArticleCategories/{id}` | `MANAGE_CONTENT` |
-| PATCH | `/api/ArticleCategories/{id}/toggle-active` | `MANAGE_CONTENT` |
-
-### ArticlesController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/Articles` | Public (admin thấy Draft) |
-| GET | `/api/Articles/{slug}` | Public |
-| POST | `/api/Articles` | `MANAGE_CONTENT` |
-| PUT | `/api/Articles/{id}` | `MANAGE_CONTENT` |
-| DELETE | `/api/Articles/{id}` | `MANAGE_CONTENT` |
-| PATCH | `/api/Articles/{id}/toggle-active` | `MANAGE_CONTENT` |
-| POST | `/api/Articles/{id}/thumbnail` | `MANAGE_CONTENT` |
-
-### AttractionsController
-| Method | Route | Auth |
-|---|---|---|
-| GET | `/api/Attractions` | Public |
-| GET | `/api/Attractions/{id}` | Public |
-| POST | `/api/Attractions` | `MANAGE_CONTENT` |
-| PUT | `/api/Attractions/{id}` | `MANAGE_CONTENT` |
-| DELETE | `/api/Attractions/{id}` | `MANAGE_CONTENT` |
-| PATCH | `/api/Attractions/{id}/toggle-active` | `MANAGE_CONTENT` |
+- **Refresh Token Rotation**: Mỗi lần refresh cấp token mới, hủy token cũ → chống replay attack.
+- **BCrypt**: Thuật toán băm mật khẩu hiện đại với Salt mạnh.
+- **Email Normalization**: Tất cả Email được chuẩn hóa `Trim().ToLower()` trước khi xử lý Auth.
+- **Session Persistence**: Hỗ trợ linh hoạt LocalStorage (Remember me) và SessionStorage.
 
 ---
 
-## 6. Các Tính Năng Nổi Bật
+## 5. Thông Báo Realtime (SignalR)
 
-### Booking Flow
-```
-Pending → Confirmed → Checked_in → Completed
-                ↘ Cancelled (bất cứ lúc nào)
-```
-- **Check-in**: Tự động tìm phòng Available cùng RoomType → gán `RoomId`, đổi `BusinessStatus = Occupied`
-- **Check-out**: Đổi `BusinessStatus = Available`, `CleaningStatus = Dirty`
-- **Cancel**: Giải phóng phòng về Available + Clean
-- **Redis distributed lock**: Khóa slot đặt phòng 30 giây để tránh double booking
-- **Voucher**: Validate đầy đủ (thời hạn, usage limit, per-user limit, min booking value)
+### Luồng xử lý
 
-### Phân tách trạng thái phòng
-```
-business_status: Available | Occupied | Disabled
-cleaning_status: Clean | Dirty
-```
-Lễ tân quản lý `business_status`, Housekeeping cập nhật `cleaning_status`.
+Action trong Controller → `IActivityLogService` → Lưu DB → `INotificationService` → Push qua SignalR Hub → Client cập nhật Badge & Menu.
 
-### Upload Cloudinary
-- **Avatar**: Resize 500×500, crop face — trong UserProfileController
-- **Room images**: Auto quality, folder `hotel/room-types/{id}`, logic set ảnh primary, xóa cũ khi delete
-- **Review images**: Resize 1200×800, folder `hotel/reviews`
-- **Article thumbnails**: Resize 1200×630, crop fill, xóa ảnh cũ qua `cloudinary_public_id`
+### Đặc điểm nổi bật
 
-### Slug generation (tiếng Việt)
-- Chuẩn hóa Unicode NFD → loại bỏ dấu → lowercase → replace "đ" → clean ký tự đặc biệt
-- Đảm bảo unique bằng hậu tố `-2`, `-3`... nếu trùng
-- Áp dụng cho: Articles, ArticleCategories
-
-### Soft Delete Pattern
-Áp dụng nhất quán cho: Amenities, RoomTypes, RoomImages, RoomInventory, Services, Articles, ArticleCategories, Attractions.  
-Kèm endpoint `toggle-active` (PATCH) để bật/tắt linh hoạt.
-
-### Audit Log
-Ghi log tại: `UpdateBusinessStatus` (Rooms), `LockUser` / `ToggleStatus` (UserManagement).  
-Lưu: userId, action, table_name, record_id, old_value, new_value, ip_address, user_agent.
-
-### Review Moderation
-```
-Gửi review → IsApproved = false (pending) → Admin duyệt → true / từ chối kèm lý do
-```
-Public GET chỉ trả `IsApproved = true`. Admin filter theo `?status=pending|approved|rejected`.
-
-### Article Publishing
-```
-Draft → Pending_Review → Published (chỉ Admin được set Published)
-```
-- `GET /api/Articles` public chỉ thấy Published
-- Admin (MANAGE_CONTENT) thấy tất cả status
+- **NotificationPolicy**: Nguồn cấu hình duy nhất dùng để ánh xạ Role nhận thông báo.
+- **Per-user Read Tracking**: Trạng thái đọc độc lập cho từng User (Manager A đọc không làm Manager B mất thông báo).
+- **History Sync**: Tự động đồng bộ lịch sử 50 thông báo gần nhất khi F5 trang.
 
 ---
 
-## 7. Cấu Hình & Tích Hợp
+## 6. Controllers — Danh mục API
 
-### appsettings.json
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "SQL Server connection string",
-    "Redis": "localhost:6379,abortConnect=false"
-  },
-  "Jwt": {
-    "Key": "...",
-    "Issuer": "HotelManagement",
-    "Audience": "HotelManagementUsers",
-    "ExpiresInMinutes": 60
-  },
-  "Cloudinary": {
-    "CloudName": "...",
-    "ApiKey": "...",
-    "ApiSecret": "..."
-  }
-}
-```
-
-### Program.cs — Services đã đăng ký
-| Service | Ghi chú |
-|---|---|
-| `AppDbContext` | EF Core SQL Server |
-| JWT Bearer Auth | `ClockSkew = TimeSpan.Zero`, custom 401/403 response JSON |
-| `IAuthorizationPolicyProvider` → `PermissionPolicyProvider` | Singleton |
-| `IAuthorizationHandler` → `PermissionAuthorizationHandler` | Scoped |
-| `JwtHelper` | Scoped |
-| `Cloudinary` | Singleton |
-| `IConnectionMultiplexer` (Redis) | Singleton |
-| Mapster | DI-based mapping |
-| Swagger + Bearer security definition | Dev only |
-| `ReferenceHandler.IgnoreCycles` | JSON serializer |
-
-### AppDbContext — quy ước đặt tên
-- Bảng: tên custom snake_case có underscore (VD: `Room_Types`, `Audit_Logs`)
-- Cột: tự động convert PascalCase → snake_case qua regex (`RoomTypeId` → `room_type_id`)
-- Tất cả FK constraint name, index name cũng snake_case
+| Controller       | Phân quyền yêu cầu      | Mô tả chính                                                |
+| ---------------- | ----------------------- | ---------------------------------------------------------- |
+| `Auth`           | Public / Authorize      | Login, Register, Refresh Token, Logout                     |
+| `UserManagement` | `MANAGE_USERS`          | CRUD Nhân viên, Reset Pass, Toggle Status, Change Role     |
+| `UserProfile`    | `[Authorize]`           | My Profile, Change Password, Upload Avatar                 |
+| `Roles`          | `MANAGE_ROLES`          | Danh sách Role, Gán quyền (Permission Assign)              |
+| `RoomTypes`      | Public / `MANAGE_ROOMS` | CMS Loại phòng, Quản lý ảnh Cloudinary                     |
+| `Rooms`          | `MANAGE_ROOMS`          | CRUD Phòng, Đổi trạng thái vệ sinh/kinh doanh, Bulk Create |
+| `Bookings`       | `MANAGE_BOOKINGS`       | Workflow đặt phòng: Confirm, Check-in, Check-out, Cancel   |
+| `Vouchers`       | `MANAGE_BOOKINGS`       | CRUD Voucher, Validate điều kiện sử dụng                   |
+| `Reviews`        | `MANAGE_CONTENT`        | Workflow duyệt đánh giá của khách hàng                     |
+| `Articles`       | `MANAGE_CONTENT`        | CMS Bài viết, SEO, Thumbnail Cloudinary, Slug generation   |
 
 ---
 
-## 8. Seed Data
+## 7. Các Tính Năng Kỹ Thuật Đặc Biệt
 
-| Bảng | Số bản ghi |
-|---|---|
-| Roles | 10 |
-| Permissions | 10 |
-| Memberships | 10 (Khách Mới → Signature) |
-| Users | 10 (1 Admin, staff, 5 khách hàng) |
-| Room_Types | 10 (Standard → Royal Villa) |
-| Rooms | 10 |
-| Amenities | 10 |
-| Vouchers | 10 (KM1–KM10) |
-| Bookings | 10 |
-| Booking_Details | 10 |
-| Invoices | 10 |
-| Payments | 10 |
-| Services | 10 |
-| Reviews | 10 |
-| Articles | 10 |
-| Attractions | 10 |
-
-**Tài khoản Admin mặc định:** `admin@hotel.com` / `Admin@123`
+- **Distributed Lock (Redis)**: Khóa slot đặt phòng 30 giây để tránh tình trạng "vượt rào" đặt trùng phòng (double booking).
+- **Email Fire-and-Forget**: Gửi email xác nhận, reset mật khẩu qua MailKit mà không làm chậm tốc độ phản hồi API.
+- **Slug Generation**: Hệ thống tự động chuyển đổi tiêu đề Tiếng Việt có dấu thành URL friendly slug unique.
+- **Cloudinary Integration**: Tự động tối ưu ảnh (resize, crop face cho avatar, format optimization).
+- **Audit Trace**: Lưu vết chi tiết ai, lúc nào, thay đổi `OldValue` thành `NewValue` (dạng JSON) cho mọi bảng quan trọng.
 
 ---
 
-## 9. Chạy Dự Án
+## 8. Trạng Thái Frontend — Dashboard & UI
 
-```bash
-# 1. Tạo database
-# Chạy file HotelManagement.sql trên SQL Server
+### Đã hoàn thiện 100%
 
-# 2. Chạy thêm migration bổ sung
-# Chạy file Bổ sung.sql (thêm refresh_token columns)
+- Giao diện Đăng nhập + Đăng ký.
+- Layout Quản trị: Sidebar, Header, Breadcrumb, Loading Spinner.
+- Quản lý Nhân sự: Bảng danh sách, Modal chi tiết, Form thêm/sửa, Reset mật khẩu.
+- Phân quyền: Giao diện Checkbox ma trận giữa Role và Permission.
+- Hệ thống Chuông thông báo Realtime: Badge count, Popover history.
 
-# 3. Khởi động API
-dotnet run --project HotelManagement.API
+### Các trang đang phát triển (Backend đã sẵn sàng)
 
-# API chạy tại:
-# http://localhost:5279
-
-# Swagger UI: http://localhost:5279/swagger
-```
+- Quản lý Phòng & Loại phòng.
+- Quản lý Đặt phòng & Voucher.
+- Dashboard báo cáo & Biểu đồ thống kê.
 
 ---
+
+## 9. Hướng Dẫn Chạy Dự Án
+
+### Backend
+
+1. Chạy file `HotelManagement.sql` trên SQL Server.
+2. Cấu hình `appsettings.json` (ConnectionStrings, Cloudinary, Email SMTP).
+3. `dotnet run --project HotelManagement.API`
+
+### Frontend
+
+1. `cd hotel-erp-frontend`
+2. `npm install`
+3. `npm run dev`
+
+**Tài khoản Admin:** `admin@hotel.com` / `Admin@123`
+
+---
+
+## 10. Lời Kết (Ghi chú TODO)
+
+Dự án hiện đang trong giai đoạn hoàn thiện các module nghiệp vụ sâu (Invoices, Shifts). Tuy nhiên, nền tảng cốt lõi về **Security, Realtime Notification, Infrastructure (Redis/Cloudinary)** đã được xây dựng cực kỳ vững chắc và đúng chuẩn kiến trúc hiện đại.
+
+---
+
+_Tài liệu được cập nhật tự động bởi AI Documentation System._
