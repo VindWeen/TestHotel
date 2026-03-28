@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<RoomTypeAmenity> RoomTypeAmenities => Set<RoomTypeAmenity>();
     public DbSet<RoomImage> RoomImages => Set<RoomImage>();
+    public DbSet<Equipment> Equipments => Set<Equipment>();
     public DbSet<RoomInventory> RoomInventories => Set<RoomInventory>();
 
     // ── Cluster 3: Booking & Promotions ─────────────────────────
@@ -60,6 +61,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RoomType>().ToTable("Room_Types");
         modelBuilder.Entity<RoomTypeAmenity>().ToTable("RoomType_Amenities");
         modelBuilder.Entity<RoomImage>().ToTable("Room_Images");
+        modelBuilder.Entity<Equipment>().ToTable("Equipments");
         modelBuilder.Entity<RoomInventory>().ToTable("Room_Inventory");
         modelBuilder.Entity<RolePermission>().ToTable("Role_Permissions");
         modelBuilder.Entity<BookingDetail>().ToTable("Booking_Details");
@@ -166,6 +168,12 @@ public class AppDbContext : DbContext
             .HasOne(l => l.Reporter)
             .WithMany(u => u.ReportedDamages)
             .HasForeignKey(l => l.ReportedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<RoomInventory>()
+            .HasOne(ri => ri.Equipment)
+            .WithMany(e => e.RoomInventories)
+            .HasForeignKey(ri => ri.EquipmentId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // ── 5. Map tên cột snake_case cho toàn bộ entity ─────────

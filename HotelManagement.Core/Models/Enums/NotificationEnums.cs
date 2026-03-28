@@ -49,5 +49,8 @@ namespace HotelManagement.Core.Models.Enums
         ViewUsers,
         UpdateProfile,
         CreateProfile,
+        CreateLossReport,
+        UpdateLossReport,
+        DeleteLossReport,
     }
 }

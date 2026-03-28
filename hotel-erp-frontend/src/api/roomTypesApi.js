@@ -8,12 +8,24 @@ import axiosClient from './axios';
 export const getRoomTypes = () =>
     axiosClient.get('/RoomTypes');
 
+export const getAdminRoomTypes = () =>
+    axiosClient.get('/RoomTypes/admin');
+
 /**
  * GET /api/RoomTypes/{id}  [Public]
  * Response: room type with all images (sorted) and amenities
  */
 export const getRoomTypeById = (id) =>
     axiosClient.get(`/RoomTypes/${id}`);
+
+export const getAdminRoomTypeById = (id) =>
+    axiosClient.get(`/RoomTypes/admin/${id}`);
+
+export const createRoomType = (data) =>
+    axiosClient.post('/RoomTypes', data);
+
+export const updateRoomType = (id, data) =>
+    axiosClient.put(`/RoomTypes/${id}`, data);
 
 /**
  * DELETE /api/RoomTypes/{id}  [MANAGE_ROOMS]

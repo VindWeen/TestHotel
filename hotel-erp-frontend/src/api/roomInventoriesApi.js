@@ -3,21 +3,21 @@ import axiosClient from './axios';
 
 /**
  * GET /api/RoomInventories/room/{roomId}  [MANAGE_INVENTORY]
- * Response: { roomId, data: [{ itemType, count, items }], total }
+ * Response: { roomId, data: [{ itemType, count, items: [{ id, roomId, equipmentId, equipmentName, quantity, priceIfLost, note, isActive }] }], total }
  */
 export const getInventoryByRoom = (roomId) =>
     axiosClient.get(`/RoomInventories/room/${roomId}`);
 
 /**
  * GET /api/RoomInventories/{id}  [MANAGE_INVENTORY]
- * Response: { id, roomId, itemName, itemType, quantity, priceIfLost }
+ * Response: { id, roomId, equipmentId, equipmentName, itemType, quantity, priceIfLost, note, isActive }
  */
 export const getInventoryById = (id) =>
     axiosClient.get(`/RoomInventories/${id}`);
 
 /**
  * POST /api/RoomInventories  [MANAGE_INVENTORY]
- * Body: { roomId, itemName, itemType: "Asset"|"Minibar", quantity, priceIfLost }
+ * Body: { roomId, equipmentId, itemType: "Asset"|"Minibar", quantity, priceIfLost, note }
  * Response: { message, id }
  */
 export const createInventory = (data) =>
@@ -25,7 +25,7 @@ export const createInventory = (data) =>
 
 /**
  * PUT /api/RoomInventories/{id}  [MANAGE_INVENTORY]
- * Body: { itemName, itemType, quantity, priceIfLost }
+ * Body: { equipmentId, itemType, quantity, priceIfLost, note }
  * Response: { message }
  */
 export const updateInventory = (id, data) =>
@@ -50,7 +50,7 @@ export const cloneInventory = (sourceRoomId, targetRoomIds) =>
 
 /**
  * PATCH /api/RoomInventories/{id}/toggle-active  [MANAGE_INVENTORY]
- * Response: { message, id, itemName, isActive }
+ * Response: { message, id, equipmentId, equipmentName, isActive }
  */
 export const toggleInventoryActive = (id) =>
     axiosClient.patch(`/RoomInventories/${id}/toggle-active`);

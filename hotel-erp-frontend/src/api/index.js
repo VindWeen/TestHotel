@@ -11,6 +11,8 @@ export * from './roomTypesApi';
 export * from './roomsApi';
 export * from './amenitiesApi';
 export * from './roomInventoriesApi';
+export * from './equipmentsApi';
+export * from './permissionsApi';
 export * from './bookingsApi';
 export * from './vouchersApi';
 export * from './reviewsApi';

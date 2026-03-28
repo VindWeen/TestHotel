@@ -36,12 +36,12 @@ export const updateRoom = (id, data) =>
     axiosClient.put(`/Rooms/${id}`, data);
 
 /**
- * PATCH /api/Rooms/{id}/status  [MANAGE_ROOMS]
+ * PATCH /api/Rooms/{id}/business_status  [MANAGE_ROOMS]
  * Body: { businessStatus: "Available" | "Occupied" | "Disabled" }
  * Response: { message }
  */
 export const updateBusinessStatus = (id, businessStatus) =>
-    axiosClient.patch(`/Rooms/${id}/status`, { businessStatus });
+    axiosClient.patch(`/Rooms/${id}/business_status`, { businessStatus });
 
 /**
  * PATCH /api/Rooms/{id}/cleaning-status  [MANAGE_ROOMS]

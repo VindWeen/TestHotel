@@ -105,7 +105,6 @@ public class AmenitiesController : ControllerBase
             RecordId  = amenity.Id,
             OldValue  = null,
             NewValue  = $"{{\"name\": \"{amenity.Name}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -169,7 +168,6 @@ public class AmenitiesController : ControllerBase
             RecordId  = id,
             OldValue  = null,
             NewValue  = $"{{\"name\": \"{amenity.Name}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -223,7 +221,6 @@ public class AmenitiesController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"isActive\": true, \"name\": \"{amenity.Name}\"}}",
             NewValue  = "{\"isActive\": false}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -270,3 +267,4 @@ public class AmenitiesController : ControllerBase
 
 public record CreateAmenityRequest(string Name, string? IconUrl);
 public record UpdateAmenityRequest(string Name, string? IconUrl);
+

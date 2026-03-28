@@ -16,4 +16,8 @@ public static class PermissionCodes
     public const string ViewReports     = "VIEW_REPORTS";
     public const string ManageContent   = "MANAGE_CONTENT";
     public const string ManageInventory = "MANAGE_INVENTORY";
+    public const string ViewUsers       = "VIEW_USERS";
+    public const string ViewRoles       = "VIEW_ROLES";
+    public const string EditRoles       = "EDIT_ROLES";
+    public const string CreateUsers     = "CREATE_USERS";
 }

@@ -65,7 +65,46 @@ public class RoomTypesController : ControllerBase
             .OrderBy(rt => rt.Name)
             .ToListAsync();
 
-        return Ok(roomTypes);
+        return Ok(new { data = roomTypes, total = roomTypes.Count });
+    }
+
+    [HttpGet("admin")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> GetAllAdmin()
+    {
+        var roomTypes = await _context.RoomTypes
+            .AsNoTracking()
+            .Select(rt => new
+            {
+                rt.Id,
+                rt.Name,
+                rt.Slug,
+                rt.BasePrice,
+                rt.CapacityAdults,
+                rt.CapacityChildren,
+                rt.AreaSqm,
+                rt.BedType,
+                rt.ViewType,
+                rt.Description,
+                rt.IsActive,
+                PrimaryImage = rt.RoomImages
+                    .Where(img => img.IsActive && img.IsPrimary == true)
+                    .Select(img => new { img.Id, img.ImageUrl, img.SortOrder })
+                    .FirstOrDefault(),
+                Amenities = rt.RoomTypeAmenities
+                    .Where(rta => rta.Amenity.IsActive)
+                    .Select(rta => new
+                    {
+                        rta.Amenity.Id,
+                        rta.Amenity.Name,
+                        rta.Amenity.IconUrl
+                    })
+                    .ToList()
+            })
+            .OrderBy(rt => rt.Name)
+            .ToListAsync();
+
+        return Ok(new { data = roomTypes, total = roomTypes.Count });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -117,6 +156,114 @@ public class RoomTypesController : ControllerBase
             return NotFound(new { message = $"Không tìm thấy loại phòng #{id}." });
 
         return Ok(roomType);
+    }
+
+    [HttpGet("admin/{id:int}")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> GetByIdAdmin(int id)
+    {
+        var roomType = await _context.RoomTypes
+            .AsNoTracking()
+            .Where(rt => rt.Id == id)
+            .Select(rt => new
+            {
+                rt.Id,
+                rt.Name,
+                rt.Slug,
+                rt.BasePrice,
+                rt.CapacityAdults,
+                rt.CapacityChildren,
+                rt.AreaSqm,
+                rt.BedType,
+                rt.ViewType,
+                rt.Description,
+                rt.IsActive,
+                Images = rt.RoomImages
+                    .Where(img => img.IsActive)
+                    .OrderBy(img => img.SortOrder)
+                    .Select(img => new
+                    {
+                        img.Id,
+                        img.ImageUrl,
+                        img.IsPrimary,
+                        img.SortOrder
+                    })
+                    .ToList(),
+                Amenities = rt.RoomTypeAmenities
+                    .Where(rta => rta.Amenity.IsActive)
+                    .Select(rta => new
+                    {
+                        rta.Amenity.Id,
+                        rta.Amenity.Name,
+                        rta.Amenity.IconUrl
+                    })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (roomType is null)
+            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y loáº¡i phĂ²ng #{id}." });
+
+        return Ok(roomType);
+    }
+
+    [HttpPost]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> Create([FromBody] SaveRoomTypeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "TĂªn loáº¡i phĂ²ng khĂ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng." });
+
+        var duplicate = await _context.RoomTypes.AnyAsync(rt => rt.Name == request.Name.Trim());
+        if (duplicate)
+            return Conflict(new { message = $"Loáº¡i phĂ²ng '{request.Name}' Ä‘Ă£ tá»“n táº¡i." });
+
+        var roomType = new RoomType
+        {
+            Name = request.Name.Trim(),
+            BasePrice = request.BasePrice,
+            CapacityAdults = request.CapacityAdults,
+            CapacityChildren = request.CapacityChildren,
+            AreaSqm = request.AreaSqm,
+            BedType = request.BedType?.Trim(),
+            ViewType = request.ViewType?.Trim(),
+            Description = request.Description?.Trim(),
+            IsActive = true
+        };
+
+        _context.RoomTypes.Add(roomType);
+        await _context.SaveChangesAsync();
+
+        return StatusCode(201, new { message = "Táº¡o loáº¡i phĂ²ng thĂ nh cĂ´ng.", id = roomType.Id });
+    }
+
+    [HttpPut("{id:int}")]
+    [RequirePermission(PermissionCodes.ManageRooms)]
+    public async Task<IActionResult> Update(int id, [FromBody] SaveRoomTypeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "TĂªn loáº¡i phĂ²ng khĂ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng." });
+
+        var roomType = await _context.RoomTypes.FirstOrDefaultAsync(rt => rt.Id == id);
+        if (roomType is null)
+            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y loáº¡i phĂ²ng #{id}." });
+
+        var duplicate = await _context.RoomTypes.AnyAsync(rt => rt.Id != id && rt.Name == request.Name.Trim());
+        if (duplicate)
+            return Conflict(new { message = $"Loáº¡i phĂ²ng '{request.Name}' Ä‘Ă£ tá»“n táº¡i." });
+
+        roomType.Name = request.Name.Trim();
+        roomType.BasePrice = request.BasePrice;
+        roomType.CapacityAdults = request.CapacityAdults;
+        roomType.CapacityChildren = request.CapacityChildren;
+        roomType.AreaSqm = request.AreaSqm;
+        roomType.BedType = request.BedType?.Trim();
+        roomType.ViewType = request.ViewType?.Trim();
+        roomType.Description = request.Description?.Trim();
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Cáº­p nháº­t loáº¡i phĂ²ng thĂ nh cĂ´ng." });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -175,7 +322,6 @@ public class RoomTypesController : ControllerBase
             RecordId = id,
             OldValue = $"{{\"isActive\": true, \"name\": \"{roomType.Name}\"}}",
             NewValue = "{\"isActive\": false}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -264,7 +410,6 @@ public class RoomTypesController : ControllerBase
             RecordId = image.Id,
             OldValue = null,
             NewValue = $"{{\"url\": \"{image.ImageUrl}\", \"roomTypeId\": {id}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -451,3 +596,15 @@ public class RoomTypesController : ControllerBase
         });
     }
 }
+
+public record SaveRoomTypeRequest(
+    string Name,
+    decimal BasePrice,
+    int CapacityAdults,
+    int CapacityChildren,
+    decimal? AreaSqm,
+    string? BedType,
+    string? ViewType,
+    string? Description
+);
+

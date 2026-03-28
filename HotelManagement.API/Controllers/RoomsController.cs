@@ -66,6 +66,7 @@ public class RoomsController : ControllerBase
                 r.RoomNumber,
                 r.Floor,
                 r.ViewType,
+                r.Status,
                 r.BusinessStatus,
                 r.CleaningStatus,
                 r.RoomTypeId,
@@ -88,6 +89,7 @@ public class RoomsController : ControllerBase
             .AsNoTracking()
             .Include(r => r.RoomType)
             .Include(r => r.RoomInventories.Where(i => i.IsActive))
+                .ThenInclude(i => i.Equipment)
             .Where(r => r.Id == id)
             .Select(r => new
             {
@@ -95,6 +97,7 @@ public class RoomsController : ControllerBase
                 r.RoomNumber,
                 r.Floor,
                 r.ViewType,
+                r.Status,
                 r.BusinessStatus,
                 r.CleaningStatus,
                 r.Notes,
@@ -103,10 +106,12 @@ public class RoomsController : ControllerBase
                 inventory = r.RoomInventories.Select(i => new
                 {
                     i.Id,
-                    i.ItemName,
+                    i.EquipmentId,
+                    equipmentName = i.Equipment.Name,
                     i.ItemType,
                     i.Quantity,
-                    i.PriceIfLost
+                    i.PriceIfLost,
+                    i.Note
                 })
             })
             .FirstOrDefaultAsync();
@@ -144,7 +149,6 @@ public class RoomsController : ControllerBase
             RecordId  = id,
             OldValue  = null,
             NewValue  = $"{{\"floor\": {request.Floor?.ToString() ?? "null"}, \"viewType\": \"{request.ViewType}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers.UserAgent.ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -224,7 +228,6 @@ public class RoomsController : ControllerBase
             RecordId  = room.Id,
             OldValue  = null,
             NewValue  = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -234,12 +237,12 @@ public class RoomsController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // PATCH /api/Rooms/{id}/status  [MANAGE_ROOMS — Manager/Lễ tân]
+    // PATCH /api/Rooms/{id}/business_status  [MANAGE_ROOMS — Manager/Lễ tân]
     // Đổi business_status (Available / Occupied / Disabled). Ghi Audit_Log.
     // Housekeeping không có quyền này (cùng permission MANAGE_ROOMS, phân biệt
     // qua role nếu cần — hiện tại guard bằng MANAGE_ROOMS là đủ).
     // ──────────────────────────────────────────────────────────────────────────
-    [HttpPatch("{id:int}/status")]
+    [HttpPatch("{id:int}/business_status")]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> UpdateBusinessStatus(
         int id,
@@ -256,8 +259,8 @@ public class RoomsController : ControllerBase
         var oldValue = room.BusinessStatus;
         room.BusinessStatus = request.BusinessStatus;
 
-        // Đồng bộ legacy status (tuỳ chọn giữ tương thích)
-        room.Status = request.BusinessStatus;
+        // Tính lại Status dựa trên tổ hợp BusinessStatus + CleaningStatus
+        room.Status = ComputeStatus(room.BusinessStatus, room.CleaningStatus);
 
         var currentUserId = JwtHelper.GetUserId(User);
         // Ghi Activity Log
@@ -283,7 +286,6 @@ public class RoomsController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"businessStatus\": \"{oldValue}\"}}",
             NewValue  = $"{{\"businessStatus\": \"{request.BusinessStatus}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -314,6 +316,9 @@ public class RoomsController : ControllerBase
         var oldCleaningStatus = room.CleaningStatus;
         room.CleaningStatus = request.CleaningStatus;
 
+        // Tính lại Status dựa trên tổ hợp BusinessStatus + CleaningStatus
+        room.Status = ComputeStatus(room.BusinessStatus, room.CleaningStatus);
+
         var currentUserId = JwtHelper.GetUserId(User);
         // Ghi Activity Log
         await _activityLog.LogAsync(
@@ -338,7 +343,6 @@ public class RoomsController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"cleaningStatus\": \"{oldCleaningStatus}\"}}",
             NewValue  = $"{{\"cleaningStatus\": \"{request.CleaningStatus}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -432,7 +436,6 @@ public class RoomsController : ControllerBase
                 RecordId  = 0,
                 OldValue  = null,
                 NewValue  = $"{{\"count\": {created.Count}, \"rooms\": [{string.Join(",", created.Select(c => $"\"{c}\""))}]}}",
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = Request.Headers.UserAgent.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
@@ -460,6 +463,21 @@ public class RoomsController : ControllerBase
             invalid
         });
     }
+    // ──────────────────────────────────────────────────────────────────────────
+    // Helper: tính Status từ tổ hợp BusinessStatus + CleaningStatus
+    // Available + Clean  → Available
+    // Available + Dirty  → Cleaning
+    // Occupied  (any)    → Occupied
+    // Disabled  (any)    → Maintenance
+    // ──────────────────────────────────────────────────────────────────────────
+    private static string ComputeStatus(string businessStatus, string cleaningStatus)
+        => businessStatus switch
+        {
+            "Occupied" => "Occupied",
+            "Disabled" => "Maintenance",
+            "Available" when cleaningStatus == "Dirty" => "Cleaning",
+            _ => "Available"
+        };
 }
 
 // ── Request DTOs ─────────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ public class UserManagementController : ControllerBase
 
     // GET /api/UserManagement?roleId=&page=&pageSize=
     [HttpGet]
-    [RequirePermission(PermissionCodes.ManageUsers)]
+    [RequirePermission(PermissionCodes.ViewUsers)]
     public async Task<IActionResult> GetUsers(
         [FromQuery] int? roleId,
         [FromQuery] int page     = 1,
@@ -95,7 +95,7 @@ public class UserManagementController : ControllerBase
 
     // GET /api/UserManagement/{id}
     [HttpGet("{id:int}")]
-    [RequirePermission(PermissionCodes.ManageUsers)]
+    [RequirePermission(PermissionCodes.ViewUsers)]
     public async Task<IActionResult> GetUserById(int id)
     {
         var user = await _db.Users
@@ -135,7 +135,7 @@ public class UserManagementController : ControllerBase
 
     // POST /api/UserManagement
     [HttpPost]
-    [RequirePermission(PermissionCodes.ManageUsers)]
+    [RequirePermission(PermissionCodes.CreateUsers)]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
         var emailExists = await _db.Users
@@ -204,7 +204,6 @@ public class UserManagementController : ControllerBase
             RecordId  = user.Id,
             OldValue  = null,
             NewValue  = $"{{\"email\": \"{user.Email}\", \"fullName\": \"{user.FullName}\", \"roleId\": {user.RoleId?.ToString() ?? "null"}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -263,7 +262,6 @@ public class UserManagementController : ControllerBase
             RecordId  = id,
             OldValue  = oldValues,
             NewValue  = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -309,7 +307,6 @@ public class UserManagementController : ControllerBase
             RecordId  = id,
             OldValue  = "{\"status\": true}",
             NewValue  = "{\"status\": false}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -342,7 +339,7 @@ public class UserManagementController : ControllerBase
     // PUT /api/UserManagement/{id}/change-role
     [HttpPut("{id:int}/change-role")]
     [RequirePermission(PermissionCodes.ManageUsers)]
-    [RequirePermission(PermissionCodes.ManageRoles)]
+    [RequirePermission(PermissionCodes.EditRoles)]
     public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeRoleRequest request)
     {
         var user = await _db.Users.FindAsync(id);
@@ -383,7 +380,6 @@ public class UserManagementController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"roleId\": {oldRoleId?.ToString() ?? "null"}}}",
             NewValue  = $"{{\"roleId\": {request.NewRoleId}, \"roleName\": \"{role.Name}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -438,7 +434,6 @@ public class UserManagementController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"status\": {(oldStatus?.ToString().ToLower() ?? "null")}}}",
             NewValue  = $"{{\"status\": {user.Status.ToString()!.ToLower()}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -485,7 +480,6 @@ public class UserManagementController : ControllerBase
             RecordId  = id,
             OldValue  = null,
             NewValue  = $"{{\"resetBy\": {currentUserId}, \"targetUser\": \"{user.Email}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });

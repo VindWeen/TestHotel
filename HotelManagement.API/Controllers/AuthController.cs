@@ -64,7 +64,6 @@ public class AuthController : ControllerBase
             RecordId = user.Id,
             OldValue = null,
             NewValue = $"{{\"email\": \"{user.Email}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -151,7 +150,6 @@ public class AuthController : ControllerBase
             RecordId  = user.Id,
             OldValue  = null,
             NewValue  = $"{{\"email\": \"{user.Email}\", \"fullName\": \"{user.FullName}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -246,7 +244,6 @@ public class AuthController : ControllerBase
             RecordId  = userId,
             OldValue  = null,
             NewValue  = null,
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });

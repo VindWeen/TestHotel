@@ -294,7 +294,6 @@ public async Task<IActionResult> Create([FromForm] CreateReviewRequest request)
             NewValue  = request.IsApproved
                 ? "{\"isApproved\": true}"
                 : $"{{\"isApproved\": false, \"rejectionReason\": \"{request.RejectionReason}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });

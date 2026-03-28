@@ -28,6 +28,7 @@ public class RolesController : ControllerBase
     // Danh sách toàn bộ roles — FE dùng để populate dropdown chọn role.
     // ──────────────────────────────────────────────────────────────
     [HttpGet]
+    [RequirePermission(PermissionCodes.ViewRoles)]
     public async Task<IActionResult> GetAll()
     {
         var roles = await _db.Roles
@@ -49,7 +50,7 @@ public class RolesController : ControllerBase
     // Chi tiết 1 role kèm danh sách permissions đang được gán.
     // ──────────────────────────────────────────────────────────────
     [HttpGet("{id:int}")]
-    [RequirePermission(PermissionCodes.ManageRoles)]
+    [RequirePermission(PermissionCodes.ViewRoles)]
     public async Task<IActionResult> GetById(int id)
     {
         var role = await _db.Roles
@@ -65,10 +66,9 @@ public class RolesController : ControllerBase
                     {
                         rp.Permission.Id,
                         rp.Permission.Name,
-                        rp.Permission.PermissionCode,
-                        rp.Permission.ModuleName
+                        rp.Permission.PermissionCode
                     })
-                    .OrderBy(p => p.ModuleName)
+                    .OrderBy(p => p.Name)
                     .ThenBy(p => p.Name)
                     .ToList()
             })
@@ -85,7 +85,7 @@ public class RolesController : ControllerBase
     /// Body: { roleId, permissionId, grant: true = gán / false = thu hồi }
     /// </summary>
     [HttpPost("assign-permission")]
-    [RequirePermission(PermissionCodes.ManageRoles)]
+    [RequirePermission(PermissionCodes.EditRoles)]
     public async Task<IActionResult> AssignPermission([FromBody] AssignPermissionRequest request)
     {
         var roleExists = await _db.Roles.AnyAsync(r => r.Id == request.RoleId);
@@ -120,7 +120,6 @@ public class RolesController : ControllerBase
                     RecordId  = request.RoleId,
                     OldValue  = null,
                     NewValue  = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
-                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                     UserAgent = Request.Headers["User-Agent"].ToString(),
                     CreatedAt = DateTime.UtcNow
                 });
@@ -159,7 +158,6 @@ public class RolesController : ControllerBase
                     RecordId  = request.RoleId,
                     OldValue  = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
                     NewValue  = null,
-                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                     UserAgent = Request.Headers["User-Agent"].ToString(),
                     CreatedAt = DateTime.UtcNow
                 });
@@ -210,10 +208,9 @@ public class RolesController : ControllerBase
                 (rp, p) => new
                 {
                     p.PermissionCode,
-                    p.Name,
-                    p.ModuleName
+                    p.Name
                 })
-            .OrderBy(p => p.ModuleName)
+            .OrderBy(p => p.Name)
             .ToListAsync();
 
         return Ok(new { permissions });

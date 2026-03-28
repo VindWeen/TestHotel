@@ -170,7 +170,6 @@ public class AttractionsController : ControllerBase
             RecordId  = attraction.Id,
             OldValue  = null,
             NewValue  = $"{{\"name\": \"{attraction.Name}\", \"category\": \"{attraction.Category}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -270,7 +269,6 @@ public class AttractionsController : ControllerBase
             RecordId  = id,
             OldValue  = null,
             NewValue  = $"{{\"name\": \"{attraction.Name}\", \"category\": \"{attraction.Category}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -329,7 +327,6 @@ public class AttractionsController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"isActive\": true, \"name\": \"{attraction.Name}\"}}",
             NewValue  = "{\"isActive\": false}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -366,7 +363,6 @@ public class AttractionsController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"isActive\": {oldActive.ToString().ToLower()}}}",
             NewValue  = $"{{\"isActive\": {attraction.IsActive.ToString().ToLower()}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -432,3 +428,4 @@ public record UpdateAttractionRequest(
     string?  ImageUrl,
     string?  MapEmbedLink
 );
+

@@ -176,7 +176,6 @@ public class VouchersController : ControllerBase
             RecordId  = voucher.Id,
             OldValue  = null,
             NewValue  = $"{{\"code\": \"{voucher.Code}\", \"discountType\": \"{voucher.DiscountType}\", \"discountValue\": {voucher.DiscountValue}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -245,7 +244,6 @@ public class VouchersController : ControllerBase
             RecordId  = id,
             OldValue  = null,
             NewValue  = $"{{\"code\": \"{v.Code}\", \"isActive\": {v.IsActive.ToString().ToLower()}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -289,7 +287,6 @@ public class VouchersController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"isActive\": true}}",
             NewValue  = $"{{\"isActive\": false}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });

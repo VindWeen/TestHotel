@@ -9,7 +9,6 @@ public class AuditLog
     public int RecordId { get; set; }
     public string? OldValue { get; set; }
     public string? NewValue { get; set; }
-    public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public DateTime? CreatedAt { get; set; }
 

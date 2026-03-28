@@ -123,7 +123,6 @@ public class UserProfileController : ControllerBase
             RecordId  = userId,
             OldValue  = null,
             NewValue  = null,
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -200,7 +199,6 @@ public class UserProfileController : ControllerBase
             RecordId  = userId,
             OldValue  = oldAvatar != null ? $"{{\"avatarUrl\": \"{oldAvatar}\"}}" : null,
             NewValue  = $"{{\"avatarUrl\": \"{user.AvatarUrl}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -260,3 +258,4 @@ public record ChangePasswordRequest(
     string OldPassword,
     string NewPassword
 );
+

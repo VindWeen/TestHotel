@@ -11,6 +11,7 @@ public class LossAndDamage
     public string? Description { get; set; }
     public string Status { get; set; } = "Pending"; // Pending / Confirmed / Waived
     public DateTime? CreatedAt { get; set; }
+    public string? ImgUrl { get; set; }
 
     // Navigation
     public BookingDetail? BookingDetail { get; set; }

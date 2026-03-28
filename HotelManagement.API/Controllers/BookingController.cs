@@ -153,7 +153,6 @@ public class BookingsController : ControllerBase
         try
         {
             // ===== REDIS LOCK =====
-            bool redisAvailable = true;
             try
             {
                 foreach (var d in request.Details)
@@ -167,7 +166,7 @@ public class BookingsController : ControllerBase
             }
             catch (RedisConnectionException)
             {
-                redisAvailable = false;
+                // Redis unavailable: continue with DB overlap check as fallback.
             }
 
             // ===== OVERLAP CHECK =====
@@ -290,7 +289,6 @@ public class BookingsController : ControllerBase
                 RecordId  = booking.Id,
                 OldValue  = null,
                 NewValue  = $"{{\"bookingCode\": \"{booking.BookingCode}\", \"total\": {booking.TotalEstimatedAmount}}}",
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = Request.Headers["User-Agent"].ToString(),
                 CreatedAt = DateTime.UtcNow
             });
@@ -357,7 +355,6 @@ public class BookingsController : ControllerBase
             RecordId  = id,
             OldValue  = "{\"status\": \"Pending\"}",
             NewValue  = "{\"status\": \"Confirmed\"}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -429,7 +426,6 @@ public class BookingsController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"status\": \"{b.Status}\"}}",
             NewValue  = $"{{\"status\": \"Cancelled\", \"reason\": \"{reason}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -491,7 +487,6 @@ public class BookingsController : ControllerBase
             RecordId  = id,
             OldValue  = "{\"status\": \"Confirmed\"}",
             NewValue  = "{\"status\": \"Checked_in\"}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -550,7 +545,6 @@ public class BookingsController : ControllerBase
             RecordId  = id,
             OldValue  = "{\"status\": \"Checked_in\"}",
             NewValue  = "{\"status\": \"Completed\"}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });

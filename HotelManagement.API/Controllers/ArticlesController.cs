@@ -178,7 +178,6 @@ public class ArticlesController : ControllerBase
             RecordId  = article.Id,
             OldValue  = null,
             NewValue  = $"{{\"title\": \"{article.Title}\", \"slug\": \"{article.Slug}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -273,7 +272,6 @@ public class ArticlesController : ControllerBase
             RecordId  = id,
             OldValue  = null,
             NewValue  = $"{{\"title\": \"{article.Title}\", \"status\": \"{article.Status}\"}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -325,7 +323,6 @@ public class ArticlesController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"isActive\": true, \"title\": \"{article.Title}\"}}",
             NewValue  = "{\"isActive\": false}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -381,7 +378,6 @@ public class ArticlesController : ControllerBase
             RecordId  = id,
             OldValue  = $"{{\"isActive\": {(!article.IsActive).ToString().ToLower()}}}",
             NewValue  = $"{{\"isActive\": {article.IsActive.ToString().ToLower()}}}",
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers["User-Agent"].ToString(),
             CreatedAt = DateTime.UtcNow
         });
@@ -515,3 +511,4 @@ public record UpdateArticleRequest(
     string? MetaDescription,
     string? Status
 );
+
