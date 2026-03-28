@@ -1,10 +1,3 @@
--- Xoá bảng cũ (vì bảng này chỉ mới tạo, data chưa quan trọng)
-IF OBJECT_ID('dbo.Activity_Log_Reads', 'U') IS NOT NULL 
-BEGIN
-    DROP TABLE [dbo].[Activity_Log_Reads];
-END
-GO
-
 -- Tạo lại bảng với tên cột dạng snake_case (theo đúng convention của AppDbContext)
 CREATE TABLE [dbo].[Activity_Log_Reads] (
     [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,

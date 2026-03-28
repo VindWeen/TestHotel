@@ -170,6 +170,24 @@ export default function AdminLayout() {
               </NavLink>
             )}
 
+            {hasPermission("MANAGE_ROOMS") && (
+              <NavLink to="/admin/amenities" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                      }}
+                    >
+                      chair
+                    </span>
+                    <span>Tiện nghi</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
             {hasPermission("MANAGE_INVENTORY") && (
               <NavLink to="/admin/items" style={navStyle}>
                 {({ isActive }) => (

@@ -8,6 +8,7 @@ import RequirePermission from "./RequirePermission";
 import PublicOnlyRoute from "./PublicOnlyRoute";
 import UserListPage from "../pages/admin/UserListPage";
 import RolePermissionPage from "../pages/admin/RolePermissionPage";
+import AmenityPage from "../pages/admin/AmenityPage";
 
 export default function AdminRoutes() {
   return (
@@ -40,6 +41,15 @@ export default function AdminRoutes() {
         }
       >
         <Route path="dashboard" element={<DashboardPage />} />
+        
+        <Route
+          path="amenities"
+          element={
+            <RequirePermission permission="MANAGE_ROOMS">
+              <AmenityPage />
+            </RequirePermission>
+          }
+        />
 
         <Route
           path="staff"
