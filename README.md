@@ -31,6 +31,10 @@ TestHotel/
 
 Monorepo chứa backend + frontend trong cùng git root.
 
+**Snapshot hiện tại:**
+- Backend: 18 controllers, 32 entities, 98 REST endpoints (HTTP attributes)
+- Frontend: 19 API adapters (`src/api`), 4 route files, 3 Zustand stores
+- Database script: 32 `CREATE TABLE` statements trong `HotelManagement.sql`
 ---
 
 ## 2. Cơ Sở Dữ Liệu — 7 Cluster
@@ -91,9 +95,9 @@ Monorepo chứa backend + frontend trong cùng git root.
 VIEW_DASHBOARD   MANAGE_USERS    MANAGE_ROLES
 MANAGE_ROOMS     MANAGE_BOOKINGS MANAGE_INVOICES
 MANAGE_SERVICES  VIEW_REPORTS    MANAGE_CONTENT
-MANAGE_INVENTORY
+MANAGE_INVENTORY VIEW_USERS      VIEW_ROLES
+EDIT_ROLES       CREATE_USERS
 ```
-
 ### Cơ chế hoạt động
 
 1. `PermissionRequirement` mang permission cần kiểm tra.
@@ -122,6 +126,7 @@ MANAGE_INVENTORY
 ### Đặc điểm
 
 - Dùng JWT bearer cho API auth.
+- Access token validate issuer/audience/lifetime/signing key, `ClockSkew = 0`.
 - Hỗ trợ refresh token rotation để giảm nguy cơ replay.
 - Permission claims nằm trong access token để thực thi RBAC tại API.
 
@@ -142,7 +147,7 @@ Controller action
 ### NotificationHub (`/notificationHub`)
 
 - Yêu cầu xác thực (`[Authorize]`).
-- Hỗ trợ lấy token từ query `access_token` cho kết nối WebSocket.
+- Hỗ trợ lấy token từ query `access_token` cho kết nối WebSocket (do WS không gửi custom header bearer chuẩn).
 - Kết nối client được định tuyến theo role để nhận thông báo phù hợp.
 
 ### NotificationPolicy
@@ -164,35 +169,49 @@ Controller action
 
 ## 6. Controllers & API Endpoints
 
-Bảng dưới là endpoint trọng yếu theo docs hiện tại.
+### Tổng quan API hiện tại
 
-### AuthController
+| Controller | Prefix | Số endpoint |
+| --- | --- | ---: |
+| `AuthController` | `/api/Auth` | 4 |
+| `UserManagementController` | `/api/UserManagement` | 8 |
+| `UserProfileController` | `/api/UserProfile` | 4 |
+| `RolesController` | `/api/Roles` | 4 |
+| `PermissionsController` | `/api/Permissions` | 1 |
+| `ActivityLogsController` | `/api/ActivityLogs` | 3 |
+| `RoomsController` | `/api/Rooms` | 7 |
+| `RoomTypesController` | `/api/RoomTypes` | 11 |
+| `AmenitiesController` | `/api/Amenities` | 6 |
+| `RoomInventoriesController` | `/api/RoomInventories` | 7 |
+| `EquipmentsController` | `/api/Equipments` | 1 |
+| `LossAndDamagesController` | `/api/LossAndDamages` | 5 |
+| `BookingsController` | `/api/Bookings` | 8 |
+| `VouchersController` | `/api/Vouchers` | 6 |
+| `ReviewsController` | `/api/Reviews` | 4 |
+| `ArticleCategoriesController` | `/api/ArticleCategories` | 6 |
+| `ArticlesController` | `/api/Articles` | 7 |
+| `AttractionsController` | `/api/Attractions` | 6 |
 
-| Method | Route             | Quyền  |
-| ------ | ----------------- | ------ |
-| POST   | `/api/Auth/login` | Public |
+### Ma trận endpoint trọng yếu
 
-### AmenitiesController
-
-| Method | Route            | Quyền              |
-| ------ | ---------------- | ------------------ |
-| GET    | `/api/Amenities` | Public/admin-aware |
-
-### RolesController
-
-| Method | Route                       | Quyền     |
-| ------ | --------------------------- | --------- |
-| GET    | `/api/Roles/my-permissions` | Authorize |
+| Nhóm | Endpoint chính |
+| --- | --- |
+| Auth | `/api/Auth/login`, `/api/Auth/refresh-token`, `/api/Auth/logout` |
+| User & Role | `/api/UserManagement/*`, `/api/UserProfile/*`, `/api/Roles/*`, `/api/Permissions` |
+| Room Ops | `/api/Rooms/*`, `/api/RoomTypes/*`, `/api/Amenities/*`, `/api/RoomInventories/*` |
+| Booking & Voucher | `/api/Bookings/*`, `/api/Vouchers/*` |
+| Content & Review | `/api/Articles/*`, `/api/ArticleCategories/*`, `/api/Attractions/*`, `/api/Reviews/*` |
+| Realtime | `/api/ActivityLogs/my-notifications`, `/notificationHub` |
 
 ### Frontend API/Route Matrix (tóm tắt)
 
-| Loại           | Mục tiêu                                                       | Nguồn                        |
-| -------------- | -------------------------------------------------------------- | ---------------------------- |
-| Route guard    | `/login`, `/admin/dashboard`, `/admin/roles`                   | `src/routes/AdminRoutes.jsx` |
-| API adapter    | `getAmenities`, `createAmenity`, `login`                       | `src/api/*.js`               |
-| Zustand stores | `useAdminAuthStore`, `useNotificationStore`, `useLoadingStore` | `src/store/*.js`             |
+| Loại | Mục tiêu | Nguồn |
+| --- | --- | --- |
+| Route guard | `/login`, `/admin/*`, `/403` | `src/routes/AdminRoutes.jsx` |
+| API adapter | `authApi`, `userManagementApi`, `bookingsApi`, `roomTypesApi`, `roomsApi`, ... | `src/api/*.js` |
+| Zustand stores | `useAdminAuthStore`, `useNotificationStore`, `useLoadingStore` | `src/store/*.js` |
 
-TODO(verify): cập nhật full endpoint matrix khi hoàn tất bảng chi tiết trong `docs/ai-context/_generated/*.md`.
+TODO(verify): đồng bộ thêm bảng endpoint-level full detail nếu muốn tài liệu theo từng method/route/permission riêng lẻ.
 
 ---
 
