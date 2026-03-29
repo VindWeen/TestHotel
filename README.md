@@ -3,6 +3,7 @@
 > **Stack:** .NET 10, ASP.NET Core Web API, Entity Framework Core 10, SQL Server, Redis, Cloudinary, JWT, MailKit, SignalR  
 > **Kiến trúc:** 3-layer - `HotelManagement.Core` · `HotelManagement.Infrastructure` · `HotelManagement.API`  
 > **Frontend:** React 19 + Vite 8 · Ant Design 6 · Zustand · Axios · React Router DOM v7 · @microsoft/signalr
+> **Tài khoản Admin để sử dụng:** `admin@hotel.com` / `admin@123`
 
 ---
 
@@ -34,6 +35,7 @@ TestHotel/
 ```
 
 **Snapshot hiện tại:**
+
 - Backend: 18 controllers, 98 REST endpoints (HTTP attributes).
 - Domain: 32 entities trong `HotelManagement.Core/Entities`.
 - Frontend: 19 API adapters (`src/api/*.js`), 8 admin pages, 3 Zustand stores.
@@ -45,48 +47,48 @@ TestHotel/
 
 ### Cluster 1: System, Auth & HR
 
-| Bảng | Mô tả |
-| --- | --- |
-| `Roles`, `Permissions`, `Role_Permissions` | Vai trò và phân quyền (RBAC) |
-| `Users`, `Memberships` | Tài khoản người dùng, hạng thành viên |
+| Bảng                                                | Mô tả                                              |
+| --------------------------------------------------- | -------------------------------------------------- |
+| `Roles`, `Permissions`, `Role_Permissions`          | Vai trò và phân quyền (RBAC)                       |
+| `Users`, `Memberships`                              | Tài khoản người dùng, hạng thành viên              |
 | `Audit_Logs`, `Activity_Logs`, `Activity_Log_Reads` | Audit log, notification history, trạng thái đã đọc |
 
 ### Cluster 2: Room Management
 
-| Bảng | Mô tả |
-| --- | --- |
-| `Room_Types`, `Rooms` | Hạng phòng và phòng thực tế |
-| `Amenities`, `RoomType_Amenities` | Tiện nghi và mapping theo hạng phòng |
-| `Room_Images`, `Room_Inventory`, `Equipments` | Ảnh phòng và vật tư trong phòng |
+| Bảng                                          | Mô tả                                |
+| --------------------------------------------- | ------------------------------------ |
+| `Room_Types`, `Rooms`                         | Hạng phòng và phòng thực tế          |
+| `Amenities`, `RoomType_Amenities`             | Tiện nghi và mapping theo hạng phòng |
+| `Room_Images`, `Room_Inventory`, `Equipments` | Ảnh phòng và vật tư trong phòng      |
 
 ### Cluster 3: Booking & Promotions
 
-| Bảng | Mô tả |
-| --- | --- |
+| Bảng                          | Mô tả                               |
+| ----------------------------- | ----------------------------------- |
 | `Bookings`, `Booking_Details` | Luồng đặt phòng và chi tiết lưu trú |
-| `Vouchers`, `Voucher_Usage` | Voucher và lịch sử sử dụng |
+| `Vouchers`, `Voucher_Usage`   | Voucher và lịch sử sử dụng          |
 
 ### Cluster 4: Services & Operations
 
-| Bảng | Mô tả |
-| --- | --- |
-| `Service_Categories`, `Services` | Danh mục và dịch vụ phát sinh |
+| Bảng                                      | Mô tả                           |
+| ----------------------------------------- | ------------------------------- |
+| `Service_Categories`, `Services`          | Danh mục và dịch vụ phát sinh   |
 | `Order_Services`, `Order_Service_Details` | Đơn dịch vụ theo booking detail |
-| `Loss_And_Damages` | Biên bản mất/hỏng |
+| `Loss_And_Damages`                        | Biên bản mất/hỏng               |
 
 ### Cluster 5: Billing, Reviews & CMS
 
-| Bảng | Mô tả |
-| --- | --- |
-| `Invoices`, `Payments` | Hóa đơn và thanh toán |
-| `Reviews` | Đánh giá sau lưu trú |
+| Bảng                                            | Mô tả                    |
+| ----------------------------------------------- | ------------------------ |
+| `Invoices`, `Payments`                          | Hóa đơn và thanh toán    |
+| `Reviews`                                       | Đánh giá sau lưu trú     |
 | `Article_Categories`, `Articles`, `Attractions` | CMS bài viết và địa điểm |
 
 ### Cluster 6 & 7: HR & Loyalty
 
-| Bảng | Mô tả |
-| --- | --- |
-| `Shifts` | Ca làm việc và bàn giao |
+| Bảng                   | Mô tả                              |
+| ---------------------- | ---------------------------------- |
+| `Shifts`               | Ca làm việc và bàn giao            |
 | `Loyalty_Transactions` | Điểm tích lũy / đổi điểm / hết hạn |
 
 ---
@@ -121,12 +123,12 @@ EDIT_ROLES       CREATE_USERS
 
 ### Endpoints
 
-| Method | Route | Mô tả |
-| --- | --- | --- |
-| POST | `/api/Auth/login` | Đăng nhập, trả access token + refresh token |
-| POST | `/api/Auth/register` | Đăng ký tài khoản mới |
-| POST | `/api/Auth/refresh-token` | Làm mới access token bằng refresh token |
-| POST | `/api/Auth/logout` | Thu hồi refresh token |
+| Method | Route                     | Mô tả                                       |
+| ------ | ------------------------- | ------------------------------------------- |
+| POST   | `/api/Auth/login`         | Đăng nhập, trả access token + refresh token |
+| POST   | `/api/Auth/register`      | Đăng ký tài khoản mới                       |
+| POST   | `/api/Auth/refresh-token` | Làm mới access token bằng refresh token     |
+| POST   | `/api/Auth/logout`        | Thu hồi refresh token                       |
 
 ### Đặc điểm
 
@@ -174,37 +176,37 @@ Controller action
 
 ### Tổng quan API hiện tại
 
-| Controller | Prefix | Số endpoint |
-| --- | --- | ---: |
-| `AuthController` | `/api/Auth` | 4 |
-| `UserManagementController` | `/api/UserManagement` | 8 |
-| `UserProfileController` | `/api/UserProfile` | 4 |
-| `RolesController` | `/api/Roles` | 4 |
-| `PermissionsController` | `/api/Permissions` | 1 |
-| `ActivityLogsController` | `/api/ActivityLogs` | 3 |
-| `RoomsController` | `/api/Rooms` | 7 |
-| `RoomTypesController` | `/api/RoomTypes` | 11 |
-| `AmenitiesController` | `/api/Amenities` | 6 |
-| `RoomInventoriesController` | `/api/RoomInventories` | 7 |
-| `EquipmentsController` | `/api/Equipments` | 1 |
-| `LossAndDamagesController` | `/api/LossAndDamages` | 5 |
-| `BookingsController` | `/api/Bookings` | 8 |
-| `VoucherController` | `/api/Voucher` | 6 |
-| `ReviewController` | `/api/Review` | 4 |
-| `ArticleCategoriesController` | `/api/ArticleCategories` | 6 |
-| `ArticlesController` | `/api/Articles` | 7 |
-| `AttractionsController` | `/api/Attractions` | 6 |
+| Controller                    | Prefix                   | Số endpoint |
+| ----------------------------- | ------------------------ | ----------: |
+| `AuthController`              | `/api/Auth`              |           4 |
+| `UserManagementController`    | `/api/UserManagement`    |           8 |
+| `UserProfileController`       | `/api/UserProfile`       |           4 |
+| `RolesController`             | `/api/Roles`             |           4 |
+| `PermissionsController`       | `/api/Permissions`       |           1 |
+| `ActivityLogsController`      | `/api/ActivityLogs`      |           3 |
+| `RoomsController`             | `/api/Rooms`             |           7 |
+| `RoomTypesController`         | `/api/RoomTypes`         |          11 |
+| `AmenitiesController`         | `/api/Amenities`         |           6 |
+| `RoomInventoriesController`   | `/api/RoomInventories`   |           7 |
+| `EquipmentsController`        | `/api/Equipments`        |           1 |
+| `LossAndDamagesController`    | `/api/LossAndDamages`    |           5 |
+| `BookingsController`          | `/api/Bookings`          |           8 |
+| `VoucherController`           | `/api/Voucher`           |           6 |
+| `ReviewController`            | `/api/Review`            |           4 |
+| `ArticleCategoriesController` | `/api/ArticleCategories` |           6 |
+| `ArticlesController`          | `/api/Articles`          |           7 |
+| `AttractionsController`       | `/api/Attractions`       |           6 |
 
 ### Ma trận endpoint trọng tâm
 
-| Nhóm | Endpoint chính |
-| --- | --- |
-| Auth | `/api/Auth/login`, `/api/Auth/refresh-token`, `/api/Auth/logout` |
-| User & Role | `/api/UserManagement/*`, `/api/UserProfile/*`, `/api/Roles/*`, `/api/Permissions` |
-| Room Ops | `/api/Rooms/*`, `/api/RoomTypes/*`, `/api/Amenities/*`, `/api/RoomInventories/*` |
-| Booking & Voucher | `/api/Bookings/*`, `/api/Voucher/*` |
-| Content & Review | `/api/Articles/*`, `/api/ArticleCategories/*`, `/api/Attractions/*`, `/api/Review/*` |
-| Realtime | `/api/ActivityLogs/my-notifications`, `/notificationHub` |
+| Nhóm              | Endpoint chính                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| Auth              | `/api/Auth/login`, `/api/Auth/refresh-token`, `/api/Auth/logout`                     |
+| User & Role       | `/api/UserManagement/*`, `/api/UserProfile/*`, `/api/Roles/*`, `/api/Permissions`    |
+| Room Ops          | `/api/Rooms/*`, `/api/RoomTypes/*`, `/api/Amenities/*`, `/api/RoomInventories/*`     |
+| Booking & Voucher | `/api/Bookings/*`, `/api/Voucher/*`                                                  |
+| Content & Review  | `/api/Articles/*`, `/api/ArticleCategories/*`, `/api/Attractions/*`, `/api/Review/*` |
+| Realtime          | `/api/ActivityLogs/my-notifications`, `/notificationHub`                             |
 
 ---
 
@@ -234,6 +236,7 @@ cleaning_status: Clean | Dirty
 ### Email Service (MailKit)
 
 4 template đã implement:
+
 1. `SendBookingConfirmationAsync`
 2. `SendNewStaffAccountAsync`
 3. `SendPasswordChangedAsync`
@@ -269,21 +272,21 @@ Tất cả email được gọi theo fire-and-forget để không block response
 
 ### Đã implement
 
-| Module | File |
-| --- | --- |
-| Auth + route guards | `src/routes/AdminRoutes.jsx`, `ProtectedRoute.jsx`, `RequirePermission.jsx`, `PublicOnlyRoute.jsx` |
-| Login page | `src/pages/LoginPage.jsx` |
-| Admin layout + notification UI | `src/layouts/AdminLayout.jsx`, `src/components/NotificationMenu.jsx` |
-| Dashboard page (có gọi API thật) | `src/pages/admin/DashboardPage.jsx` |
-| User management | `src/pages/admin/UserListPage.jsx` |
-| Role & permission | `src/pages/admin/RolePermissionPage.jsx` |
-| Room management + room detail | `src/pages/admin/RoomManagementPage.jsx`, `src/pages/admin/RoomDetailPage.jsx` |
-| Room type management | `src/pages/admin/RoomTypesPage.jsx` |
-| Equipment listing | `src/pages/admin/EquipmentPage.jsx` |
-| Loss & damage management | `src/pages/admin/Lossanddamagepage.jsx` |
-| Axios + 19 API adapters | `src/api/*.js` |
-| Zustand stores | `src/store/adminAuthStore.js`, `src/store/loadingStore.js`, `src/store/notificationStore.js` |
-| SignalR hook | `src/hooks/useSignalR.js` |
+| Module                           | File                                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Auth + route guards              | `src/routes/AdminRoutes.jsx`, `ProtectedRoute.jsx`, `RequirePermission.jsx`, `PublicOnlyRoute.jsx` |
+| Login page                       | `src/pages/LoginPage.jsx`                                                                          |
+| Admin layout + notification UI   | `src/layouts/AdminLayout.jsx`, `src/components/NotificationMenu.jsx`                               |
+| Dashboard page (có gọi API thật) | `src/pages/admin/DashboardPage.jsx`                                                                |
+| User management                  | `src/pages/admin/UserListPage.jsx`                                                                 |
+| Role & permission                | `src/pages/admin/RolePermissionPage.jsx`                                                           |
+| Room management + room detail    | `src/pages/admin/RoomManagementPage.jsx`, `src/pages/admin/RoomDetailPage.jsx`                     |
+| Room type management             | `src/pages/admin/RoomTypesPage.jsx`                                                                |
+| Equipment listing                | `src/pages/admin/EquipmentPage.jsx`                                                                |
+| Loss & damage management         | `src/pages/admin/Lossanddamagepage.jsx`                                                            |
+| Axios + 19 API adapters          | `src/api/*.js`                                                                                     |
+| Zustand stores                   | `src/store/adminAuthStore.js`, `src/store/loadingStore.js`, `src/store/notificationStore.js`       |
+| SignalR hook                     | `src/hooks/useSignalR.js`                                                                          |
 
 ### Đang placeholder / chưa có route page đầy đủ
 
@@ -356,36 +359,34 @@ VITE_API_URL=http://localhost:5279/api
 
 Script `HotelManagement.sql` đang seed dữ liệu mẫu theo thứ tự cha-trước-con.
 
-| Bảng | Số bản ghi INSERT |
-| --- | ---: |
-| Roles | 10 |
-| Permissions | 14 |
-| Memberships | 10 |
-| Users | 10 |
-| Role_Permissions | 10 |
-| Amenities | 10 |
-| Room_Types | 10 |
-| Rooms | 14 |
-| Room_Images | 10 |
-| Equipments | 21 |
-| Room_Inventory | 187 |
-| Vouchers | 10 |
-| Bookings | 10 |
-| Booking_Details | 10 |
-| Invoices | 10 |
-| Payments | 10 |
-| Service_Categories | 10 |
-| Services | 10 |
-| Order_Services | 10 |
-| Order_Service_Details | 10 |
-| Loss_And_Damages | 6 |
-| Reviews | 10 |
-| Article_Categories | 10 |
-| Articles | 10 |
-| Attractions | 10 |
-| Audit_Logs | 10 |
-
-Tài khoản mẫu có email `admin@hotel.com` trong script. Mật khẩu đang lưu dưới dạng hash BCrypt, không để plain text trong SQL.
+| Bảng                  | Số bản ghi INSERT |
+| --------------------- | ----------------: |
+| Roles                 |                10 |
+| Permissions           |                14 |
+| Memberships           |                10 |
+| Users                 |                10 |
+| Role_Permissions      |                10 |
+| Amenities             |                10 |
+| Room_Types            |                10 |
+| Rooms                 |                14 |
+| Room_Images           |                10 |
+| Equipments            |                21 |
+| Room_Inventory        |               187 |
+| Vouchers              |                10 |
+| Bookings              |                10 |
+| Booking_Details       |                10 |
+| Invoices              |                10 |
+| Payments              |                10 |
+| Service_Categories    |                10 |
+| Services              |                10 |
+| Order_Services        |                10 |
+| Order_Service_Details |                10 |
+| Loss_And_Damages      |                 6 |
+| Reviews               |                10 |
+| Article_Categories    |                10 |
+| Articles              |                10 |
+| Attractions           |                10 |
+| Audit_Logs            |                10 |
 
 ---
 
@@ -408,6 +409,7 @@ npm run dev
 ```
 
 Prerequisites để chạy đầy đủ:
+
 - .NET SDK 10
 - Node.js (khuyến nghị >= 20)
 - SQL Server
