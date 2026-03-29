@@ -37,7 +37,8 @@ secrets.json
 ## Global Usings
 GlobalUsings.cs.g.cs
 
-## AI Documentation & Workflows (không push lên git)
+## Documentation & Workflows 
 docs/
+Plans/
 update.txt
 .editorconfig
