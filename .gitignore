@@ -40,3 +40,4 @@ GlobalUsings.cs.g.cs
 ## AI Documentation & Workflows (không push lên git)
 docs/
 update.txt
+.editorconfig
