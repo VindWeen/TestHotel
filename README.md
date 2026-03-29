@@ -3,7 +3,7 @@
 > **Stack:** .NET 10, ASP.NET Core Web API, Entity Framework Core 10, SQL Server, Redis, Cloudinary, JWT, MailKit, SignalR  
 > **Kiến trúc:** 3-layer - `HotelManagement.Core` · `HotelManagement.Infrastructure` · `HotelManagement.API`  
 > **Frontend:** React 19 + Vite 8 · Ant Design 6 · Zustand · Axios · React Router DOM v7 · @microsoft/signalr
-> **Tài khoản Admin để sử dụng:** Gmail: `admin@hotel.com` / Mật khẩu: `admin@123`
+> **Tài khoản Admin:** Gmail: `admin@hotel.com` / Mật khẩu: `admin@123`
 
 ---
 
