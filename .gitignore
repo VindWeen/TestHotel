@@ -38,5 +38,5 @@ secrets.json
 GlobalUsings.cs.g.cs
 
 ## AI Documentation & Workflows (không push lên git)
-docs-ai/
-.agent/
+docs/
+update.txt

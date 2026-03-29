@@ -9,44 +9,27 @@
 ## 1. Cấu Trúc Solution
 
 ```
-HotelManagement/
-├── HotelManagement.Core/           # Entities, DTOs, Authorization helpers, JwtHelper
-│   ├── Authorization/              # PermissionCodes, RequirePermissionAttribute, Handler, Provider
-│   ├── DTOs/                       # BookingDTOs, RoomTypeDTO, AmenitiesDTO, UploadImageDTO
-│   ├── Entities/                   # 30+ entity classes
-│   ├── Helpers/                    # JwtHelper
-│   └── Models/Enums/               # NotificationEnums (Notification, NotificationType, NotificationAction)
-├── HotelManagement.Infrastructure/
-│   └── Data/                       # AppDbContext (EF Core, snake_case convention)
-└── HotelManagement.API/
-    ├── Controllers/                 # 15+ controllers
-    ├── Hubs/                        # NotificationHub (SignalR)
-    ├── Policies/                    # NotificationPolicy (RBAC cho thông báo)
-    ├── Services/                    # EmailService, ActivityLogService, NotificationService
-    └── Program.cs
+TestHotel/
+├── HotelManagement.Core/            # Entity, DTO, Authorization, Helper
+│   ├── Authorization/
+│   ├── DTOs/
+│   ├── Entities/
+│   └── Helpers/
+├── HotelManagement.Infrastructure/  # DbContext, persistence mapping
+│   └── Data/
+├── HotelManagement.API/             # Controllers, Services, Hubs, Program
+│   ├── Controllers/
+│   ├── Services/
+│   ├── Hubs/
+│   └── Program.cs
+└── hotel-erp-frontend/              # React app (routes, api, store)
+    └── src/
+        ├── routes/
+        ├── api/
+        └── store/
 ```
 
-Monorepo: `hotel-erp-frontend/` nằm trong thư mục gốc của backend repo.
-
-```
-hotel-erp-frontend/
-├── src/
-│   ├── api/           # 14 file API client (authApi, userManagementApi, bookingsApi, ...)
-│   ├── components/    # NotificationMenu.jsx
-│   ├── hooks/         # useSignalR.js (đầy đủ implementation)
-│   ├── layouts/       # AdminLayout.jsx (sidebar + topbar + spinner overlay)
-│   ├── pages/
-│   │   ├── LoginPage.jsx
-│   │   └── admin/
-│   │       ├── DashboardPage.jsx  (minimal, test-only)
-│   │       ├── UserListPage.jsx   (hoàn chỉnh)
-│   │       └── RolePermissionPage.jsx (hoàn chỉnh)
-│   ├── routes/        # AdminRoutes, ProtectedRoute, RequirePermission, PublicOnlyRoute
-│   └── store/         # adminAuthStore, loadingStore, notificationStore
-├── tailwind.config.js
-├── vite.config.js
-└── package.json
-```
+Monorepo chứa backend + frontend trong cùng git root.
 
 ---
 
@@ -54,64 +37,49 @@ hotel-erp-frontend/
 
 ### Cluster 1: System, Auth & HR
 
-| Bảng                 | Mô tả                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `Roles`              | 10 vai trò: Admin, Manager, Receptionist, Accountant, Housekeeping, Security, Chef, Waiter, IT Support, Guest |
-| `Permissions`        | 10 quyền với `permission_code` và `module_name`                                                               |
-| `Role_Permissions`   | Composite PK — gán nhiều permission cho 1 role                                                                |
-| `Memberships`        | 10 hạng từ Khách Mới → Signature, kèm `discount_percent`, `color_hex`                                         |
-| `Users`              | Auth đầy đủ, loyalty points, refresh token, avatar Cloudinary                                                 |
-| `Audit_Logs`         | Ghi lại mọi thao tác thay đổi dữ liệu quan trọng                                                              |
-| `Activity_Logs`      | Thông báo realtime (SignalR): `action_code`, `severity`, `entity_type/id/label`, `metadata`                   |
-| `Activity_Log_Reads` | Per-user read status (junction table, unique idx trên `activity_log_id + user_id`)                            |
+| Bảng                                                | Mô tả                                           |
+| --------------------------------------------------- | ----------------------------------------------- |
+| `Roles`, `Permissions`, `Role_Permissions`          | Vai trò và phân quyền (RBAC)                    |
+| `Users`, `Memberships`                              | Tài khoản người dùng, hạng thành viên           |
+| `Audit_Logs`, `Activity_Logs`, `Activity_Log_Reads` | Nhật ký hệ thống và trạng thái đã đọc thông báo |
 
 ### Cluster 2: Room Management
 
-| Bảng                 | Mô tả                                                                                                |
-| -------------------- | ---------------------------------------------------------------------------------------------------- |
-| `Room_Types`         | 10 loại phòng với `slug`, `base_price`, `capacity`, `bed_type`, `view_type`                          |
-| `Rooms`              | 2 trục trạng thái: `business_status` (Available/Occupied/Disabled) + `cleaning_status` (Clean/Dirty) |
-| `Amenities`          | Tiện nghi với soft delete                                                                            |
-| `RoomType_Amenities` | Many-to-many giữa Room_Types and Amenities                                                           |
-| `Room_Images`        | Ảnh Cloudinary: `is_primary`, `sort_order`, `cloudinary_public_id`, soft delete                      |
-| `Room_Inventory`     | Vật tư phòng (Asset / Minibar): `price_if_lost`, soft delete                                         |
+| Bảng                                          | Mô tả                                         |
+| --------------------------------------------- | --------------------------------------------- |
+| `Room_Types`, `Rooms`                         | Danh mục hạng phòng và phòng thực tế          |
+| `Amenities`, `RoomType_Amenities`             | Tiện nghi và ánh xạ tiện nghi theo hạng phòng |
+| `Room_Images`, `Room_Inventory`, `Equipments` | Ảnh phòng và vật tư phòng                     |
 
 ### Cluster 3: Booking & Promotions
 
-| Bảng              | Mô tả                                                                          |
-| ----------------- | ------------------------------------------------------------------------------ |
-| `Vouchers`        | PERCENT / FIXED_AMOUNT, `usage_limit`, `max_uses_per_user`, thời hạn           |
-| `Bookings`        | Booking code unique, thông tin khách, trạng thái, nguồn (online/walk_in/phone) |
-| `Booking_Details` | Chi tiết phòng: ngày CI/CO, `price_per_night` khóa tại thời điểm đặt           |
-| `Voucher_Usage`   | Lịch sử dùng voucher theo user/booking                                         |
+| Bảng                          | Mô tả                               |
+| ----------------------------- | ----------------------------------- |
+| `Bookings`, `Booking_Details` | Luồng đặt phòng và chi tiết lưu trú |
+| `Vouchers`, `Voucher_Usage`   | Mã giảm giá và lịch sử sử dụng      |
 
 ### Cluster 4: Services & Operations
 
-| Bảng                    | Mô tả                                              |
-| ----------------------- | -------------------------------------------------- |
-| `Service_Categories`    | Nhóm dịch vụ                                       |
-| `Services`              | Dịch vụ cụ thể với soft delete                     |
-| `Order_Services`        | Đơn đặt dịch vụ gắn với `booking_detail_id`        |
-| `Order_Service_Details` | Chi tiết từng dịch vụ trong đơn                    |
-| `Loss_And_Damages`      | Biên bản mất/hỏng: `penalty_amount`, `reported_by` |
+| Bảng                                      | Mô tả                         |
+| ----------------------------------------- | ----------------------------- |
+| `Service_Categories`, `Services`          | Danh mục và dịch vụ phát sinh |
+| `Order_Services`, `Order_Service_Details` | Đơn dịch vụ theo booking      |
+| `Loss_And_Damages`                        | Biên bản mất/hỏng             |
 
 ### Cluster 5: Billing, Reviews & CMS
 
-| Bảng                 | Mô tả                                                                    |
-| -------------------- | ------------------------------------------------------------------------ |
-| `Invoices`           | Tổng phòng/dịch vụ/hư hỏng, giảm giá, thuế, `final_total`                |
-| `Payments`           | Deposit / Final_Settlement / Refund, nhiều phương thức                   |
-| `Reviews`            | Rating 1–5, ảnh Cloudinary, workflow duyệt (pending → approved/rejected) |
-| `Article_Categories` | Danh mục bài viết với `slug` unique                                      |
-| `Articles`           | Draft → Pending_Review → Published, SEO meta, thumbnail Cloudinary       |
-| `Attractions`        | Địa điểm du lịch: tọa độ GPS, khoảng cách km, Google Maps embed          |
+| Bảng                                            | Mô tả                    |
+| ----------------------------------------------- | ------------------------ |
+| `Invoices`, `Payments`                          | Hóa đơn và thanh toán    |
+| `Reviews`                                       | Đánh giá sau lưu trú     |
+| `Article_Categories`, `Articles`, `Attractions` | CMS nội dung và điểm đến |
 
 ### Cluster 6 & 7: HR & Loyalty
 
-| Bảng                   | Mô tả                                                                  |
-| ---------------------- | ---------------------------------------------------------------------- |
-| `Shifts`               | Ca làm việc: Morning/Afternoon/Night, kế hoạch vs thực tế, bàn giao ca |
-| `Loyalty_Transactions` | Lịch sử điểm thưởng: earned / redeemed / expired                       |
+| Bảng                   | Mô tả                          |
+| ---------------------- | ------------------------------ |
+| `Shifts`               | Ca làm việc và bàn giao        |
+| `Loyalty_Transactions` | Điểm tích lũy/đổi điểm/hết hạn |
 
 ---
 
@@ -119,7 +87,7 @@ hotel-erp-frontend/
 
 ### Permission Codes
 
-```
+```text
 VIEW_DASHBOARD   MANAGE_USERS    MANAGE_ROLES
 MANAGE_ROOMS     MANAGE_BOOKINGS MANAGE_INVOICES
 MANAGE_SERVICES  VIEW_REPORTS    MANAGE_CONTENT
@@ -128,15 +96,15 @@ MANAGE_INVENTORY
 
 ### Cơ chế hoạt động
 
-1. **`PermissionRequirement`** — mang `permission_code` cần kiểm tra
-2. **`PermissionPolicyProvider`** — tự động tạo `AuthorizationPolicy` từ policy name = permission code
-3. **`PermissionAuthorizationHandler`** — đọc claims `"permission"` trong JWT và so khớp
-4. **`[RequirePermission(PermissionCodes.ManageRooms)]`** — attribute thay cho `[Authorize(Policy = "MANAGE_ROOMS")]`
+1. `PermissionRequirement` mang permission cần kiểm tra.
+2. `PermissionPolicyProvider` tạo policy động theo permission code.
+3. `PermissionAuthorizationHandler` đọc claim `permission` trong JWT để authorize.
+4. `[RequirePermission(...)]` dùng cho route cần kiểm soát quyền chi tiết.
 
 ### JWT Token chứa
 
-- `sub` (userId), `email`, `jti`, `role`, `full_name`
-- Nhiều claim `"permission"` (mỗi permission_code là 1 claim riêng)
+- Claim nhận diện: `sub`, `email`, `jti`, `role`, `full_name`
+- Claim quyền: nhiều claim `permission` (mỗi quyền là một claim)
 
 ---
 
@@ -144,20 +112,18 @@ MANAGE_INVENTORY
 
 ### Endpoints
 
-| Method | Route                     | Mô tả                                    |
-| ------ | ------------------------- | ---------------------------------------- |
-| POST   | `/api/Auth/login`         | Đăng nhập → access token + refresh token |
-| POST   | `/api/Auth/register`      | Đăng ký khách hàng mới (role: Guest)     |
-| POST   | `/api/Auth/refresh-token` | Lấy access token mới bằng refresh token  |
-| POST   | `/api/Auth/logout`        | Xóa refresh token phía server            |
+| Method | Route                     | Mô tả                                       |
+| ------ | ------------------------- | ------------------------------------------- |
+| POST   | `/api/Auth/login`         | Đăng nhập, trả access token + refresh token |
+| POST   | `/api/Auth/register`      | Đăng ký tài khoản mới                       |
+| POST   | `/api/Auth/refresh-token` | Làm mới access token bằng refresh token     |
+| POST   | `/api/Auth/logout`        | Thu hồi refresh token                       |
 
 ### Đặc điểm
 
-- **Refresh Token Rotation**: mỗi lần refresh cấp token mới, hủy token cũ → chống replay attack
-- **Refresh token** lưu server-side trong DB (`refresh_token`, `refresh_token_expiry`), revoke khi logout/khóa tài khoản
-- **BCrypt** hash password
-- Access token hết hạn sau **60 phút**, refresh token hết hạn sau **7 ngày**
-- Token storage phía frontend: body-based (sessionStorage / localStorage tùy chọn "Remember me")
+- Dùng JWT bearer cho API auth.
+- Hỗ trợ refresh token rotation để giảm nguy cơ replay.
+- Permission claims nằm trong access token để thực thi RBAC tại API.
 
 ---
 
@@ -165,205 +131,68 @@ MANAGE_INVENTORY
 
 ### Kiến trúc
 
-```
+```text
 Controller action
-    → IActivityLogService.LogAsync()
-        → INSERT Activity_Logs (DB)
-        → INotificationService.SendToRolesAsync()
-            → SignalR Hub → Client "ReceiveNotification"
+  -> IActivityLogService.LogAsync()
+    -> lưu Activity_Logs
+    -> INotificationService.SendToRolesAsync()
+      -> SignalR Hub -> client ReceiveNotification
 ```
 
 ### NotificationHub (`/notificationHub`)
 
-- `[Authorize]` — chỉ user đã đăng nhập mới kết nối được
-- Khi connect: tự động join Group theo role name (VD: "Admin", "Manager")
-- Frontend gửi JWT qua query string `?access_token=...` (vì WebSocket không hỗ trợ custom header)
+- Yêu cầu xác thực (`[Authorize]`).
+- Hỗ trợ lấy token từ query `access_token` cho kết nối WebSocket.
+- Kết nối client được định tuyến theo role để nhận thông báo phù hợp.
 
 ### NotificationPolicy
 
-- Nguồn cấu hình duy nhất ánh xạ `ActionCode → []Role nhận thông báo`
-- Default: `["Admin", "Manager"]` cho action không có trong map
-- Ví dụ: `GRANT_PERMISSION` → chỉ `Admin`; `CREATE_BOOKING` → `Admin, Manager`
-- Blacklist-based filtering cho history endpoint (`GetBlockedActionCodesForRole`)
+- Ánh xạ action code sang danh sách role nhận thông báo.
+- Có default recipient cho action chưa được map tường minh.
 
 ### Activity_Log_Reads
 
-- Per-user read status (tách khỏi `Activity_Logs` để nhiều user có trạng thái đọc độc lập)
-- Unique index: `(activity_log_id, user_id)`
-- Endpoint: `PUT /api/ActivityLogs/{id}/mark-read` và `PUT /api/ActivityLogs/mark-all-read`
+- Theo dõi trạng thái đọc theo từng user.
+- Hỗ trợ `mark-read` và `mark-all-read` cho notification center.
 
 ### Frontend (useSignalR.js + notificationStore)
 
-- `useSignalR()` hook khởi tạo connection, gọi trong `AdminLayout`
-- Fetch history từ `/api/ActivityLogs/my-notifications` khi kết nối
-- `notificationStore` (Zustand): `notifications[]`, `unreadCount`, `addNotification`, `markAsRead`, `markAllAsRead`
-- `NotificationMenu.jsx` (Ant Design Popover + Badge): hiển thị danh sách, đánh dấu đã đọc
+- `useSignalR` khởi tạo realtime connection.
+- `notificationStore` quản lý danh sách + số lượng chưa đọc.
 
 ---
 
 ## 6. Controllers & API Endpoints
 
+Bảng dưới là endpoint trọng yếu theo docs hiện tại.
+
 ### AuthController
 
-| Method | Route                     | Auth          |
-| ------ | ------------------------- | ------------- |
-| POST   | `/api/Auth/login`         | Public        |
-| POST   | `/api/Auth/register`      | Public        |
-| POST   | `/api/Auth/refresh-token` | Public        |
-| POST   | `/api/Auth/logout`        | `[Authorize]` |
-
-### UserManagementController
-
-| Method | Route                                     | Permission                      |
-| ------ | ----------------------------------------- | ------------------------------- |
-| GET    | `/api/UserManagement`                     | `MANAGE_USERS`                  |
-| GET    | `/api/UserManagement/{id}`                | `MANAGE_USERS`                  |
-| POST   | `/api/UserManagement`                     | `MANAGE_USERS`                  |
-| PUT    | `/api/UserManagement/{id}`                | `MANAGE_USERS`                  |
-| DELETE | `/api/UserManagement/{id}`                | `MANAGE_USERS` (soft lock)      |
-| PUT    | `/api/UserManagement/{id}/change-role`    | `MANAGE_USERS` + `MANAGE_ROLES` |
-| PATCH  | `/api/UserManagement/{id}/toggle-status`  | `MANAGE_USERS`                  |
-| POST   | `/api/UserManagement/{id}/reset-password` | `MANAGE_USERS`                  |
-
-### UserProfileController
-
-| Method | Route                              | Auth          |
-| ------ | ---------------------------------- | ------------- |
-| GET    | `/api/UserProfile/my-profile`      | `[Authorize]` |
-| PUT    | `/api/UserProfile/update-profile`  | `[Authorize]` |
-| PUT    | `/api/UserProfile/change-password` | `[Authorize]` |
-| POST   | `/api/UserProfile/upload-avatar`   | `[Authorize]` |
-
-### RolesController
-
-| Method | Route                          | Permission     |
-| ------ | ------------------------------ | -------------- |
-| GET    | `/api/Roles`                   | `[Authorize]`  |
-| GET    | `/api/Roles/{id}`              | `MANAGE_ROLES` |
-| POST   | `/api/Roles/assign-permission` | `MANAGE_ROLES` |
-| GET    | `/api/Roles/my-permissions`    | `[Authorize]`  |
-
-### RoomTypesController
-
-| Method | Route                                                      | Auth           |
-| ------ | ---------------------------------------------------------- | -------------- |
-| GET    | `/api/RoomTypes`                                           | Public         |
-| GET    | `/api/RoomTypes/{id}`                                      | Public         |
-| DELETE | `/api/RoomTypes/{id}`                                      | `MANAGE_ROOMS` |
-| POST   | `/api/RoomTypes/{id}/images`                               | `MANAGE_ROOMS` |
-| DELETE | `/api/RoomTypes/images/{imageId}`                          | `MANAGE_ROOMS` |
-| PATCH  | `/api/RoomTypes/{roomTypeId}/images/{imageId}/set-primary` | `MANAGE_ROOMS` |
-| PATCH  | `/api/RoomTypes/{id}/toggle-active`                        | `MANAGE_ROOMS` |
-
-### RoomsController
-
-| Method | Route                             | Permission     |
-| ------ | --------------------------------- | -------------- |
-| GET    | `/api/Rooms`                      | `MANAGE_ROOMS` |
-| GET    | `/api/Rooms/{id}`                 | `MANAGE_ROOMS` |
-| POST   | `/api/Rooms`                      | `MANAGE_ROOMS` |
-| PUT    | `/api/Rooms/{id}`                 | `MANAGE_ROOMS` |
-| PATCH  | `/api/Rooms/{id}/status`          | `MANAGE_ROOMS` |
-| PATCH  | `/api/Rooms/{id}/cleaning-status` | `MANAGE_ROOMS` |
-| POST   | `/api/Rooms/bulk-create`          | `MANAGE_ROOMS` |
+| Method | Route             | Quyền  |
+| ------ | ----------------- | ------ |
+| POST   | `/api/Auth/login` | Public |
 
 ### AmenitiesController
 
-| Method | Route                               | Auth                            |
-| ------ | ----------------------------------- | ------------------------------- |
-| GET    | `/api/Amenities`                    | Public (admin thấy cả inactive) |
-| GET    | `/api/Amenities/{id}`               | Public                          |
-| POST   | `/api/Amenities`                    | `MANAGE_ROOMS`                  |
-| PUT    | `/api/Amenities/{id}`               | `MANAGE_ROOMS`                  |
-| DELETE | `/api/Amenities/{id}`               | `MANAGE_ROOMS`                  |
-| PATCH  | `/api/Amenities/{id}/toggle-active` | `MANAGE_ROOMS`                  |
+| Method | Route            | Quyền              |
+| ------ | ---------------- | ------------------ |
+| GET    | `/api/Amenities` | Public/admin-aware |
 
-### RoomInventoriesController
+### RolesController
 
-| Method | Route                                     | Permission         |
-| ------ | ----------------------------------------- | ------------------ |
-| GET    | `/api/RoomInventories/room/{roomId}`      | `MANAGE_INVENTORY` |
-| GET    | `/api/RoomInventories/{id}`               | `MANAGE_INVENTORY` |
-| POST   | `/api/RoomInventories`                    | `MANAGE_INVENTORY` |
-| PUT    | `/api/RoomInventories/{id}`               | `MANAGE_INVENTORY` |
-| DELETE | `/api/RoomInventories/{id}`               | `MANAGE_INVENTORY` |
-| POST   | `/api/RoomInventories/clone`              | `MANAGE_INVENTORY` |
-| PATCH  | `/api/RoomInventories/{id}/toggle-active` | `MANAGE_INVENTORY` |
+| Method | Route                       | Quyền     |
+| ------ | --------------------------- | --------- |
+| GET    | `/api/Roles/my-permissions` | Authorize |
 
-### BookingsController
+### Frontend API/Route Matrix (tóm tắt)
 
-| Method | Route                          | Auth               |
-| ------ | ------------------------------ | ------------------ |
-| GET    | `/api/Bookings`                | `MANAGE_BOOKINGS`  |
-| GET    | `/api/Bookings/{id}`           | `MANAGE_BOOKINGS`  |
-| GET    | `/api/Bookings/my-bookings`    | `[Authorize]`      |
-| POST   | `/api/Bookings`                | `[AllowAnonymous]` |
-| PATCH  | `/api/Bookings/{id}/confirm`   | `MANAGE_BOOKINGS`  |
-| PATCH  | `/api/Bookings/{id}/cancel`    | `[Authorize]`      |
-| PATCH  | `/api/Bookings/{id}/check-in`  | `MANAGE_BOOKINGS`  |
-| PATCH  | `/api/Bookings/{id}/check-out` | `MANAGE_BOOKINGS`  |
+| Loại           | Mục tiêu                                                       | Nguồn                        |
+| -------------- | -------------------------------------------------------------- | ---------------------------- |
+| Route guard    | `/login`, `/admin/dashboard`, `/admin/roles`                   | `src/routes/AdminRoutes.jsx` |
+| API adapter    | `getAmenities`, `createAmenity`, `login`                       | `src/api/*.js`               |
+| Zustand stores | `useAdminAuthStore`, `useNotificationStore`, `useLoadingStore` | `src/store/*.js`             |
 
-### VouchersController
-
-| Method | Route                    | Auth                            |
-| ------ | ------------------------ | ------------------------------- |
-| GET    | `/api/Vouchers`          | `MANAGE_BOOKINGS`               |
-| GET    | `/api/Vouchers/{id}`     | `MANAGE_BOOKINGS`               |
-| POST   | `/api/Vouchers`          | `MANAGE_BOOKINGS`               |
-| PUT    | `/api/Vouchers/{id}`     | `MANAGE_BOOKINGS`               |
-| DELETE | `/api/Vouchers/{id}`     | `MANAGE_BOOKINGS` (soft delete) |
-| POST   | `/api/Vouchers/validate` | `[Authorize]`                   |
-
-### ReviewsController
-
-| Method | Route                       | Auth                                                   |
-| ------ | --------------------------- | ------------------------------------------------------ |
-| GET    | `/api/Reviews`              | Public (filter: `?status=pending\|approved\|rejected`) |
-| POST   | `/api/Reviews`              | `[Authorize]` (multipart/form-data, ảnh upload thẳng)  |
-| POST   | `/api/Reviews/upload-image` | `[Authorize]`                                          |
-| PATCH  | `/api/Reviews/{id}/approve` | `MANAGE_CONTENT`                                       |
-
-### ArticleCategoriesController
-
-| Method | Route                                       | Auth             |
-| ------ | ------------------------------------------- | ---------------- |
-| GET    | `/api/ArticleCategories`                    | Public           |
-| GET    | `/api/ArticleCategories/{id}`               | Public           |
-| POST   | `/api/ArticleCategories`                    | `MANAGE_CONTENT` |
-| PUT    | `/api/ArticleCategories/{id}`               | `MANAGE_CONTENT` |
-| DELETE | `/api/ArticleCategories/{id}`               | `MANAGE_CONTENT` |
-| PATCH  | `/api/ArticleCategories/{id}/toggle-active` | `MANAGE_CONTENT` |
-
-### ArticlesController
-
-| Method | Route                              | Auth                      |
-| ------ | ---------------------------------- | ------------------------- |
-| GET    | `/api/Articles`                    | Public (admin thấy Draft) |
-| GET    | `/api/Articles/{slug}`             | Public                    |
-| POST   | `/api/Articles`                    | `MANAGE_CONTENT`          |
-| PUT    | `/api/Articles/{id}`               | `MANAGE_CONTENT`          |
-| DELETE | `/api/Articles/{id}`               | `MANAGE_CONTENT`          |
-| PATCH  | `/api/Articles/{id}/toggle-active` | `MANAGE_CONTENT`          |
-| POST   | `/api/Articles/{id}/thumbnail`     | `MANAGE_CONTENT`          |
-
-### AttractionsController
-
-| Method | Route                                 | Auth             |
-| ------ | ------------------------------------- | ---------------- |
-| GET    | `/api/Attractions`                    | Public           |
-| GET    | `/api/Attractions/{id}`               | Public           |
-| POST   | `/api/Attractions`                    | `MANAGE_CONTENT` |
-| PUT    | `/api/Attractions/{id}`               | `MANAGE_CONTENT` |
-| DELETE | `/api/Attractions/{id}`               | `MANAGE_CONTENT` |
-| PATCH  | `/api/Attractions/{id}/toggle-active` | `MANAGE_CONTENT` |
-
-### ActivityLogsController
-
-| Method | Route                                | Auth                                        |
-| ------ | ------------------------------------ | ------------------------------------------- |
-| GET    | `/api/ActivityLogs/my-notifications` | `[Authorize]` (chỉ Admin/Manager nhận data) |
-| PUT    | `/api/ActivityLogs/{id}/mark-read`   | `[Authorize]`                               |
-| PUT    | `/api/ActivityLogs/mark-all-read`    | `[Authorize]`                               |
+TODO(verify): cập nhật full endpoint matrix khi hoàn tất bảng chi tiết trong `docs/ai-context/_generated/*.md`.
 
 ---
 
