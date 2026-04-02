@@ -844,34 +844,27 @@ GO
 
 -- 8. Rooms
 SET IDENTITY_INSERT [dbo].[Rooms] ON
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (1,  1,  N'101',     1, N'Thành phố', N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (2,  1,  N'102',     1, N'Biển',      N'Occupied',    N'Occupied',  N'Dirty')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (3,  3,  N'201',     2, N'Vườn',      N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (4,  4,  N'202',     2, N'Biển',      N'Maintenance', N'Disabled',  N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (5,  5,  N'301',     3, N'Thành phố', N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (6,  6,  N'302',     3, N'Biển',      N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (7,  7,  N'401',     4, N'Vườn',      N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (8,  8,  N'402',     4, N'Biển',      N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (9,  9,  N'501',     5, N'Biển',      N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (10, 10, N'VILLA-1', 1, N'Vườn',      N'Available',   N'Available', N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (13, 1,  N'103',     1, N'Thành phố', N'Occupied',    N'Occupied',  N'Dirty')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (14, 1,  N'104',     1, N'Vườn',      N'Cleaning',    N'Available', N'Dirty')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (15, 4,  N'203',     2, N'Biển',      N'Maintenance', N'Disabled',  N'Clean')
-INSERT [dbo].[Rooms] ([id],[room_type_id],[room_number],[floor],[view_type],[status],[business_status],[cleaning_status])
-VALUES (16, 3,  N'204',     2, N'Thành phố', N'Available',   N'Available', N'Clean')
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (1, 1, N'101', 1, N'Thành phố', N'Cleaning', N'Available', N'Dirty', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 2)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (2, 1, N'102', 1, N'Biển', N'Cleaning', N'Available', N'Dirty', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (3, 3, N'201', 2, N'Vườn', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":6,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (4, 4, N'202', 2, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":6,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (5, 5, N'301', 3, N'Thành phố', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":6,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (6, 6, N'302', 3, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":2},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (7, 7, N'401', 4, N'Vườn', N'Available', N'Available', N'Clean', NULL, N'[]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (8, 8, N'402', 4, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (9, 9, N'501', 5, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (10, 10, N'VILLA-1', 1, N'Vườn', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":4},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":10},{"equipmentId":11,"quantity":6},{"equipmentId":12,"quantity":6},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":4},{"equipmentId":15,"quantity":6},{"equipmentId":16,"quantity":6},{"equipmentId":17,"quantity":3},{"equipmentId":18,"quantity":3},{"equipmentId":19,"quantity":3},{"equipmentId":20,"quantity":3},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (13, 1, N'103', 1, N'Thành phố', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (14, 1, N'104', 1, N'Vườn', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (15, 4, N'203', 2, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":6,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (16, 3, N'204', 2, N'Thành phố', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":6,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (17, 1, N'105', 1, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (18, 1, N'106', 1, N'Biển', N'Available', N'Available', N'Clean', NULL, N'[]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 0)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (19, 1, N'107', 1, N'Vườn', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (20, 1, N'108', 1, N'Hồ bơi', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (21, 4, N'205', 2, N'Thành phố', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":6,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":1}]', CAST(N'2026-04-02T15:23:25.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (22, 1, N'206', 2, N'Núi', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1}]', CAST(N'2026-04-02T16:06:44.0000000' AS DateTime2), 1)
+INSERT [dbo].[Rooms] ([id], [room_type_id], [room_number], [floor], [view_type], [status], [business_status], [cleaning_status], [notes], [inventory_sync_snapshot_json], [inventory_last_synced_at], [inventory_version]) VALUES (23, 1, N'207', 2, N'Núi', N'Available', N'Available', N'Clean', NULL, N'[{"equipmentId":1,"quantity":1},{"equipmentId":2,"quantity":1},{"equipmentId":3,"quantity":1},{"equipmentId":4,"quantity":1},{"equipmentId":5,"quantity":1},{"equipmentId":7,"quantity":1},{"equipmentId":8,"quantity":1},{"equipmentId":9,"quantity":1},{"equipmentId":10,"quantity":3},{"equipmentId":11,"quantity":1},{"equipmentId":12,"quantity":1},{"equipmentId":13,"quantity":1},{"equipmentId":14,"quantity":1},{"equipmentId":15,"quantity":1},{"equipmentId":16,"quantity":2},{"equipmentId":17,"quantity":1},{"equipmentId":18,"quantity":2},{"equipmentId":19,"quantity":2},{"equipmentId":20,"quantity":1},{"equipmentId":21,"quantity":3}]', CAST(N'2026-04-02T16:49:55.0000000' AS DateTime2), 12)
 SET IDENTITY_INSERT [dbo].[Rooms] OFF
 GO
 
@@ -890,220 +883,52 @@ GO
 
 -- 10. Room_Images
 SET IDENTITY_INSERT [dbo].[Room_Images] ON
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (1,  1,  N'type1_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (2,  2,  N'type2_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (3,  3,  N'type3_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (4,  4,  N'type4_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (5,  5,  N'type5_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (6,  6,  N'type6_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (7,  7,  N'type7_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (8,  8,  N'type8_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (9,  9,  N'type9_img.jpg',  NULL, 1, 0, 1)
-INSERT [dbo].[Room_Images] ([id],[room_type_id],[image_url],[cloudinary_public_id],[is_primary],[sort_order],[is_active])
-VALUES (10, 10, N'type10_img.jpg', NULL, 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (1, 1, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154214/hotel/room-types/1/crw6molabapnox1khazi.jpg', N'hotel/room-types/1/crw6molabapnox1khazi', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (2, 2, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154197/hotel/room-types/2/mekf9ki56w102inizn6z.jpg', N'hotel/room-types/2/mekf9ki56w102inizn6z', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (3, 3, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154229/hotel/room-types/3/viy3r9wupitadubpir7s.jpg', N'hotel/room-types/3/viy3r9wupitadubpir7s', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (4, 4, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154271/hotel/room-types/4/djwfh41ifuvtjbit9bac.jpg', N'hotel/room-types/4/wvabqpw071p77txhu3bm', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (5, 5, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154150/hotel/room-types/5/vkbl56yybog4blncgubi.jpg', N'hotel/room-types/5/vkbl56yybog4blncgubi', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (6, 6, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775153906/hotel/room-types/6/blrz4q4gbq75mt1q2rk5.jpg', N'hotel/room-types/6/blrz4q4gbq75mt1q2rk5', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (7, 7, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154137/hotel/room-types/7/xgjdljfv6tswwfqq2ovw.jpg', N'hotel/room-types/7/xgjdljfv6tswwfqq2ovw', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (8, 8, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775153887/hotel/room-types/8/boksaj6gmalul8auj2wo.jpg', N'hotel/room-types/8/boksaj6gmalul8auj2wo', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (9, 9, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154162/hotel/room-types/9/lmnowdhlz9stfs9g9sve.jpg', N'hotel/room-types/9/lmnowdhlz9stfs9g9sve', 1, 0, 1)
+INSERT [dbo].[Room_Images] ([id], [room_type_id], [image_url], [cloudinary_public_id], [is_primary], [sort_order], [is_active]) VALUES (10, 10, N'https://res.cloudinary.com/dekvhccnn/image/upload/v1775154183/hotel/room-types/10/wzp5lmcb6gebwd7iawaj.jpg', N'hotel/room-types/10/wzp5lmcb6gebwd7iawaj', 1, 0, 1)
 SET IDENTITY_INSERT [dbo].[Room_Images] OFF
 GO
 
 -- 11. Equipments
 SET IDENTITY_INSERT [dbo].[Equipments] ON 
 
--- ==================== EQUIPMENTS - CHỈNH SỐ LƯỢNG HỢP LÝ ====================
-SET IDENTITY_INSERT [dbo].[Equipments] ON
-
 INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) 
 VALUES 
-(1, N'TV-SS-43', N'Smart TV Samsung 43 inch', N'Điện tử', N'Cái', 60, 14, 0, 0, 7500000.00, 8000000.00, N'Samsung Vietnam', 1, '2026-03-25T14:10:11', '2026-03-26T17:31:18', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546277/QuanTriKhachSan/Equipments/cuqwgr36qaagcjkxqz6w.jpg'),
-(2, N'AC-DK-9000', N'Điều hòa Daikin 9000 BTU', N'Điện tử', N'Cái', 60, 15, 0, 0, 8200000.00, 9000000.00, N'Daikin Vietnam', 1, '2026-03-25T14:10:11', '2026-03-26T17:30:04', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546203/QuanTriKhachSan/Equipments/gzxphd2ogyjcqaqwfgdl.jpg'),
-(3, N'MB-AF-50', N'Tủ lạnh Minibar Aqua 50L', N'Điện tử', N'Cái', 60, 14, 0, 0, 2500000.00, 3000000.00, N'Aqua', 1, '2026-03-25T14:10:11', NULL, NULL),
-(4, N'HD-PN-1000', N'Máy sấy tóc Panasonic', N'Điện tử', N'Cái', 70, 14, 0, 0, 450000.00, 600000.00, N'Điện Máy Xanh', 1, '2026-03-25T14:10:11', NULL, NULL),
-(5, N'KL-SH-17', N'Ấm đun nước siêu tốc Sunhouse', N'Điện tử', N'Cái', 70, 14, 0, 0, 250000.00, 350000.00, N'Sunhouse', 1, '2026-03-25T14:10:11', NULL, NULL),
-(6, N'BD-KG-20', N'Giường King Size 2m x 2m2', N'Nội thất', N'Chiếc', 25, 11, 0, 0, 12000000.00, 15000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
-(7, N'BD-SG-12', N'Giường Single 1m2 x 2m', N'Nội thất', N'Chiếc', 50, 8, 0, 0, 5500000.00, 7000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
-(8, N'WD-WD-01', N'Tủ quần áo gỗ công nghiệp', N'Nội thất', N'Cái', 60, 14, 0, 0, 3500000.00, 5000000.00, N'Xưởng Gỗ An Cường', 1, '2026-03-25T14:10:11', NULL, NULL),
-(9, N'TB-WK-01', N'Bàn làm việc + Ghế', N'Nội thất', N'Bộ', 60, 14, 0, 0, 2200000.00, 3000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
-(10, N'HG-WD-01', N'Móc treo quần áo bằng gỗ', N'Nội thất', N'Chiếc', 600, 92, 2, 0, 15000.00, 30000.00, N'Nhựa Duy Tân', 1, '2026-03-25T14:10:11', NULL, NULL),
-(11, N'TW-BT-01', N'Khăn tắm cotton 70x140cm', N'Đồ vải', N'Chiếc', 250, 32, 1, 0, 85000.00, 150000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T16:28:01', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774542481/QuanTriKhachSan/Equipments/t51at52hvtqpdhxb9ikz.jpg'),
-(12, N'TW-FC-01', N'Khăn mặt cotton 30x30cm', N'Đồ vải', N'Chiếc', 250, 28, 0, 0, 25000.00, 50000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T15:50:21', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540220/QuanTriKhachSan/Equipments/gj8owns6gawqmjz91k2m.jpg'),
-(13, N'MT-FT-01', N'Thảm chùi chân', N'Đồ vải', N'Chiếc', 150, 14, 0, 0, 45000.00, 80000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T15:49:47', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540186/QuanTriKhachSan/Equipments/zxzvuqsgdbxly6ifwlv2.jpg'),
-(14, N'BL-DC-01', N'Chăn lông vũ', N'Đồ vải', N'Chiếc', 100, 14, 0, 0, 850000.00, 1200000.00, N'Everon', 1, '2026-03-25T14:10:11', '2026-03-26T15:49:09', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540149/QuanTriKhachSan/Equipments/huzcgbezdzmqlpjqla2n.jpg'),
-(15, N'PL-CT-01', N'Gối tựa lưng / Gối ngủ', N'Đồ vải', N'Chiếc', 200, 28, 0, 0, 150000.00, 250000.00, N'Everon', 1, '2026-03-25T14:10:11', '2026-03-26T15:41:36', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774539696/QuanTriKhachSan/Equipments/bjpgyfibnh5y71upb8fo.jpg'),
-(16, N'DR-LV-500', N'Nước suối Lavie 500ml', N'Minibar', N'Chai', 800, 56, 0, 0, 4000.00, 0.00, N'Lavie', 1, '2026-03-25T14:10:11', '2026-03-26T16:48:30', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538785/QuanTriKhachSan/Equipments/kznyl7dkrsknfv0d2pt2.jpg'),
-(17, N'DR-CC-320', N'Nước ngọt Coca Cola 320ml', N'Minibar', N'Lon', 400, 28, 1, 0, 7000.00, 20000.00, N'Coca Cola', 1, '2026-03-25T14:10:11', '2026-03-27T09:17:54', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538766/QuanTriKhachSan/Equipments/qaqy3mnzmvsgfoyvah2a.jpg'),
-(18, N'DR-HB-330', N'Bia Heineken 330ml', N'Minibar', N'Lon', 300, 28, 1, 0, 16000.00, 35000.00, N'Heineken', 1, '2026-03-25T14:10:11', '2026-03-26T15:28:55', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538733/QuanTriKhachSan/Equipments/frbshpj0tetjn3tk8brk.jpg'),
-(19, N'SN-OM-01', N'Mì ly Omachi', N'Minibar', N'Ly', 150, 14, 0, 0, 12000.00, 25000.00, N'Masan', 1, '2026-03-25T14:10:11', '2026-03-26T15:28:50', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538702/QuanTriKhachSan/Equipments/rvl2xfua67yrfqqpq71t.jpg'),
-(20, N'SN-OR-01', N'Bánh Oreo 133g', N'Minibar', N'Hộp', 150, 14, 0, 0, 15000.00, 30000.00, N'Mondelez', 1, '2026-03-25T14:10:11', '2026-03-26T15:24:19', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538658/QuanTriKhachSan/Equipments/trawiqiv9m0u4ncvutsr.jpg'),
-(21, N'TV-SS-55', N'Tivi Samsung 55 inch', N'Điện tử', N'cái', 10, 2, 0, 0, 15000000.00, 17000000.00, N'Điện Máy Xanh', 1, '2026-03-26T17:29:39', NULL, 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546178/QuanTriKhachSan/Equipments/xmxreisazllzyx0iiuwe.jpgg')
+(1, N'TV-SS-43', N'Smart TV Samsung 43 inch', N'Điện tử', N'Cái', 60, 0, 0, 0, 7500000.00, 8000000.00, N'Samsung Vietnam', 1, '2026-03-25T14:10:11', '2026-03-26T17:31:18', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546277/QuanTriKhachSan/Equipments/cuqwgr36qaagcjkxqz6w.jpg'),
+(2, N'AC-DK-9000', N'Điều hòa Daikin 9000 BTU', N'Điện tử', N'Cái', 60, 0, 0, 0, 8200000.00, 9000000.00, N'Daikin Vietnam', 1, '2026-03-25T14:10:11', '2026-03-26T17:30:04', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546203/QuanTriKhachSan/Equipments/gzxphd2ogyjcqaqwfgdl.jpg'),
+(3, N'MB-AF-50', N'Tủ lạnh Minibar Aqua 50L', N'Điện tử', N'Cái', 60, 0, 0, 0, 2500000.00, 3000000.00, N'Aqua', 1, '2026-03-25T14:10:11', NULL, NULL),
+(4, N'HD-PN-1000', N'Máy sấy tóc Panasonic', N'Điện tử', N'Cái', 70, 0, 0, 0, 450000.00, 600000.00, N'Điện Máy Xanh', 1, '2026-03-25T14:10:11', NULL, NULL),
+(5, N'KL-SH-17', N'Ấm đun nước siêu tốc Sunhouse', N'Điện tử', N'Cái', 70, 0, 0, 0, 250000.00, 350000.00, N'Sunhouse', 1, '2026-03-25T14:10:11', NULL, NULL),
+(6, N'BD-KG-20', N'Giường King Size 2m x 2m2', N'Nội thất', N'Chiếc', 25, 0, 0, 0, 12000000.00, 15000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
+(7, N'BD-SG-12', N'Giường Single 1m2 x 2m', N'Nội thất', N'Chiếc', 50, 0, 0, 0, 5500000.00, 7000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
+(8, N'WD-WD-01', N'Tủ quần áo gỗ công nghiệp', N'Nội thất', N'Cái', 60, 0, 0, 0, 3500000.00, 5000000.00, N'Xưởng Gỗ An Cường', 1, '2026-03-25T14:10:11', NULL, NULL),
+(9, N'TB-WK-01', N'Bàn làm việc + Ghế', N'Nội thất', N'Bộ', 60, 0, 0, 0, 2200000.00, 3000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
+(10, N'HG-WD-01', N'Móc treo quần áo bằng gỗ', N'Nội thất', N'Chiếc', 600, 0, 0, 0, 15000.00, 30000.00, N'Nhựa Duy Tân', 1, '2026-03-25T14:10:11', NULL, NULL),
+(11, N'TW-BT-01', N'Khăn tắm cotton 70x140cm', N'Đồ vải', N'Chiếc', 250, 0, 0, 0, 85000.00, 150000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T16:28:01', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774542481/QuanTriKhachSan/Equipments/t51at52hvtqpdhxb9ikz.jpg'),
+(12, N'TW-FC-01', N'Khăn mặt cotton 30x30cm', N'Đồ vải', N'Chiếc', 250, 0, 0, 0, 25000.00, 50000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T15:50:21', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540220/QuanTriKhachSan/Equipments/gj8owns6gawqmjz91k2m.jpg'),
+(13, N'MT-FT-01', N'Thảm chùi chân', N'Đồ vải', N'Chiếc', 150, 0, 0, 0, 45000.00, 80000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T15:49:47', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540186/QuanTriKhachSan/Equipments/zxzvuqsgdbxly6ifwlv2.jpg'),
+(14, N'BL-DC-01', N'Chăn lông vũ', N'Đồ vải', N'Chiếc', 100, 0, 0, 0, 850000.00, 1200000.00, N'Everon', 1, '2026-03-25T14:10:11', '2026-03-26T15:49:09', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540149/QuanTriKhachSan/Equipments/huzcgbezdzmqlpjqla2n.jpg'),
+(15, N'PL-CT-01', N'Gối tựa lưng / Gối ngủ', N'Đồ vải', N'Chiếc', 200, 0, 0, 0, 150000.00, 250000.00, N'Everon', 1, '2026-03-25T14:10:11', '2026-03-26T15:41:36', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774539696/QuanTriKhachSan/Equipments/bjpgyfibnh5y71upb8fo.jpg'),
+(16, N'DR-LV-500', N'Nước suối Lavie 500ml', N'Minibar', N'Chai', 800, 0, 0, 0, 4000.00, 0.00, N'Lavie', 1, '2026-03-25T14:10:11', '2026-03-26T16:48:30', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538785/QuanTriKhachSan/Equipments/kznyl7dkrsknfv0d2pt2.jpg'),
+(17, N'DR-CC-320', N'Nước ngọt Coca Cola 320ml', N'Minibar', N'Lon', 400, 0, 0, 0, 7000.00, 20000.00, N'Coca Cola', 1, '2026-03-25T14:10:11', '2026-03-27T09:17:54', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538766/QuanTriKhachSan/Equipments/qaqy3mnzmvsgfoyvah2a.jpg'),
+(18, N'DR-HB-330', N'Bia Heineken 330ml', N'Minibar', N'Lon', 300, 0, 0, 0, 16000.00, 35000.00, N'Heineken', 1, '2026-03-25T14:10:11', '2026-03-26T15:28:55', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538733/QuanTriKhachSan/Equipments/frbshpj0tetjn3tk8brk.jpg'),
+(19, N'SN-OM-01', N'Mì ly Omachi', N'Minibar', N'Ly', 150, 0, 0, 0, 12000.00, 25000.00, N'Masan', 1, '2026-03-25T14:10:11', '2026-03-26T15:28:50', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538702/QuanTriKhachSan/Equipments/rvl2xfua67yrfqqpq71t.jpg'),
+(20, N'SN-OR-01', N'Bánh Oreo 133g', N'Minibar', N'Hộp', 150, 0, 0, 0, 15000.00, 30000.00, N'Mondelez', 1, '2026-03-25T14:10:11', '2026-03-26T15:24:19', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538658/QuanTriKhachSan/Equipments/trawiqiv9m0u4ncvutsr.jpg'),
+(21, N'TV-SS-55', N'Tivi Samsung 55 inch', N'Điện tử', N'cái', 10, 0, 0, 0, 15000000.00, 17000000.00, N'Điện Máy Xanh', 1, '2026-03-26T17:29:39', NULL, 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546178/QuanTriKhachSan/Equipments/xmxreisazllzyx0iiuwe.jpgg')
 
 SET IDENTITY_INSERT [dbo].[Equipments] OFF
 GO
-SET IDENTITY_INSERT [dbo].[Equipments] OFF
-GO
 
--- 12. Room_Inventory
--- ==================== ROOM_INVENTORY - 115 RECORDS (ĐẦY ĐỦ) ====================
+-- 12. Room_Inventory - Bỏ trống tự thêm lại
+
 SET IDENTITY_INSERT [dbo].[Room_Inventory] ON
-
--- Room 1 (King - Thành phố)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (1,1,1,8000000.00,N'TV Samsung 43 inch treo tường',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (2,1,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (3,1,1,3000000.00,N'Tủ lạnh Minibar Aqua',1,N'Asset',3)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (4,1,1,600000.00,N'Máy sấy tóc Panasonic',1,N'Asset',4)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (5,1,1,350000.00,N'Ấm đun nước Sunhouse',1,N'Asset',5)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (6,1,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (7,1,1,5000000.00,N'Tủ quần áo gỗ',1,N'Asset',8)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (8,1,1,3000000.00,N'Bàn làm việc + ghế',1,N'Asset',9)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (9,1,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (10,1,2,150000.00,N'Khăn tắm cotton',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (11,1,2,50000.00,N'Khăn mặt cotton',1,N'Asset',12)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (12,1,1,80000.00,N'Thảm chùi chân',1,N'Asset',13)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (13,1,1,1200000.00,N'Chăn lông vũ',1,N'Asset',14)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (14,1,2,250000.00,N'Gối ngủ',1,N'Asset',15)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (15,1,4,0.00,N'Nước suối Lavie miễn phí',1,N'Asset',16)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (16,1,2,20000.00,N'Coca Cola trong minibar',1,N'Asset',17)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (17,1,2,35000.00,N'Bia Heineken trong minibar',1,N'Asset',18)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (18,1,1,25000.00,N'Mì ly Omachi',1,N'Asset',19)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (19,1,1,30000.00,N'Bánh Oreo',1,N'Asset',20)
-
--- Room 2 (Twin - Occupied)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (20,2,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (21,2,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (22,2,1,3000000.00,N'Tủ lạnh Minibar',1,N'Asset',3)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (23,2,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (24,2,1,350000.00,N'Ấm siêu tốc',1,N'Asset',5)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (25,2,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (26,2,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (27,2,1,3000000.00,N'Bàn làm việc + ghế',1,N'Asset',9)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (28,2,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (29,2,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (30,2,2,50000.00,N'Khăn mặt',1,N'Asset',12)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (31,2,1,80000.00,N'Thảm chùi chân',1,N'Asset',13)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (32,2,1,1200000.00,N'Chăn lông vũ',1,N'Asset',14)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (33,2,2,250000.00,N'Gối ngủ',1,N'Asset',15)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (34,2,4,0.00,N'Nước suối miễn phí',1,N'Asset',16)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (35,2,2,20000.00,N'Coca Cola minibar',1,N'Asset',17)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (36,2,2,35000.00,N'Bia Heineken minibar',1,N'Asset',18)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (37,2,1,25000.00,N'Mì Omachi',1,N'Asset',19)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (38,2,1,30000.00,N'Bánh Oreo',1,N'Asset',20)
-
--- Room 3 (King)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (39,3,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (40,3,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (41,3,1,3000000.00,N'Tủ lạnh Minibar',1,N'Asset',3)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (42,3,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (43,3,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (44,3,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (45,3,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (46,3,2,50000.00,N'Khăn mặt',1,N'Asset',12)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (47,3,1,80000.00,N'Thảm chùi chân',1,N'Asset',13)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (48,3,1,1200000.00,N'Chăn lông vũ',1,N'Asset',14)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (49,3,2,250000.00,N'Gối ngủ',1,N'Asset',15)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (50,3,4,0.00,N'Nước suối Lavie',1,N'Asset',16)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (51,3,2,20000.00,N'Coca Cola',1,N'Asset',17)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (52,3,2,35000.00,N'Bia Heineken',1,N'Asset',18)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (53,3,1,25000.00,N'Mì Omachi',1,N'Asset',19)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (54,3,1,30000.00,N'Bánh Oreo',1,N'Asset',20)
-
--- Room 4 (Twin - Maintenance)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (55,4,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (56,4,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (57,4,1,3000000.00,N'Tủ lạnh Minibar',1,N'Asset',3)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (58,4,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (59,4,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (60,4,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (61,4,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (62,4,4,0.00,N'Nước suối',1,N'Asset',16)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (63,4,2,20000.00,N'Coca Cola',1,N'Asset',17)
-
--- Room 5 (King)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (64,5,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (65,5,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (66,5,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (67,5,6,30000.00,N'Móc treo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (68,5,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (69,5,4,0.00,N'Nước suối',1,N'Asset',16)
-
--- Room 6 (King - Biển)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (70,6,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (71,6,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (72,6,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (73,6,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (74,6,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (75,6,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (76,6,4,0.00,N'Nước suối',1,N'Asset',16)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (77,6,2,35000.00,N'Bia Heineken',1,N'Asset',18)
-
--- Room 7 (Twin)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (78,7,1,8000000.00,N'TV Samsung',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (79,7,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (80,7,6,30000.00,N'Móc treo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (81,7,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-
--- Room 8 (King)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (82,8,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (83,8,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (84,8,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-
--- Room 9 (King)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (85,9,1,8000000.00,N'TV Samsung',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (86,9,1,15000000.00,N'Giường King',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (87,9,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-
--- Room 10 (Villa)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (88,10,1,17000000.00,N'TV Samsung 55 inch',1,N'Asset',21)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (89,10,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (90,10,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (91,10,8,30000.00,N'Móc treo (Villa)',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (92,10,4,150000.00,N'Khăn tắm lớn',1,N'Asset',11)
-
--- Room 13 (Twin - Occupied)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (93,13,1,8000000.00,N'TV Samsung',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (94,13,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (95,13,6,30000.00,N'Móc treo',1,N'Asset',10)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (96,13,2,150000.00,N'Khăn tắm',1,N'Asset',11)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (97,13,4,0.00,N'Nước suối',1,N'Asset',16)
-
--- Room 14 (Twin - Cleaning)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (98,14,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (99,14,2,7000000.00,N'Giường Single',1,N'Asset',7)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (100,14,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (101,14,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-
--- Room 15 (Twin - Maintenance)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (102,15,1,9000000.00,N'Điều hòa',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (103,15,2,7000000.00,N'Giường Single',1,N'Asset',7)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (104,15,1,15000000.00,N'Giường King (dự phòng)',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (105,15,6,30000.00,N'Móc treo',1,N'Asset',10)
-
--- Room 16 (King)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (106,16,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (107,16,1,15000000.00,N'Giường King Size',1,N'Asset',6)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (108,16,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (109,16,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
-
--- ==================== Bổ sung thêm để đủ 115 records ====================
-
--- Room 1 bổ sung
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (110,1,1,80000.00,N'Thảm dự phòng',1,N'Asset',13)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (111,1,1,1200000.00,N'Chăn dự phòng',1,N'Asset',14)
-
--- Room 2 bổ sung
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (112,2,1,80000.00,N'Thảm dự phòng',1,N'Asset',13)
-
--- Room 3 bổ sung
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (113,3,1,350000.00,N'Ấm siêu tốc',1,N'Asset',5)
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (114,3,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
-
--- Room 6 bổ sung
-INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (115,6,1,350000.00,N'Ấm siêu tốc',1,N'Asset',5)
 
 SET IDENTITY_INSERT [dbo].[Room_Inventory] OFF
 GO
@@ -1313,21 +1138,9 @@ INSERT [dbo].[Order_Service_Details] ([id],[order_service_id],[service_id],[quan
 SET IDENTITY_INSERT [dbo].[Order_Service_Details] OFF
 GO
 
--- 22. Loss_And_Damages
+-- 22. Loss_And_Damages - Để trống cho sạch :Đ
 SET IDENTITY_INSERT [dbo].[Loss_And_Damages] ON
--- ==================== LOSS_AND_DAMAGES DATASEED MỚI (10 records) ====================
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at],[status])
-VALUES 
-(1, 10, 15, 5, 2, 0.00, N'Khách dùng hết nước suối miễn phí', NULL, '2026-03-27T14:30:15', 'Confirmed'),
-(2, 10, 16, 5, 1, 20000.00, N'Mất 1 lon Coca Cola', NULL, '2026-03-27T15:08:59', 'Confirmed'),
-(3, 10, 17, 5, 1, 35000.00, N'Làm vỡ lon bia Heineken', NULL, '2026-03-27T15:16:06', 'Confirmed'),
-(4, 2, 29, 5, 1, 150000.00, N'Mất khăn tắm', NULL, '2026-03-27T15:42:13', 'Confirmed'),
-(5, 2, 34, 5, 3, 0.00, N'Khách dùng hết nước suối', NULL, '2026-03-27T15:43:18', 'Confirmed'),
-(6, 2, 37, NULL, 1, 25000.00, N'Mất mì ly Omachi', NULL, '2026-03-28T01:26:23', 'Pending'),
-(7, 5, 10, 5, 2, 60000.00, N'Mất 2 móc treo quần áo', NULL, '2026-03-28T09:45:12', 'Confirmed'),
-(8, 8, 45, 5, 1, 150000.00, N'Khăn tắm bị rách nặng', NULL, '2026-03-28T10:20:33', 'Confirmed'),
-(9, 10, 18, 5, 1, 30000.00, N'Mất bánh Oreo', NULL, '2026-03-29T14:55:22', 'Confirmed'),
-(10, 2, 30, 5, 1, 50000.00, N'Mất 1 khăn mặt', NULL, '2026-03-29T16:10:45', 'Pending')
+
 SET IDENTITY_INSERT [dbo].[Loss_And_Damages] OFF
 GO
 
@@ -1419,29 +1232,4 @@ VALUES (9,  N'Trung Tâm Thương Mại',  N'Giải trí', N'321 Đường Mua S
 INSERT [dbo].[Attractions] ([id],[name],[category],[address],[latitude],[longitude],[distance_km],[description],[image_url],[map_embed_link],[is_active])
 VALUES (10, N'Điểm Ngắm Hoàng Hôn',  N'Thiên nhiên',N'Mũi Đất Phía Nam',      CAST(16.020000 AS Decimal(9,6)), CAST(108.215000 AS Decimal(9,6)), CAST(4.00  AS Decimal(5,2)), N'Nơi có view biển đẹp nhất',             NULL, N'link_map_10', 1)
 SET IDENTITY_INSERT [dbo].[Attractions] OFF
-GO
-
--- 27. Audit_Logs
-SET IDENTITY_INSERT [dbo].[Audit_Logs] ON
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (1,  1, N'UPDATE', N'Rooms',      1,  N'{"status":"Cleaning"}',      N'{"status":"Available"}',      CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (2,  2, N'DELETE', N'Bookings',   5,  N'{"id":5}',                   N'{}',                          CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (3,  3, N'CREATE', N'Invoices',   1,  N'{}',                         N'{"id":1}',                    CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (4,  1, N'UPDATE', N'Users',      6,  N'{"status":0}',               N'{"status":1}',                CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (5,  2, N'CREATE', N'Services',   1,  N'{}',                         N'{"price":200000}',            CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (6,  3, N'UPDATE', N'Bookings',   2,  N'{"status":"Pending"}',       N'{"status":"Checked_in"}',     CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (7,  1, N'UPDATE', N'Room_Types', 1,  N'{"price":350000}',           N'{"price":400000}',            CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (8,  2, N'DELETE', N'Reviews',    8,  N'{"id":8}',                   N'{}',                          CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (9,  3, N'CREATE', N'Order_Services',1,N'{}',                        N'{"amount":300000}',           CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-INSERT [dbo].[Audit_Logs] ([id],[user_id],[action],[table_name],[record_id],[old_value],[new_value],[created_at])
-VALUES (10, 1, N'UPDATE', N'Vouchers',   1,  N'{"limit":50}',               N'{"limit":100}',               CAST(N'2026-03-06T22:07:35.023' AS DateTime))
-SET IDENTITY_INSERT [dbo].[Audit_Logs] OFF
 GO

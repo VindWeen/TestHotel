@@ -1,7 +1,0 @@
-1. Vai trò & phân quyền: thêm check box all quyền và checkbox quyền theo nhóm
-
-2. Quản lý phòng: 
-- Khi chọn kiểu hiển thị giữa Bảng/Lưới thì khi từ trang chi tiết phòng ấn quay lại quản lí phòng phải giữ kiểu hiển thị đã chọn trước đó
-- Thêm nút đồng bộ kho vật tư trong chi tiết phòng thay cho vị trí nút làm mới hiện tại, dời nút làm mới lên cạnh nút In báo cáo 
-- Thêm cột Ghi chú (note) trong chi tiết phòng - Quản lí vật tư
-- Title cột Thao tác đang lệch với các nút thao tác chỉnh sửa/xóa

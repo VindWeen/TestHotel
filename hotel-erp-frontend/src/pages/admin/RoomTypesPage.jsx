@@ -4,6 +4,9 @@ import {
     getAdminRoomTypes,
     getAdminRoomTypeById,
     createRoomType,
+    updateRoomType,
+    uploadRoomTypeImage,
+    setPrimaryImage,
     toggleRoomTypeActive,
 } from "../../api/roomTypesApi";
 
@@ -38,6 +41,8 @@ function Toast({ id, msg, type = "success", dur = 4000, onDismiss }) {
 
 function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
     const [submitting, setSubmitting] = useState(false);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState("");
     const [form, setForm] = useState({
         name: "",
         basePrice: "",
@@ -52,6 +57,18 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
     const updateField = (key, value) => {
         setForm(prev => ({ ...prev, [key]: value }));
     };
+
+    useEffect(() => {
+        if (!imageFile) {
+            setImagePreview("");
+            return;
+        }
+
+        const previewUrl = URL.createObjectURL(imageFile);
+        setImagePreview(previewUrl);
+
+        return () => URL.revokeObjectURL(previewUrl);
+    }, [imageFile]);
 
     const submit = async () => {
         if (!form.name.trim()) {
@@ -73,7 +90,7 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
 
         setSubmitting(true);
         try {
-            await createRoomType({
+            const res = await createRoomType({
                 name: form.name.trim(),
                 basePrice: Number(form.basePrice),
                 capacityAdults: Number(form.capacityAdults),
@@ -83,6 +100,11 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
                 viewType: form.viewType.trim() || null,
                 description: form.description.trim() || null,
             });
+
+            const roomTypeId = res?.data?.id;
+            if (imageFile && roomTypeId) {
+                await uploadRoomTypeImage(roomTypeId, imageFile);
+            }
 
             showToast("Đã thêm hạng phòng mới.", "success");
             onCreated();
@@ -109,12 +131,12 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
 
                 <div style={{ padding: "20px 28px", overflowY: "auto", flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {[
-                        ["Tên hạng phòng *", "name", "text", "Ví dụ: Deluxe City View"],
+                        ["Tên hạng phòng *", "name", "text", "Vd: Deluxe City View"],
                         ["Giá cơ bản *", "basePrice", "number", "VND/đêm"],
-                        ["Sức chứa người lớn *", "capacityAdults", "number", "Ví dụ: 2"],
+                        ["Sức chứa người lớn *", "capacityAdults", "number", "Vd: 2"],
                         ["Sức chứa trẻ em", "capacityChildren", "number", "Mặc định: 0"],
-                        ["Diện tích (m²)", "areaSqm", "number", "Ví dụ: 28"],
-                        ["Loại giường", "bedType", "text", "Ví dụ: King bed"],
+                        ["Diện tích (m²)", "areaSqm", "number", "Vd: 28"],
+                        ["Loại giường", "bedType", "text", "Vd: King bed"],
                         ["Hướng nhìn", "viewType", "text", "Ví dụ: City view"],
                     ].map(([label, key, type, placeholder]) => (
                         <label key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -128,6 +150,43 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
                             />
                         </label>
                     ))}
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
+                        <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>Hình ảnh hạng phòng</span>
+                        <div style={{ display: "flex", gap: 14, alignItems: "stretch" }}>
+                            <label style={{ minWidth: 180, height: 144, borderRadius: 14, border: "1.5px dashed #b8c8be", background: "#f8faf9", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "#4f645b", fontSize: 12, fontWeight: 700 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 28 }}>upload</span>
+                                Chọn ảnh
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: "none" }}
+                                    onChange={e => setImageFile(e.target.files?.[0] || null)}
+                                />
+                            </label>
+                            <div style={{ flex: 1, height: 144, borderRadius: 14, overflow: "hidden", background: "#f1f5f3", border: "1px solid #e2e8e1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {imagePreview ? (
+                                    <img src={imagePreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : (
+                                    <div style={{ textAlign: "center", color: "#94a3b8" }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: 34, display: "block", marginBottom: 6 }}>image</span>
+                                        <span style={{ fontSize: 12, fontWeight: 600 }}>Chưa chọn ảnh</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        {imageFile && (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 10px", borderRadius: 10, background: "#f5f8f6", border: "1px solid #d9e4dd" }}>
+                                <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 600, wordBreak: "break-all" }}>{imageFile.name}</span>
+                                <button type="button" onClick={() => setImageFile(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 12, fontWeight: 700 }}>
+                                    Bỏ ảnh
+                                </button>
+                            </div>
+                        )}
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>
+                            Ảnh sẽ được tải lên Cloudinary ngay sau khi thêm hạng phòng thành công.
+                        </span>
+                    </label>
 
                     <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
                         <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>Mô tả</span>
@@ -155,12 +214,190 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
     );
 }
 
-// ─── Room Type Detail Modal ────────────────────────────────────────────────────
+function EditRoomTypeModal({ roomType, onClose, onUpdated, showToast }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState("");
+    const [form, setForm] = useState({
+        name: roomType?.name || "",
+        basePrice: roomType?.basePrice ?? "",
+        capacityAdults: roomType?.capacityAdults ?? "",
+        capacityChildren: roomType?.capacityChildren ?? "0",
+        areaSqm: roomType?.areaSqm ?? "",
+        bedType: roomType?.bedType || "",
+        viewType: roomType?.viewType || "",
+        description: roomType?.description || "",
+    });
+
+    const updateField = (key, value) => {
+        setForm(prev => ({ ...prev, [key]: value }));
+    };
+
+    useEffect(() => {
+        if (!imageFile) {
+            setImagePreview("");
+            return;
+        }
+
+        const previewUrl = URL.createObjectURL(imageFile);
+        setImagePreview(previewUrl);
+
+        return () => URL.revokeObjectURL(previewUrl);
+    }, [imageFile]);
+
+    const submit = async () => {
+        if (!form.name.trim()) {
+            showToast("Vui lòng nhập tên h?ng phòng.", "warning");
+            return;
+        }
+        if (!form.basePrice || Number(form.basePrice) <= 0) {
+            showToast("Giá cơ bản phải lớn hơn 0.", "warning");
+            return;
+        }
+        if (!form.capacityAdults || Number(form.capacityAdults) <= 0) {
+            showToast("Sức chứa người lớn phải lớn hơn 0.", "warning");
+            return;
+        }
+        if (form.capacityChildren !== "" && Number(form.capacityChildren) < 0) {
+            showToast("Sức chứa trẻ em không được âm.", "warning");
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await updateRoomType(roomType.id, {
+                name: form.name.trim(),
+                basePrice: Number(form.basePrice),
+                capacityAdults: Number(form.capacityAdults),
+                capacityChildren: Number(form.capacityChildren || 0),
+                areaSqm: form.areaSqm ? Number(form.areaSqm) : null,
+                bedType: form.bedType.trim() || null,
+                viewType: form.viewType.trim() || null,
+                description: form.description.trim() || null,
+            });
+
+            if (imageFile) {
+                await uploadRoomTypeImage(roomType.id, imageFile);
+            }
+
+            showToast("Cập nhật hạng phòng thành công.", "success");
+            onUpdated();
+            onClose();
+        } catch (err) {
+            showToast(err?.response?.data?.message || "Không thể cập nhật hạng phòng.", "error");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 230, padding: 16 }}
+            onClick={e => e.target === e.currentTarget && onClose()}
+        >
+            <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 640, maxHeight: "92vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,.18)" }}>
+                <div style={{ padding: "22px 28px 16px", borderBottom: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: 0, fontFamily: "Manrope, sans-serif" }}>Chỉnh sửa hạng phòng</h3>
+                    <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, color: "#9ca3af", display: "flex" }}>
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div style={{ padding: "20px 28px", overflowY: "auto", flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                        ["Tên hạng phòng *", "name", "text", "Vd: Deluxe City View"],
+                        ["Giá cơ bản *", "basePrice", "number", "VND/đêm"],
+                        ["Sức chứa người lớn *", "capacityAdults", "number", "Vd: 2"],
+                        ["Sức chứa trẻ em", "capacityChildren", "number", "Mặc định: 0"],
+                        ["Diện tích (m²)", "areaSqm", "number", "Vd: 28"],
+                        ["Loại giường", "bedType", "text", "Vd: King bed"],
+                        ["Hướng nhìn", "viewType", "text", "Vd: City view"],
+                    ].map(([label, key, type, placeholder]) => (
+                        <label key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>{label}</span>
+                            <input
+                                type={type}
+                                value={form[key]}
+                                placeholder={placeholder}
+                                onChange={e => updateField(key, e.target.value)}
+                                style={{ height: 40, borderRadius: 10, border: "1.5px solid #d6d3d1", padding: "0 12px", fontSize: 13, outline: "none" }}
+                            />
+                        </label>
+                    ))}
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
+                        <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>Hình ảnh hạng phòng</span>
+                        <div style={{ display: "flex", gap: 14, alignItems: "stretch" }}>
+                            <label style={{ minWidth: 180, height: 144, borderRadius: 14, border: "1.5px dashed #b8c8be", background: "#f8faf9", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", color: "#4f645b", fontSize: 12, fontWeight: 700 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 28 }}>upload</span>
+                                Chọn ảnh mới
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: "none" }}
+                                    onChange={e => setImageFile(e.target.files?.[0] || null)}
+                                />
+                            </label>
+                            <div style={{ flex: 1, height: 144, borderRadius: 14, overflow: "hidden", background: "#f1f5f3", border: "1px solid #e2e8e1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {imagePreview ? (
+                                    <img src={imagePreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : roomType?.images?.[0]?.imageUrl ? (
+                                    <img src={roomType.images[0].imageUrl} alt={roomType.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : (
+                                    <div style={{ textAlign: "center", color: "#94a3b8" }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: 34, display: "block", marginBottom: 6 }}>image</span>
+                                        <span style={{ fontSize: 12, fontWeight: 600 }}>Ch?a c? ?nh</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        {imageFile && (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 10px", borderRadius: 10, background: "#f5f8f6", border: "1px solid #d9e4dd" }}>
+                                <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 600, wordBreak: "break-all" }}>{imageFile.name}</span>
+                                <button type="button" onClick={() => setImageFile(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 12, fontWeight: 700 }}>
+                                    Bỏ ảnh
+                                </button>
+                            </div>
+                        )}
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>
+                            Khi lưu, ảnh mới sẽ được tải lên Cloudinary và thêm vào gallery của hạng phòng này.
+                        </span>
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
+                        <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>Mô tả</span>
+                        <textarea
+                            value={form.description}
+                            placeholder="Mô tả ngắn về hạng phòng..."
+                            onChange={e => updateField("description", e.target.value)}
+                            rows={4}
+                            style={{ borderRadius: 10, border: "1.5px solid #d6d3d1", padding: "10px 12px", fontSize: 13, outline: "none", resize: "vertical" }}
+                        />
+                    </label>
+                </div>
+
+                <div style={{ padding: "14px 28px 22px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
+                    <button onClick={onClose} disabled={submitting} style={{ padding: "9px 16px", borderRadius: 12, background: "#f5f5f4", border: "1.5px solid #e7e5e4", color: "#57534e", fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: submitting ? 0.6 : 1 }}>
+                        Hủy
+                    </button>
+                    <button onClick={submit} disabled={submitting} style={{ padding: "9px 20px", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#4f645b,#43574f)", color: "#e7fef3", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 7, opacity: submitting ? 0.6 : 1 }}>
+                        {submitting && <div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,.3)", borderTopColor: "currentColor", borderRadius: "50%", animation: "spin .65s linear infinite" }} />}
+                        Lưu thay đổi
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+//  Room Type Detail Modal ────────────────────────────────────────────────────
 function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
     const [rt, setRt] = useState(null);
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
+    const [settingPrimaryId, setSettingPrimaryId] = useState(null);
     const [selectedImg, setSelectedImg] = useState(null);
+    const [editOpen, setEditOpen] = useState(false);
 
 
     const load = useCallback(async () => {
@@ -193,11 +430,42 @@ function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
         }
     };
 
+    const handleSelectImage = async (img) => {
+        setSelectedImg(img);
+
+        if (img?.isPrimary || settingPrimaryId) {
+            return;
+        }
+
+        setSettingPrimaryId(img.id);
+        try {
+            const res = await setPrimaryImage(roomTypeId, img.id);
+            showToast(res.data?.message || "Đã cập nhật ảnh chính.", "success");
+            await load();
+            onUpdated();
+        } catch (err) {
+            showToast(err?.response?.data?.message || "Không thể đặt ảnh chính.", "error");
+        } finally {
+            setSettingPrimaryId(null);
+        }
+    };
+
     return (
         <div
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}
             onClick={e => e.target === e.currentTarget && onClose()}
         >
+            {editOpen && rt && (
+                <EditRoomTypeModal
+                    roomType={rt}
+                    onClose={() => setEditOpen(false)}
+                    onUpdated={async () => {
+                        await load();
+                        onUpdated();
+                    }}
+                    showToast={showToast}
+                />
+            )}
             <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 640, maxHeight: "92vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,.18)" }}>
                 {/* Header */}
                 <div style={{ padding: "22px 28px 16px", borderBottom: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
@@ -247,19 +515,27 @@ function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
                                             {rt.images.map(img => (
                                                 <div
                                                     key={img.id}
-                                                    onClick={() => setSelectedImg(img)}
+                                                    onClick={() => handleSelectImage(img)}
                                                     style={{
                                                         width: 56, height: 42, flexShrink: 0, borderRadius: 8, overflow: "hidden", cursor: "pointer",
                                                         border: selectedImg?.id === img.id ? "2px solid #4f645b" : "2px solid transparent",
                                                         opacity: selectedImg?.id === img.id ? 1 : 0.6,
                                                         transition: "all .15s",
+                                                        position: "relative",
                                                     }}
                                                 >
                                                     <img src={img.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                    {img.isPrimary && (
+                                                        <span style={{ position: "absolute", top: 3, right: 3, width: 10, height: 10, borderRadius: 9999, background: "#10b981", border: "2px solid white", boxShadow: "0 1px 4px rgba(0,0,0,.18)" }} />
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                     )}
+                                    <p style={{ fontSize: 12, color: "#6b7280", margin: "8px 0 0" }}>
+                                        Chọn ảnh nhỏ bên dưới để xem nhanh và đặt làm ảnh chính cho thẻ hạng phòng.
+                                        {settingPrimaryId && " Đang cập nhật ảnh chính..."}
+                                    </p>
                                 </div>
                             )}
 
@@ -314,6 +590,13 @@ function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
                 {/* Footer */}
                 {!loading && rt && (
                     <div style={{ padding: "14px 28px 22px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
+                        <button
+                            onClick={() => setEditOpen(true)}
+                            style={{ padding: "9px 18px", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "#eef7f1", color: "#355347", border: "1.5px solid #b8d1c3", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
+                            Chỉnh sửa
+                        </button>
                         <button
                             onClick={handleToggle}
                             disabled={toggling}
