@@ -1,10 +1,8 @@
-// src/pages/admin/LossAndDamagePage.jsx
+﻿// src/pages/admin/LossAndDamagePage.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import axiosClient from "../../api/axios";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtCurrency = (n) =>
-  n == null ? "0đ" : new Intl.NumberFormat("vi-VN").format(n) + "đ";
+  n == null ? "0đ" : `${new Intl.NumberFormat("vi-VN").format(n)}đ`;
 
 const inputStyle = {
   width: "100%",
@@ -71,64 +69,121 @@ const STATUS_CFG = {
 };
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
-function Toast({ id, msg, type = "success", onDismiss }) {
-  const cfg = {
-    success: {
-      bg: "#ffffff",
-      border: "#e2e8f0",
-      text: "#1a202c",
-      icon: "check_circle",
-      iconColor: "#22c55e",
-    },
-    error: {
-      bg: "#ffffff",
-      border: "#e2e8f0",
-      text: "#1a202c",
-      icon: "error",
-      iconColor: "#ef4444",
-    },
-  }[type] || {
-    bg: "#ffffff",
-    border: "#e2e8f0",
-    text: "#1a202c",
+const TOAST_STYLES = {
+  success: {
+    bg: "#1e3a2f",
+    border: "#2d5a45",
+    text: "#a7f3d0",
+    prog: "#34d399",
+    icon: "check_circle",
+  },
+  error: {
+    bg: "#3a1e1e",
+    border: "#5a2d2d",
+    text: "#fca5a5",
+    prog: "#f87171",
+    icon: "error",
+  },
+  warning: {
+    bg: "#3a2e1a",
+    border: "#5a4820",
+    text: "#fcd34d",
+    prog: "#fbbf24",
+    icon: "warning",
+  },
+  info: {
+    bg: "#1e2f3a",
+    border: "#2d4a5a",
+    text: "#93c5fd",
+    prog: "#60a5fa",
     icon: "info",
-    iconColor: "#3b82f6",
-  };
+  },
+};
 
+function Toast({ id, msg, type = "success", dur = 3500, onDismiss }) {
+  const s = TOAST_STYLES[type] || TOAST_STYLES.info;
   useEffect(() => {
-    const t = setTimeout(() => onDismiss(id), 3500);
+    const t = setTimeout(() => onDismiss(id), dur);
     return () => clearTimeout(t);
-  }, []);
-
+  }, [id, dur, onDismiss]);
   return (
     <div
       style={{
-        background: cfg.bg,
-        border: `1px solid ${cfg.border}`,
-        color: cfg.text,
-        borderRadius: 16,
-        boxShadow: "0 10px 40px rgba(0,0,0,0.08)",
+        background: s.bg,
+        border: `1px solid ${s.border}`,
+        color: s.text,
+        borderRadius: 14,
+        overflow: "hidden",
+        boxShadow: "0 8px 28px rgba(0,0,0,.35)",
         pointerEvents: "auto",
-        marginBottom: 12,
-        padding: "14px 20px",
-        animation: "toastIn .4s cubic-bezier(.22,1,.36,1) forwards",
-        minWidth: 300,
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
+        marginBottom: 10,
+        animation: "toastIn .32s cubic-bezier(.22,1,.36,1) forwards",
+        minWidth: 280,
       }}
     >
-      <span
-        className="material-symbols-outlined"
+      <div
         style={{
-          color: cfg.iconColor,
-          fontSize: 24,
-          fontVariationSettings: "'FILL' 1",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          padding: "12px 12px 8px",
         }}
       >
-        {cfg.icon}
-      </span>
-      <p style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1 }}>{msg}</p>
+        <span
+          className="material-symbols-outlined"
+          style={{
+            fontSize: 18,
+            flexShrink: 0,
+            marginTop: 1,
+            fontVariationSettings: "'FILL' 1",
+          }}
+        >
+          {s.icon}
+        </span>
+        <p
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.4,
+            margin: 0,
+            flex: 1,
+          }}
+        >
+          {msg}
+        </p>
+        <button
+          onClick={() => onDismiss(id)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            opacity: 0.4,
+            color: "inherit",
+            padding: 2,
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+            close
+          </span>
+        </button>
+      </div>
+      <div
+        style={{
+          margin: "0 12px 8px",
+          height: 3,
+          borderRadius: 9999,
+          background: "rgba(255,255,255,.1)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            background: s.prog,
+            animation: `toastProgress ${dur}ms linear forwards`,
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -988,10 +1043,10 @@ function EditModal({ open, item, onClose, onSaved, showToast }) {
               padding: "10px 28px",
               borderRadius: 12,
               border: "none",
-              background: "#0f172a",
+              background: "linear-gradient(135deg,#4f645b 0%,#43574f 100%)",
               fontSize: 14,
               fontWeight: 700,
-              color: "white",
+              color: "#e7fef3",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -1015,6 +1070,494 @@ function EditModal({ open, item, onClose, onSaved, showToast }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+export function LossAndDamageHeader({ recordCount, onRefresh }) {
+  return (
+    <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 28,
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              fontSize: 26,
+              fontWeight: 800,
+              color: "#1c1917",
+              letterSpacing: "-0.025em",
+              margin: "0 0 4px",
+            }}
+          >
+            Thất thoát &amp; Đền bù
+          </h2>
+          <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+            Tổng{" "}
+            <span style={{ fontWeight: 700, color: "#1c1917" }}>{recordCount}</span>{" "}
+            biên bản sự cố
+          </p>
+        </div>
+        <button
+          onClick={onRefresh}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 22px",
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 700,
+            background: "white",
+            color: "#1c1917",
+            border: "1.5px solid #e2e8e1",
+            cursor: "pointer",
+            boxShadow: "0 1px 4px rgba(0,0,0,.06)",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            refresh
+          </span>
+          Làm mới
+        </button>
+      </div>
+    </>
+  );
+}
+
+export function LossAndDamageStats({ stats, lastUpdated, fmtCurrency }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 14,
+        marginBottom: 24,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff7ed",
+          border: "1.5px solid #fde68a",
+          borderRadius: 16,
+          padding: "16px 18px",
+        }}
+      >
+        <p
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: ".12em",
+            color: "#d97706",
+            margin: "0 0 6px",
+            opacity: 0.8,
+          }}
+        >
+          SỰ CỐ TRÊN TRANG
+        </p>
+        <p style={{ fontSize: 28, fontWeight: 800, color: "#d97706", margin: 0 }}>
+          {stats.totalOnPage}{" "}
+          <span
+            style={{
+              fontSize: 13,
+              color: "#d97706",
+              fontWeight: 500,
+              opacity: 0.7,
+            }}
+          >
+            Bản ghi
+          </span>
+        </p>
+      </div>
+
+      <div
+        style={{
+          background: "#fef2f2",
+          border: "1.5px solid #fecaca",
+          borderRadius: 16,
+          padding: "16px 18px",
+        }}
+      >
+        <p
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: ".12em",
+            color: "#dc2626",
+            margin: "0 0 6px",
+            opacity: 0.8,
+          }}
+        >
+          TỔNG TIỀN ĐỀN BÙ
+        </p>
+        <p style={{ fontSize: 24, fontWeight: 800, color: "#dc2626", margin: 0 }}>
+          {fmtCurrency(stats.penaltyOnPage)}
+        </p>
+      </div>
+
+      <div
+        style={{
+          background: "#f8f9fa",
+          border: "1.5px solid #f1f0ea",
+          borderRadius: 16,
+          padding: "16px 18px",
+        }}
+      >
+        <p
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: ".12em",
+            color: "#6b7280",
+            margin: "0 0 6px",
+            opacity: 0.8,
+          }}
+        >
+          CẬP NHẬT GẦN NHẤT
+        </p>
+        <p style={{ fontSize: 28, fontWeight: 800, color: "#1c1917", margin: 0 }}>
+          {lastUpdated
+            ? lastUpdated.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "--:--"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function LossAndDamageToolbar({
+  filters,
+  setFilters,
+  onApplyFilters,
+  onClearFilters,
+}) {
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 18,
+        padding: "18px 22px",
+        border: "1px solid #f1f0ea",
+        boxShadow: "0 1px 4px rgba(0,0,0,.06)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: "#f9f8f3",
+            padding: "8px 16px",
+            borderRadius: 12,
+            border: "1.5px solid #e2e8e1",
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 18, color: "#9ca3af" }}
+          >
+            calendar_today
+          </span>
+          <input
+            type="date"
+            value={filters.fromDate}
+            onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
+            style={{
+              border: "none",
+              background: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              outline: "none",
+              color: "#1c1917",
+            }}
+          />
+          <span style={{ color: "#e2e8f0" }}>—</span>
+          <input
+            type="date"
+            value={filters.toDate}
+            onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
+            style={{
+              border: "none",
+              background: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              outline: "none",
+              color: "#1c1917",
+            }}
+          />
+        </div>
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+          style={{
+            padding: "10px 16px",
+            borderRadius: 12,
+            border: "1.5px solid #e2e8e1",
+            fontSize: 13,
+            fontWeight: 600,
+            background: "#f9f8f3",
+            cursor: "pointer",
+            outline: "none",
+            fontFamily: "Manrope, sans-serif",
+          }}
+        >
+          <option value="">Tất cả trạng thái</option>
+          <option value="Pending">Chờ xử lý</option>
+          <option value="Confirmed">Đã xác nhận</option>
+          <option value="Waived">Miễn trừ</option>
+        </select>
+        <button
+          onClick={onApplyFilters}
+          style={{
+            padding: "10px 22px",
+            background: "linear-gradient(135deg,#4f645b 0%,#43574f 100%)",
+            color: "#e7fef3",
+            borderRadius: 12,
+            border: "none",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: "Manrope, sans-serif",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            manage_search
+          </span>
+          Lọc kết quả
+        </button>
+      </div>
+      <button
+        onClick={onClearFilters}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "9px 16px",
+          borderRadius: 10,
+          border: "1.5px solid #e2e8e1",
+          background: "white",
+          color: "#6b7280",
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+          boxShadow: "0 1px 3px rgba(0,0,0,.04)",
+          fontFamily: "Manrope, sans-serif",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "#4f645b";
+          e.currentTarget.style.color = "#4f645b";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "#e2e8e1";
+          e.currentTarget.style.color = "#6b7280";
+        }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+          filter_alt_off
+        </span>
+        Xóa bộ lọc
+      </button>
+    </div>
+  );
+}
+
+export function LossAndDamageTable({
+  loading,
+  paged,
+  page,
+  pageSize,
+  recordsCount,
+  totalPages,
+  fmtDateTime,
+  fmtCurrency,
+  onView,
+  onEdit,
+  onDelete,
+  onPageChange,
+}) {
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 18,
+        border: "1px solid #f1f0ea",
+        overflow: "hidden",
+        boxShadow: "0 1px 4px rgba(0,0,0,.06)",
+      }}
+    >
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ background: "rgba(249,248,243,.6)" }}>
+            {[
+              "ID",
+              "Minh chứng",
+              "Phòng",
+              "Vật liệu sự cố",
+              "Số lượng",
+              "Đền bù",
+              "Thời gian báo cáo",
+              "Thao tác",
+            ].map((h) => (
+              <th
+                key={h}
+                style={{
+                  padding: "18px 24px",
+                  textAlign: "left",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "#94a3b8",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={8} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>
+                Đang đồng bộ dữ liệu...
+              </td>
+            </tr>
+          ) : paged.length === 0 ? (
+            <tr>
+              <td colSpan={8} style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>
+                Phòng ban chưa ghi nhận sự cố nào
+              </td>
+            </tr>
+          ) : (
+            paged.map((rec) => {
+              const imgs = rec.images || [];
+              const dt = fmtDateTime(rec.createdAt);
+              return (
+                <tr key={rec.id} className="table-row">
+                  <td style={{ padding: "20px 24px", fontSize: 13, fontWeight: 700, color: "#64748b" }}>
+                    #{rec.id}
+                  </td>
+                  <td style={{ padding: "20px 24px" }}>
+                    {imgs.length > 0 ? (
+                      <div className="badge-p" style={{ background: "#ecfdf5", color: "#065f46" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                          image
+                        </span>
+                        Có hình ảnh ({imgs.length})
+                      </div>
+                    ) : (
+                      <div className="badge-p" style={{ background: "#f1f5f9", color: "#64748b" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                          hide_image
+                        </span>
+                        Không có ảnh
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: "20px 24px" }}>
+                    <div
+                      style={{
+                        padding: "3px 10px",
+                        borderRadius: 8,
+                        background: "#f0faf5",
+                        color: "#1a3826",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        display: "inline-block",
+                        border: "1.5px solid #a7f3d0",
+                      }}
+                    >
+                      {rec.roomNumber}
+                    </div>
+                  </td>
+                  <td style={{ padding: "20px 24px", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                    {rec.itemName}
+                  </td>
+                  <td style={{ padding: "20px 24px", fontSize: 15, fontWeight: 800, color: "#64748b" }}>
+                    {rec.quantity}
+                  </td>
+                  <td style={{ padding: "20px 24px", fontSize: 15, fontWeight: 800, color: "#ef4444" }}>
+                    {fmtCurrency(rec.penaltyAmount)}
+                  </td>
+                  <td style={{ padding: "16px 24px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1c1917" }}>{dt.date}</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{dt.time}</div>
+                  </td>
+                  <td style={{ padding: "20px 24px" }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn-icon-p" onClick={() => onView(rec)} title="Xem chi tiết">
+                        <span className="material-symbols-outlined">visibility</span>
+                      </button>
+                      <button className="btn-icon-p" onClick={() => onEdit(rec)} title="Chỉnh sửa">
+                        <span className="material-symbols-outlined">edit_square</span>
+                      </button>
+                      <button className="btn-icon-p" onClick={() => onDelete(rec)} title="Xóa" style={{ color: "#ef4444" }}>
+                        <span className="material-symbols-outlined">delete_forever</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+
+      <footer
+        style={{
+          padding: "14px 24px",
+          borderTop: "1px solid #f1f0ea",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+          {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, recordsCount)} /{" "}
+          <span style={{ fontWeight: 700, color: "#6b7280" }}>{recordsCount}</span> biên bản
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button className="pg-btn" disabled={page === 1} onClick={() => onPageChange(page - 1)}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+              chevron_left
+            </span>
+          </button>
+          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+            const n = totalPages <= 5 ? i + 1 : Math.max(1, page - 2) + i;
+            if (n > totalPages) return null;
+            return (
+              <button key={n} className={`pg-btn${n === page ? " active" : ""}`} onClick={() => onPageChange(n)}>
+                {n}
+              </button>
+            );
+          })}
+          <button className="pg-btn" disabled={page === totalPages} onClick={() => onPageChange(page + 1)}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+              chevron_right
+            </span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -1101,30 +1644,30 @@ export default function LossAndDamagePage() {
 
   return (
     <>
-      <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap');
-                @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-                body { background: #f8fafc; color: #1e293b; font-family: 'Inter', sans-serif; }
-                .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; }
-                @keyframes toastIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
-                @keyframes modalSlideUp { from{transform:translateY(30px);opacity:0} to{transform:translateY(0);opacity:1} }
-                @keyframes spin { to{transform:rotate(360deg)} }
-                .card-premium { background: white; border: 1px solid #f1f5f9; border-radius: 24px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); transition: all 0.3s ease; }
-                .card-premium:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.05); }
-                .table-row { transition: background 0.1s; border-bottom: 1px solid #f8fafc; }
-                .table-row:hover { background: #fbfbfc; }
-                .btn-icon-p { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #f1f5f9; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: #64748b; }
-                .btn-icon-p:hover { border-color: #0f172a; color: #0f172a; transform: scale(1.05); background: #f8fafc; }
-                .badge-p { padding: 4px 12px; borderRadius: 20px; fontSize: 12px; fontWeight: 700; display: inline-flex; alignItems: center; gap: 6px; }
-            `}</style>
+      <style>{`        * { font-family: 'Manrope', sans-serif; }        @keyframes toastIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+        @keyframes toastProgress { from{width:100%} to{width:0} }
+        @keyframes modalSlideUp { from{transform:translateY(30px);opacity:0} to{transform:translateY(0);opacity:1} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+        .table-row { transition: background 0.1s; border-bottom: 1px solid #f1f0ea; }
+        .table-row:hover { background: #fafaf8 !important; }
+        .btn-icon-p { width: 34px; height: 34px; border-radius: 9px; border: 1.5px solid #f1f0ea; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; color: #6b7280; }
+        .btn-icon-p:hover { border-color: #4f645b; color: #4f645b; background: #f0faf5; }
+        .pg-btn { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; color:#6b7280; background:transparent; border:none; cursor:pointer; transition:background .15s,color .15s; font-family:'Manrope',sans-serif; }
+        .pg-btn:hover:not(:disabled) { background:#f3f4f6; }
+        .pg-btn.active { background:#4f645b; color:#e7fef3; cursor:default; }
+        .pg-btn:disabled { opacity:.35; cursor:not-allowed; }
+        .badge-p { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+      `}</style>
 
       <div
         style={{
           position: "fixed",
-          bottom: 40,
-          right: 40,
-          zIndex: 2000,
+          top: 24,
+          right: 24,
+          zIndex: 300,
           pointerEvents: "none",
+          minWidth: 280,
         }}
       >
         {toasts.map((t) => (
@@ -1152,614 +1695,44 @@ export default function LossAndDamagePage() {
         loading={deleteLoading}
       />
 
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "40px 20px" }}>
-        <header
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            marginBottom: 32,
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <LossAndDamageHeader
+          recordCount={records.length}
+          onRefresh={() => fetchRecords()}
+        />
+        <LossAndDamageStats
+          stats={stats}
+          lastUpdated={lastUpdated}
+          fmtCurrency={fmtCurrency}
+        />
+        <LossAndDamageToolbar
+          filters={filters}
+          setFilters={setFilters}
+          onApplyFilters={() => fetchRecords()}
+          onClearFilters={() => {
+            setFilters({ fromDate: "", toDate: "", status: "" });
+            fetchRecords();
           }}
-        >
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "#64748b",
-                fontSize: 13,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: 4,
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18 }}
-              >
-                inventory_2
-              </span>{" "}
-              Quản lý kho vật tư
-            </div>
-            <h1
-              style={{
-                fontSize: 32,
-                fontWeight: 800,
-                color: "#0f172a",
-                margin: 0,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Thất thoát &amp; Đền bù
-            </h1>
-          </div>
-        </header>
-
-        {/* Dashboard Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 24,
-            marginBottom: 32,
-          }}
-        >
-          <div className="card-premium">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#94a3b8",
-                    margin: "0 0 4px",
-                  }}
-                >
-                  SỰ CỐ TRÊN TRANG NÀY
-                </p>
-                <h2
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 800,
-                    color: "#0f172a",
-                    margin: 0,
-                  }}
-                >
-                  {stats.totalOnPage}{" "}
-                  <span
-                    style={{ fontSize: 14, color: "#94a3b8", fontWeight: 500 }}
-                  >
-                    Bản ghi
-                  </span>
-                </h2>
-              </div>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: "#fff7ed",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#f97316",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 28 }}
-                >
-                  warning
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="card-premium">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#94a3b8",
-                    margin: "0 0 4px",
-                  }}
-                >
-                  TỔNG TIỀN ĐỀN BÙ
-                </p>
-                <h2
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 800,
-                    color: "#ef4444",
-                    margin: 0,
-                  }}
-                >
-                  {fmtCurrency(stats.penaltyOnPage)}
-                </h2>
-              </div>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: "#fef2f2",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ef4444",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 28 }}
-                >
-                  monetization_on
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="card-premium">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#94a3b8",
-                    margin: "0 0 4px",
-                  }}
-                >
-                  CẬP NHẬT GẦN NHẤT
-                </p>
-                <h2
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 800,
-                    color: "#0f172a",
-                    margin: 0,
-                  }}
-                >
-                  {lastUpdated
-                    ? lastUpdated.toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "--:--"}
-                </h2>
-              </div>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: "#f1f5f9",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#64748b",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 28 }}
-                >
-                  update
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Toolbar */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: 24,
-            padding: "20px 24px",
-            border: "1px solid #f1f5f9",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                background: "#f8fafc",
-                padding: "8px 16px",
-                borderRadius: 12,
-                border: "1px solid #f1f5f9",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18, color: "#94a3b8" }}
-              >
-                calendar_today
-              </span>
-              <input
-                type="date"
-                value={filters.fromDate}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, fromDate: e.target.value }))
-                }
-                style={{
-                  border: "none",
-                  background: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  outline: "none",
-                  color: "#1e293b",
-                }}
-              />
-              <span style={{ color: "#e2e8f0" }}>—</span>
-              <input
-                type="date"
-                value={filters.toDate}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, toDate: e.target.value }))
-                }
-                style={{
-                  border: "none",
-                  background: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  outline: "none",
-                  color: "#1e293b",
-                }}
-              />
-            </div>
-            <select
-              value={filters.status}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, status: e.target.value }))
-              }
-              style={{
-                padding: "10px 16px",
-                borderRadius: 12,
-                border: "1px solid #f1f5f9",
-                fontSize: 13,
-                fontWeight: 600,
-                background: "#f8fafc",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="Pending">Chờ xử lý</option>
-              <option value="Confirmed">Đã xác nhận</option>
-              <option value="Waived">Miễn trừ</option>
-            </select>
-            <button
-              onClick={() => fetchRecords()}
-              style={{
-                padding: "10px 24px",
-                background: "#0f172a",
-                color: "white",
-                borderRadius: 12,
-                border: "none",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18 }}
-              >
-                manage_search
-              </span>{" "}
-              Lọc kết quả
-            </button>
-          </div>
-          <button
-            onClick={() => {
-              setFilters({ fromDate: "", toDate: "", status: "" });
-              fetchRecords();
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#94a3b8",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              textDecoration: "underline",
-            }}
-          >
-            Làm mới bộ lọc
-          </button>
-        </div>
-
-        {/* Main Table */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: 28,
-            border: "1px solid #f1f5f9",
-            overflow: "hidden",
-            boxShadow: "0 4px 30px rgba(0,0,0,0.02)",
-          }}
-        >
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#fbfbfc" }}>
-                {[
-                  "ID",
-                  "Minh chứng",
-                  "Phòng",
-                  "Vật liệu sự cố",
-                  "Số lượng",
-                  "Đền bù",
-                  "Thời gian báo cáo",
-                  "Thao tác",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "18px 24px",
-                      textAlign: "left",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: "#94a3b8",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      padding: 40,
-                      textAlign: "center",
-                      color: "#94a3b8",
-                    }}
-                  >
-                    Đang đồng bộ dữ liệu...
-                  </td>
-                </tr>
-              ) : paged.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      padding: 60,
-                      textAlign: "center",
-                      color: "#94a3b8",
-                    }}
-                  >
-                    Phòng ban chưa ghi nhận sự cố nào
-                  </td>
-                </tr>
-              ) : (
-                paged.map((rec) => {
-                  const imgs = rec.images || [];
-                  const dt = fmtDateTime(rec.createdAt);
-                  return (
-                    <tr key={rec.id} className="table-row">
-                      <td
-                        style={{
-                          padding: "20px 24px",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#64748b",
-                        }}
-                      >
-                        #{rec.id}
-                      </td>
-                      <td style={{ padding: "20px 24px" }}>
-                        {imgs.length > 0 ? (
-                          <div
-                            className="badge-p"
-                            style={{ background: "#ecfdf5", color: "#065f46" }}
-                          >
-                            <span
-                              className="material-symbols-outlined"
-                              style={{ fontSize: 16 }}
-                            >
-                              image
-                            </span>{" "}
-                            Có hình ảnh ({imgs.length})
-                          </div>
-                        ) : (
-                          <div
-                            className="badge-p"
-                            style={{ background: "#f1f5f9", color: "#64748b" }}
-                          >
-                            <span
-                              className="material-symbols-outlined"
-                              style={{ fontSize: 16 }}
-                            >
-                              hide_image
-                            </span>{" "}
-                            Không có ảnh
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: "20px 24px" }}>
-                        <div
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 8,
-                            background: "#eff6ff",
-                            color: "#1d4ed8",
-                            fontWeight: 800,
-                            fontSize: 14,
-                            display: "inline-block",
-                          }}
-                        >
-                          {rec.roomNumber}
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          padding: "20px 24px",
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                        }}
-                      >
-                        {rec.itemName}
-                      </td>
-                      <td
-                        style={{
-                          padding: "20px 24px",
-                          fontSize: 15,
-                          fontWeight: 800,
-                          color: "#64748b",
-                        }}
-                      >
-                        {rec.quantity}
-                      </td>
-                      <td
-                        style={{
-                          padding: "20px 24px",
-                          fontSize: 15,
-                          fontWeight: 800,
-                          color: "#ef4444",
-                        }}
-                      >
-                        {fmtCurrency(rec.penaltyAmount)}
-                      </td>
-                      <td style={{ padding: "20px 24px" }}>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: "#0f172a",
-                          }}
-                        >
-                          {dt.date}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                          {dt.time}
-                        </div>
-                      </td>
-                      <td style={{ padding: "20px 24px" }}>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            className="btn-icon-p"
-                            onClick={() => setDetailItem(rec)}
-                            title="Xem chi tiết"
-                          >
-                            <span className="material-symbols-outlined">
-                              visibility
-                            </span>
-                          </button>
-                          <button
-                            className="btn-icon-p"
-                            onClick={() => setEditItem(rec)}
-                            title="Chỉnh sửa"
-                          >
-                            <span className="material-symbols-outlined">
-                              edit_square
-                            </span>
-                          </button>
-                          <button
-                            className="btn-icon-p"
-                            onClick={() => setDeleteTarget(rec)}
-                            title="Xóa"
-                            style={{ color: "#ef4444" }}
-                          >
-                            <span className="material-symbols-outlined">
-                              delete_forever
-                            </span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-
-          <footer
-            style={{
-              padding: "20px 32px",
-              borderTop: "1px solid #f8fafc",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
-              Hiển thị <strong>{paged.length}</strong> /{" "}
-              <strong>{records.length}</strong> biên bản sự cố
-            </p>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                className="btn-icon-p"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <span className="material-symbols-outlined">chevron_left</span>
-              </button>
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  className="btn-icon-p"
-                  onClick={() => setPage(i + 1)}
-                  style={
-                    page === i + 1
-                      ? {
-                          background: "#0f172a",
-                          color: "white",
-                          borderColor: "#0f172a",
-                          fontWeight: 800,
-                        }
-                      : {}
-                  }
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                className="btn-icon-p"
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                <span className="material-symbols-outlined">chevron_right</span>
-              </button>
-            </div>
-          </footer>
-        </div>
+        />
+        <LossAndDamageTable
+          loading={loading}
+          paged={paged}
+          page={page}
+          pageSize={pageSize}
+          recordsCount={records.length}
+          totalPages={totalPages}
+          fmtDateTime={fmtDateTime}
+          fmtCurrency={fmtCurrency}
+          onView={setDetailItem}
+          onEdit={setEditItem}
+          onDelete={setDeleteTarget}
+          onPageChange={setPage}
+        />
       </div>
     </>
   );
 }
+
+
+
+

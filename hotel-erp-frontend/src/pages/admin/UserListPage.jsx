@@ -1,4 +1,4 @@
-// src/pages/admin/staff/UserListPage.jsx
+﻿// src/pages/admin/staff/UserListPage.jsx
 // Giao diện khớp 1:1 với UserManagement.html + tích hợp API thực tế
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -12,10 +12,8 @@ import {
 } from "../../api/userManagementApi";
 import { getRoles } from "../../api/rolesApi";
 import { useAdminAuthStore } from "../../store/adminAuthStore";
-
 import { useNavigate } from "react-router-dom";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const ROLE_BADGE = {
   Admin: "bg-purple-50 text-purple-600",
   Manager: "bg-emerald-50 text-emerald-600",
@@ -38,7 +36,7 @@ const ACTION_LABELS = {
   ViewUsers: "Xem danh sách",
 };
 
-// ─── Toast Component ──────────────────────────────────────────────────────────
+// Thành phần thông báo ──────────────────────────────────────────────────────────
 const TOAST_STYLES = {
   success: {
     bg: "#1e3a2f",
@@ -77,7 +75,7 @@ function Toast({ id, msg, type = "success", action, dur = 4000, onDismiss }) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(id), dur);
     return () => clearTimeout(t);
-  }, []);
+  }, [id, dur, onDismiss]);
   return (
     <div
       style={{
@@ -252,7 +250,6 @@ export default function UserListPage() {
   const [fFullName, setFFullName] = useState("");
   const [fEmail, setFEmail] = useState("");
   const [fPhone, setFPhone] = useState("");
-  const [fPassword, setFPassword] = useState("");
   const [fRoleId, setFRoleId] = useState("");
   const [fGender, setFGender] = useState("");
   const [formError, setFormError] = useState("");
@@ -302,7 +299,6 @@ export default function UserListPage() {
 
   // ── Load users ──
   const loadUsers = useCallback(async () => {
-    if (loading) return;
     setLoading(true);
     try {
       const res = await getUsers({ page: 1, pageSize: 200 });
@@ -323,7 +319,7 @@ export default function UserListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showNotif]);
 
   const loadRoles = useCallback(async () => {
     try {
@@ -335,7 +331,7 @@ export default function UserListPage() {
   useEffect(() => {
     loadUsers();
     loadRoles();
-  }, []);
+  }, [loadUsers, loadRoles]);
 
   // ── Apply filters ──
   useEffect(() => {
@@ -462,7 +458,6 @@ export default function UserListPage() {
     setFFullName("");
     setFEmail("");
     setFPhone("");
-    setFPassword("");
     setFRoleId("");
     setFGender("");
     setFormError("");
@@ -477,9 +472,6 @@ export default function UserListPage() {
       if (!fEmail.trim()) errs.email = "Email không được để trống.";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fEmail))
         errs.email = "Email không hợp lệ.";
-      if (!fPassword) errs.password = "Mật khẩu không được để trống.";
-      else if (fPassword.length < 6)
-        errs.password = "Mật khẩu phải ít nhất 6 ký tự.";
     }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -511,7 +503,6 @@ export default function UserListPage() {
         const res = await createUser({
           fullName: fFullName,
           email: fEmail,
-          password: fPassword,
           phone: fPhone || null,
           gender: fGender || null,
           roleId: fRoleId ? parseInt(fRoleId) : null,
@@ -649,11 +640,6 @@ export default function UserListPage() {
     <>
       {/* ── Global Styles ── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
-        .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; }
-
         .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
         .toggle-switch input { opacity:0; width:0; height:0; }
         .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e1; transition:.4s; border-radius:24px; }
@@ -686,7 +672,7 @@ export default function UserListPage() {
         .pg-btn.icon { color:#9ca3af; }
       `}</style>
 
-      {/* Toast Container */}
+      {/* Khu vực thông báo */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* ══════ MODALS ══════ */}
@@ -695,14 +681,14 @@ export default function UserListPage() {
           className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center z-50"
           onClick={(e) => e.target === e.currentTarget && setAddModalOpen(false)}
         >
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border border-stone-100">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold">
                 {editingId ? "Chỉnh sửa thông tin" : "Thêm người dùng mới"}
               </h3>
               <button
                 onClick={() => setAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors"
+                className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors border-0"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
@@ -715,7 +701,7 @@ export default function UserListPage() {
                   placeholder="Nguyễn Văn A"
                   value={fFullName}
                   onChange={(e) => setFFullName(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition"
+                  className="w-full bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-700 placeholder:text-stone-400 focus:border-[#4f645b] focus:ring-2 focus:ring-[#4f645b]/20 focus:outline-none transition"
                 />
                 {fieldErrors.fullName && (
                   <p className="text-xs mt-1 text-red-600">{fieldErrors.fullName}</p>
@@ -729,7 +715,7 @@ export default function UserListPage() {
                   value={fEmail}
                   onChange={(e) => setFEmail(e.target.value)}
                   disabled={!!editingId}
-                  className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-700 placeholder:text-stone-400 focus:border-[#4f645b] focus:ring-2 focus:ring-[#4f645b]/20 focus:outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 {fieldErrors.email && (
                   <p className="text-xs mt-1 text-red-600">{fieldErrors.email}</p>
@@ -742,30 +728,15 @@ export default function UserListPage() {
                   placeholder="09xxxxxxxx"
                   value={fPhone}
                   onChange={(e) => setFPhone(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition"
+                  className="w-full bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-700 placeholder:text-stone-400 focus:border-[#4f645b] focus:ring-2 focus:ring-[#4f645b]/20 focus:outline-none transition"
                 />
               </div>
-              {!editingId && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Mật khẩu *</label>
-                  <input
-                    type="password"
-                    placeholder="Tối thiểu 6 ký tự"
-                    value={fPassword}
-                    onChange={(e) => setFPassword(e.target.value)}
-                    className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none transition"
-                  />
-                  {fieldErrors.password && (
-                    <p className="text-xs mt-1 text-red-600">{fieldErrors.password}</p>
-                  )}
-                </div>
-              )}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">Vai trò</label>
                 <select
                   value={fRoleId}
                   onChange={(e) => setFRoleId(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none bg-white"
+                  className="w-full bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-700 focus:border-[#4f645b] focus:ring-2 focus:ring-[#4f645b]/20 focus:outline-none transition"
                 >
                   <option value="">-- Chọn vai trò --</option>
                   {roles.map((r) => (
@@ -778,7 +749,7 @@ export default function UserListPage() {
                 <select
                   value={fGender}
                   onChange={(e) => setFGender(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-primary/40 outline-none bg-white"
+                  className="w-full bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-700 focus:border-[#4f645b] focus:ring-2 focus:ring-[#4f645b]/20 focus:outline-none transition"
                 >
                   <option value="">-- Chọn --</option>
                   <option value="Nam">Nam</option>
@@ -786,6 +757,11 @@ export default function UserListPage() {
                   <option value="Khác">Khác</option>
                 </select>
               </div>
+              {!editingId && (
+                <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                  Mật khẩu sẽ được tạo ngẫu nhiên và gửi về email người dùng sau khi tạo tài khoản.
+                </div>
+              )}
               {formError && (
                 <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
                   <span className="material-symbols-outlined text-red-500 mt-0.5" style={{ fontSize: 16 }}>error</span>
@@ -796,14 +772,14 @@ export default function UserListPage() {
                 <button
                   type="button"
                   onClick={() => setAddModalOpen(false)}
-                  className="px-5 py-2 border rounded-xl text-sm font-medium hover:bg-stone-50 transition-colors"
+                  className="px-5 py-2 border border-stone-300 bg-white text-stone-700 rounded-xl text-sm font-semibold hover:bg-stone-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 bg-primary text-on-primary rounded-xl text-sm font-bold hover:opacity-90 transition-all disabled:opacity-60 flex items-center"
+                  className="px-5 py-2 border border-transparent bg-primary text-on-primary rounded-xl text-sm font-bold hover:opacity-90 transition-all disabled:opacity-60 flex items-center"
                   style={{ backgroundColor: "#4f645b", color: "#e7fef3" }}
                 >
                   {formLoading && <span className="spinner" />}
@@ -912,543 +888,540 @@ export default function UserListPage() {
 
       {/* ── Main Content Area ── */}
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        {/* Page Header */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 32,
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  color: "#1c1917",
-                  letterSpacing: "-0.025em",
-                  margin: 0,
-                }}
-              >
-                Quản lý Nhân sự &amp; Người dùng
-              </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
-                Tổng:{" "}
-                <span style={{ fontWeight: 600, color: "#1c1917" }}>
-                  {allUsers.length}
-                </span>{" "}
-                người dùng
-                {hasFilter && filtered.length !== allUsers.length && (
-                  <span style={{ color: "#4f645b", marginLeft: 4 }}>
-                    (lọc:{" "}
-                    <span style={{ fontWeight: 600 }}>{filtered.length}</span>)
-                  </span>
-                )}
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button
-                onClick={exportCSV}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: "white",
-                  color: "#1c1917",
-                  border: "1px solid #e2e8e1",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  boxShadow: "0 1px 3px rgba(0,0,0,.06)",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 18 }}
-                >
-                  file_download
-                </span>
-                Xuất báo cáo
-              </button>
-              <button
-                onClick={openAdd}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: "#4f645b",
-                  color: "#e7fef3",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  boxShadow: "0 4px 12px rgba(79,100,91,.2)",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 18 }}
-                >
-                  person_add
-                </span>
-                Thêm người dùng
-              </button>
-            </div>
-          </div>
+        <UserListHeader
+          allUsersCount={allUsers.length}
+          hasFilter={hasFilter}
+          filteredCount={filtered.length}
+          onExportCSV={exportCSV}
+          onOpenAdd={openAdd}
+        />
 
-          {/* Filters Section — khớp HTML */}
-          <section
-            style={{
-              background: "white",
-              borderRadius: 16,
-              padding: 24,
-              marginBottom: 24,
-              boxShadow: "0 1px 3px rgba(0,0,0,.06)",
-              border: "1px solid #f1f0ea",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 16,
-              alignItems: "flex-end",
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 300 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.15em",
-                  textTransform: "uppercase",
-                  color: "#6b7280",
-                  marginBottom: 8,
-                }}
-              >
-                Họ tên, Email, SĐT
-              </label>
-              <div style={{ position: "relative" }}>
-                <span
-                  className="material-symbols-outlined"
-                  style={{
-                    position: "absolute",
-                    left: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "#9ca3af",
-                    fontSize: 20,
-                  }}
-                >
-                  search
-                </span>
-                <input
-                  value={topSearch}
-                  onChange={(e) => onSearch(e.target.value)}
-                  style={{
-                    width: "100%",
-                    background: "#f9f8f3",
-                    border: "1px solid #e2e8e1",
-                    borderRadius: 12,
-                    padding: "10px 16px 10px 40px",
-                    fontSize: 14,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                  placeholder="Gõ từ khóa..."
-                />
-              </div>
-            </div>
-            <div style={{ width: 224 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.15em",
-                  textTransform: "uppercase",
-                  color: "#6b7280",
-                  marginBottom: 8,
-                }}
-              >
-                Lọc theo Vai trò
-              </label>
-              <select
-                value={filters.roleId}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, roleId: e.target.value }))
-                }
-                style={{
-                  width: "100%",
-                  background: "#f9f8f3",
-                  border: "1px solid #e2e8e1",
-                  borderRadius: 12,
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  outline: "none",
-                }}
-              >
-                <option value="">Chọn vai trò</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ width: 224 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.15em",
-                  textTransform: "uppercase",
-                  color: "#6b7280",
-                  marginBottom: 8,
-                }}
-              >
-                Lọc theo Trạng thái
-              </label>
-              <select
-                value={filters.status}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, status: e.target.value }))
-                }
-                style={{
-                  width: "100%",
-                  background: "#f9f8f3",
-                  border: "1px solid #e2e8e1",
-                  borderRadius: 12,
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  outline: "none",
-                }}
-              >
-                <option value="">Chọn trạng thái</option>
-                <option value="active">Hoạt động</option>
-                <option value="locked">Đã khóa</option>
-              </select>
-            </div>
-            <button
-              onClick={() => {
-                clearTimeout(debounceRef.current);
-                setTopSearch("");
-                setFilters({ search: "", roleId: "", status: "" });
-              }}
-              style={{
-                background: "#f3f4f6",
-                border: "1px solid #e2e8e1",
-                color: "#4b5563",
-                padding: 10,
-                borderRadius: 12,
-                cursor: "pointer",
-              }}
-              title="Xóa bộ lọc"
-            >
-              <span className="material-symbols-outlined">tune</span>
-            </button>
-          </section>
+        <UserListFilters
+          topSearch={topSearch}
+          onSearch={onSearch}
+          roles={roles}
+          filters={filters}
+          setFilters={setFilters}
+          onClearFilters={() => {
+            clearTimeout(debounceRef.current);
+            setTopSearch("");
+            setFilters({ search: "", roleId: "", status: "" });
+          }}
+        />
 
-          {/* Data Table — khớp HTML */}
-          <div
-            style={{
-              background: "white",
-              borderRadius: 16,
-              boxShadow: "0 1px 3px rgba(0,0,0,.06)",
-              border: "1px solid #f1f0ea",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  textAlign: "left",
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      background: "rgba(249,248,243,.5)",
-                      borderBottom: "1px solid #f1f0ea",
-                    }}
-                  >
-                    {[
-                      "Họ và tên",
-                      "Email",
-                      "Số điện thoại",
-                      "Vai trò",
-                      "Trạng thái",
-                      "Thao tác",
-                    ].map((h, i) => (
-                      <th
-                        key={h}
-                        style={{
-                          padding: "16px 24px",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                          color: "#6b7280",
-                          textAlign: i === 5 ? "right" : "left",
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody style={{ borderTop: "1px solid #f1f0ea" }}>
-                  {loading ? (
-                    <SkeletonRows />
-                  ) : paginatedUsers.length === 0 ? null : (
-                    paginatedUsers.map((u, i) => {
-                      const active = u.status === true || u.status === 1;
-                      const initial = (u.fullName || "?")[0].toUpperCase();
-                      const roleClass =
-                        ROLE_BADGE[u.roleName] || "bg-stone-100 text-stone-500";
-                      return (
-                        <tr
-                          key={u.id}
-                          className="fade-row"
-                          style={{
-                            borderBottom: "1px solid #fafaf8",
-                            animationDelay: `${Math.min(i * 25, 200)}ms`,
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#fafaf8")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "")
-                          }
-                        >
-                          <td style={{ padding: "16px 24px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                              }}
-                            >
-                              {u.avatarUrl ? (
-                                <img
-                                  alt=""
-                                  src={u.avatarUrl}
-                                  style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: "50%",
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: "50%",
-                                    background: "rgba(79,100,91,.2)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#4f645b",
-                                    fontWeight: 700,
-                                    fontSize: 14,
-                                  }}
-                                >
-                                  {initial}
-                                </div>
-                              )}
-                              <div>
-                                <span
-                                  style={{
-                                    fontWeight: 500,
-                                    color: "#292524",
-                                    fontSize: 14,
-                                  }}
-                                >
-                                  {u.fullName || "—"}
-                                </span>
-                                <p
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#9ca3af",
-                                    margin: 0,
-                                  }}
-                                >
-                                  #{u.id}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td
-                            style={{
-                              padding: "16px 24px",
-                              fontSize: 14,
-                              color: "#4b5563",
-                            }}
-                          >
-                            {u.email || "—"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "16px 24px",
-                              fontSize: 14,
-                              color: "#4b5563",
-                            }}
-                          >
-                            {u.phone || "—"}
-                          </td>
-                          <td style={{ padding: "16px 24px" }}>
-                            <span
-                              className={`px-3 py-1 ${roleClass} text-[10px] font-bold rounded-full uppercase`}
-                            >
-                              {u.roleName || "—"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "16px 24px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  color: active ? "#059669" : "#9ca3af",
-                                }}
-                              >
-                                {active ? "Hoạt động" : "Đã khóa"}
-                              </span>
-                              <label className="toggle-switch">
-                                <input
-                                  type="checkbox"
-                                  checked={active}
-                                  disabled={togglingIds.has(u.id)}
-                                  onChange={() => handleToggle(u.id)}
-                                />
-                                <span className="slider" />
-                              </label>
-                            </div>
-                          </td>
-                          <td
-                            style={{ padding: "16px 24px", textAlign: "right" }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "flex-end",
-                                gap: 4,
-                              }}
-                            >
-                              <button
-                                onClick={() => openDetail(u.id)}
-                                style={{
-                                  padding: 8,
-                                  color: "#9ca3af",
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  borderRadius: 8,
-                                  transition: "all .15s",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "#f3f4f6";
-                                  e.currentTarget.style.color = "#4f645b";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = "";
-                                  e.currentTarget.style.color = "#9ca3af";
-                                }}
-                                title="Xem chi tiết"
-                              >
-                                <span
-                                  className="material-symbols-outlined"
-                                  style={{ fontSize: 22 }}
-                                >
-                                  visibility
-                                </span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Empty state */}
-            {!loading && paginatedUsers.length === 0 && (
-              <div style={{ padding: "64px 0", textAlign: "center" }}>
-                <span
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: 48,
-                    color: "#d1d5db",
-                    display: "block",
-                    marginBottom: 12,
-                  }}
-                >
-                  group_off
-                </span>
-                <p style={{ color: "#9ca3af", fontWeight: 500 }}>
-                  Không tìm thấy người dùng nào
-                </p>
-              </div>
-            )}
-
-            {/* Pagination — khớp HTML */}
-            <div
-              style={{
-                padding: "16px 24px",
-                borderTop: "1px solid #f1f0ea",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, color: "#6b7280" }}>Hiển thị</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(parseInt(e.target.value));
-                    setPage(1);
-                  }}
-                  style={{
-                    background: "#f9f8f3",
-                    border: "1px solid #e2e8e1",
-                    borderRadius: 8,
-                    padding: "4px 8px",
-                    fontSize: 12,
-                    outline: "none",
-                  }}
-                >
-                  <option value="10">10/trang</option>
-                  <option value="20">20/trang</option>
-                  <option value="50">50/trang</option>
-                </select>
-                {filtered.length > 0 && (
-                  <span style={{ fontSize: 12, color: "#9ca3af" }}>
-                    {start}–{end} / {filtered.length}
-                  </span>
-                )}
-              </div>
-
-              {/* Nút chuyển trang (1, 2, 3...) gọi từ hàm cũ */}
-              {renderPagination()}
-            </div>
-          </div>
-        </div>
+        <UserListTable
+          loading={loading}
+          paginatedUsers={paginatedUsers}
+          togglingIds={togglingIds}
+          pageSize={pageSize}
+          filteredCount={filtered.length}
+          start={start}
+          end={end}
+          page={page}
+          setPage={setPage}
+          setPageSize={setPageSize}
+          openDetail={openDetail}
+          handleToggle={handleToggle}
+          renderPagination={renderPagination}
+          ROLE_BADGE={ROLE_BADGE}
+          SkeletonRows={SkeletonRows}
+        />
+      </div>
       </>
     );
   }
+
+
+
+
+
+
+export function UserListHeader({
+  allUsersCount,
+  hasFilter,
+  filteredCount,
+  onExportCSV,
+  onOpenAdd,
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 32,
+      }}
+    >
+      <div>
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 700,
+            color: "#1c1917",
+            letterSpacing: "-0.025em",
+            margin: 0,
+          }}
+        >
+          Quản lý Nhân sự &amp; Người dùng
+        </h2>
+        <p style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+          Tổng: <span style={{ fontWeight: 600, color: "#1c1917" }}>{allUsersCount}</span> người dùng
+          {hasFilter && filteredCount !== allUsersCount && (
+            <span style={{ color: "#4f645b", marginLeft: 4 }}>
+              (lọc: <span style={{ fontWeight: 600 }}>{filteredCount}</span>)
+            </span>
+          )}
+        </p>
+      </div>
+      <div style={{ display: "flex", gap: 12 }}>
+        <button
+          onClick={onExportCSV}
+          style={{
+            padding: "8px 20px",
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 500,
+            background: "white",
+            color: "#1c1917",
+            border: "1px solid #e2e8e1",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            file_download
+          </span>
+          Xuất báo cáo
+        </button>
+        <button
+          onClick={onOpenAdd}
+          style={{
+            padding: "8px 20px",
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 500,
+            background: "#4f645b",
+            color: "#e7fef3",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            boxShadow: "0 4px 12px rgba(79,100,91,.2)",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            person_add
+          </span>
+          Thêm người dùng
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function UserListFilters({
+  topSearch,
+  onSearch,
+  roles,
+  filters,
+  setFilters,
+  onClearFilters,
+}) {
+  return (
+    <section
+      style={{
+        background: "white",
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 24,
+        boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+        border: "1px solid #f1f0ea",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 16,
+        alignItems: "flex-end",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 300 }}>
+        <label
+          style={{
+            display: "block",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: "#6b7280",
+            marginBottom: 8,
+          }}
+        >
+          Họ tên, Email, SĐT
+        </label>
+        <div style={{ position: "relative" }}>
+          <span
+            className="material-symbols-outlined"
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#9ca3af",
+              fontSize: 20,
+            }}
+          >
+            search
+          </span>
+          <input
+            value={topSearch}
+            onChange={(e) => onSearch(e.target.value)}
+            style={{
+              width: "100%",
+              background: "#f9f8f3",
+              border: "1px solid #e2e8e1",
+              borderRadius: 12,
+              padding: "10px 16px 10px 40px",
+              fontSize: 14,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+            placeholder="Gõ từ khóa..."
+          />
+        </div>
+      </div>
+      <div style={{ width: 224 }}>
+        <label
+          style={{
+            display: "block",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: "#6b7280",
+            marginBottom: 8,
+          }}
+        >
+          Lọc theo Vai trò
+        </label>
+        <select
+          value={filters.roleId}
+          onChange={(e) => setFilters((f) => ({ ...f, roleId: e.target.value }))}
+          style={{
+            width: "100%",
+            background: "#f9f8f3",
+            border: "1px solid #e2e8e1",
+            borderRadius: 12,
+            padding: "10px 16px",
+            fontSize: 14,
+            outline: "none",
+          }}
+        >
+          <option value="">Chọn vai trò</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ width: 224 }}>
+        <label
+          style={{
+            display: "block",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: "#6b7280",
+            marginBottom: 8,
+          }}
+        >
+          Lọc theo Trạng thái
+        </label>
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+          style={{
+            width: "100%",
+            background: "#f9f8f3",
+            border: "1px solid #e2e8e1",
+            borderRadius: 12,
+            padding: "10px 16px",
+            fontSize: 14,
+            outline: "none",
+          }}
+        >
+          <option value="">Chọn trạng thái</option>
+          <option value="active">Hoạt động</option>
+          <option value="locked">Đã khóa</option>
+        </select>
+      </div>
+      <button
+        onClick={onClearFilters}
+        style={{
+          background: "#f3f4f6",
+          border: "1px solid #e2e8e1",
+          color: "#4b5563",
+          padding: 10,
+          borderRadius: 12,
+          cursor: "pointer",
+        }}
+        title="Xóa bộ lọc"
+      >
+        <span className="material-symbols-outlined">tune</span>
+      </button>
+    </section>
+  );
+}
+
+export function UserListTable({
+  loading,
+  paginatedUsers,
+  togglingIds,
+  pageSize,
+  filteredCount,
+  start,
+  end,
+  page,
+  setPage,
+  setPageSize,
+  openDetail,
+  handleToggle,
+  renderPagination,
+  ROLE_BADGE,
+  SkeletonRows,
+}) {
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 16,
+        boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+        border: "1px solid #f1f0ea",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            textAlign: "left",
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "rgba(249,248,243,.5)",
+                borderBottom: "1px solid #f1f0ea",
+              }}
+            >
+              {["Họ và tên", "Email", "Số điện thoại", "Vai trò", "Trạng thái", "Thao tác"].map((h, i) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "16px 24px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "#6b7280",
+                    textAlign: i === 5 ? "right" : "left",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody style={{ borderTop: "1px solid #f1f0ea" }}>
+            {loading ? (
+              <SkeletonRows />
+            ) : paginatedUsers.length === 0 ? null : (
+              paginatedUsers.map((u, i) => {
+                const active = u.status === true || u.status === 1;
+                const initial = (u.fullName || "?")[0].toUpperCase();
+                const roleClass = ROLE_BADGE[u.roleName] || "bg-stone-100 text-stone-500";
+                return (
+                  <tr
+                    key={u.id}
+                    className="fade-row"
+                    style={{
+                      borderBottom: "1px solid #fafaf8",
+                      animationDelay: `${Math.min(i * 25, 200)}ms`,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#fafaf8")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                  >
+                    <td style={{ padding: "16px 24px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        {u.avatarUrl ? (
+                          <img
+                            alt=""
+                            src={u.avatarUrl}
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: "50%",
+                              background: "rgba(79,100,91,.2)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#4f645b",
+                              fontWeight: 700,
+                              fontSize: 14,
+                            }}
+                          >
+                            {initial}
+                          </div>
+                        )}
+                        <div>
+                          <span style={{ fontWeight: 500, color: "#292524", fontSize: 14 }}>
+                            {u.fullName || "—"}
+                          </span>
+                          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>#{u.id}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: "16px 24px", fontSize: 14, color: "#4b5563" }}>
+                      {u.email || "—"}
+                    </td>
+                    <td style={{ padding: "16px 24px", fontSize: 14, color: "#4b5563" }}>
+                      {u.phone || "—"}
+                    </td>
+                    <td style={{ padding: "16px 24px" }}>
+                      <span className={`px-3 py-1 ${roleClass} text-[10px] font-bold rounded-full uppercase`}>
+                        {u.roleName || "—"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "16px 24px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 500,
+                            color: active ? "#059669" : "#9ca3af",
+                          }}
+                        >
+                          {active ? "Hoạt động" : "Đã khóa"}
+                        </span>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            disabled={togglingIds.has(u.id)}
+                            onChange={() => handleToggle(u.id)}
+                          />
+                          <span className="slider" />
+                        </label>
+                      </div>
+                    </td>
+                    <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 4 }}>
+                        <button
+                          onClick={() => openDetail(u.id)}
+                          style={{
+                            padding: 8,
+                            color: "#9ca3af",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            borderRadius: 8,
+                            transition: "all .15s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#f3f4f6";
+                            e.currentTarget.style.color = "#4f645b";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "";
+                            e.currentTarget.style.color = "#9ca3af";
+                          }}
+                          title="Xem chi tiết"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
+                            visibility
+                          </span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {!loading && paginatedUsers.length === 0 && (
+        <div style={{ padding: "64px 0", textAlign: "center" }}>
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 48,
+              color: "#d1d5db",
+              display: "block",
+              marginBottom: 12,
+            }}
+          >
+            group_off
+          </span>
+          <p style={{ color: "#9ca3af", fontWeight: 500 }}>Không tìm thấy người dùng nào</p>
+        </div>
+      )}
+
+      <div
+        style={{
+          padding: "16px 24px",
+          borderTop: "1px solid #f1f0ea",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, color: "#6b7280" }}>Hiển thị</span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(parseInt(e.target.value, 10));
+              setPage(1);
+            }}
+            style={{
+              background: "#f9f8f3",
+              border: "1px solid #e2e8e1",
+              borderRadius: 8,
+              padding: "4px 8px",
+              fontSize: 12,
+              outline: "none",
+            }}
+          >
+            <option value="10">10/trang</option>
+            <option value="20">20/trang</option>
+            <option value="50">50/trang</option>
+          </select>
+          {filteredCount > 0 && (
+            <span style={{ fontSize: 12, color: "#9ca3af" }}>
+              {start}–{end} / {filteredCount}
+            </span>
+          )}
+        </div>
+
+        {renderPagination()}
+      </div>
+    </div>
+  );
+}
+
+

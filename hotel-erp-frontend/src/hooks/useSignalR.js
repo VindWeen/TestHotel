@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 import { useNotificationStore } from '../store/notificationStore';
@@ -8,14 +8,13 @@ export const useSignalR = () => {
     const { token } = useAdminAuthStore();
     const addNotification = useNotificationStore((state) => state.addNotification);
     const setNotifications = useNotificationStore((state) => state.setNotifications);
-    const [connection, setConnection] = useState(null);
+    const connectionRef = useRef(null);
 
-    // Initialize connection
     useEffect(() => {
         if (!token) {
-            if (connection) {
-                connection.stop();
-                setConnection(null);
+            if (connectionRef.current) {
+                connectionRef.current.stop();
+                connectionRef.current = null;
             }
             return;
         }
@@ -23,28 +22,15 @@ export const useSignalR = () => {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5279/api';
         const hubUrl = apiUrl.replace(/\/api\/?$/, '') + '/notificationHub';
 
-        const newConnection = new signalR.HubConnectionBuilder()
+        const connection = new signalR.HubConnectionBuilder()
             .withUrl(hubUrl, {
                 accessTokenFactory: () => token
             })
             .withAutomaticReconnect()
             .build();
 
-        setConnection(newConnection);
-        
-        // Cleanup on unmount or token change
-        return () => {
-            if (newConnection) {
-                newConnection.stop();
-            }
-        };
-    }, [token]);
+        connectionRef.current = connection;
 
-    // Manage listeners & Fetch initial state
-    useEffect(() => {
-        if (!connection) return;
-
-        // Fetch Notification History từ API (REST, không cần đợi SignalR)
         const fetchHistory = async () => {
             try {
                 const res = await getMyNotifications();
@@ -54,7 +40,6 @@ export const useSignalR = () => {
             }
         };
 
-        // Kết nối SignalR Hub với retry
         const startConnection = async () => {
             try {
                 if (connection.state === signalR.HubConnectionState.Disconnected) {
@@ -67,7 +52,6 @@ export const useSignalR = () => {
             }
         };
 
-        // Chạy song song — độc lập nhau
         fetchHistory();
         startConnection();
 
@@ -83,9 +67,12 @@ export const useSignalR = () => {
 
         return () => {
             connection.off('ReceiveNotification');
+            connection.stop();
+            if (connectionRef.current === connection) {
+                connectionRef.current = null;
+            }
         };
-    }, [connection, addNotification, setNotifications]);
+    }, [token, addNotification, setNotifications]);
 
-
-    return { connection };
+    return { connection: connectionRef.current };
 };

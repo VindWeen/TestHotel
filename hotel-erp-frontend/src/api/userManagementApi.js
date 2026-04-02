@@ -20,7 +20,7 @@ export const getUserById = (id) =>
 
 /**
  * POST /api/UserManagement  [MANAGE_USERS]
- * Body: { fullName, email, password, phone, dateOfBirth, gender, address, nationalId, roleId }
+ * Body: { fullName, email, phone, dateOfBirth, gender, address, nationalId, roleId }
  * Response: { message, userId, notification }
  */
 export const createUser = (data) =>

@@ -31,3 +31,11 @@ export const refreshToken = (refreshToken) =>
  */
 export const logout = () =>
     axiosClient.post('/Auth/logout');
+
+/**
+ * POST /api/Auth/forgot-password
+ * Body: { email }
+ * Response: { message }
+ */
+export const forgotPassword = (email) =>
+    axiosClient.post('/Auth/forgot-password', { email });

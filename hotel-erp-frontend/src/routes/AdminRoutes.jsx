@@ -1,40 +1,69 @@
-// Khai báo toàn bộ nested routes
+﻿import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "../pages/LoginPage";
-import DashboardPage from "../pages/admin/DashboardPage";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import RequirePermission from "./RequirePermission";
 import PublicOnlyRoute from "./PublicOnlyRoute";
-import UserListPage from "../pages/admin/UserListPage";
-import RolePermissionPage from "../pages/admin/RolePermissionPage";
-import LossAndDamagePage from "../pages/admin/Lossanddamagepage";
-import RoomManagementPage from "../pages/admin/RoomManagementPage";
-import RoomTypesPage from "../pages/admin/RoomTypesPage";
-import RoomDetailPage from "../pages/admin/RoomDetailPage";
-import EquipmentPage from "../pages/admin/EquipmentPage";
+import { useAdminAuthStore } from "../store/adminAuthStore";
+import { getDefaultAdminPath } from "./permissionRouting";
 
+const LoginPage = lazy(() => import("../pages/LoginPage"));
+const ForbiddenPage = lazy(() => import("../pages/ForbiddenPage"));
+const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
+const UserListPage = lazy(() => import("../pages/admin/UserListPage"));
+const RolePermissionPage = lazy(() => import("../pages/admin/RolePermissionPage"));
+const LossAndDamagePage = lazy(() => import("../pages/admin/LossAndDamagePage"));
+const RoomManagementPage = lazy(() => import("../pages/admin/RoomManagementPage"));
+const RoomTypesPage = lazy(() => import("../pages/admin/RoomTypesPage"));
+const RoomDetailPage = lazy(() => import("../pages/admin/RoomDetailPage"));
+const HousekeepingPage = lazy(() => import("../pages/admin/HousekeepingPage"));
+const EquipmentPage = lazy(() => import("../pages/admin/EquipmentPage"));
+const BookingListPage = lazy(() => import("../pages/admin/BookingListPage"));
+const BookingDetailPage = lazy(() => import("../pages/admin/BookingDetailPage"));
+const InvoiceListPage = lazy(() => import("../pages/admin/InvoiceListPage"));
+const InvoiceDetailPage = lazy(() => import("../pages/admin/InvoiceDetailPage"));
+
+function RouteFallback() {
+  return (
+    <div
+      style={{
+        minHeight: "40vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'Manrope', sans-serif",
+        color: "#6b7280",
+        fontSize: 14,
+      }}
+    >
+      Đang tải trang...
+    </div>
+  );
+}
+
+function withSuspense(node) {
+  return <Suspense fallback={<RouteFallback />}>{node}</Suspense>;
+}
+
+function AdminIndexRedirect() {
+  const role = useAdminAuthStore((s) => s.user?.role);
+  const permissions = useAdminAuthStore((s) => s.permissions);
+  return <Navigate to={getDefaultAdminPath(role, permissions)} replace />;
+}
+
+// Khai báo toàn bộ nested routes
 export default function AdminRoutes() {
   return (
     <Routes>
-      {/* Route công khai — đã đăng nhập sẽ bị redirect theo role */}
+      {/* Route công khai - đã đăng nhập sẽ bị redirect theo role */}
       <Route
         path="/login"
         element={
-          <PublicOnlyRoute>
-            <LoginPage />
-          </PublicOnlyRoute>
+          <PublicOnlyRoute>{withSuspense(<LoginPage />)}</PublicOnlyRoute>
         }
       />
 
-      <Route
-        path="/403"
-        element={
-          <div style={{ padding: 40, fontFamily: "sans-serif" }}>
-            <h2>403 — Không đủ quyền truy cập</h2>
-          </div>
-        }
-      />
+      <Route path="/403" element={withSuspense(<ForbiddenPage />)} />
 
       <Route
         path="/admin"
@@ -44,16 +73,23 @@ export default function AdminRoutes() {
           </ProtectedRoute>
         }
       >
-        {/* Mặc định redirect về dashboard */}
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+        {/* Mặc định redirect theo permission */}
+        <Route index element={<AdminIndexRedirect />} />
+        <Route
+          path="dashboard"
+          element={
+            <RequirePermission permission="VIEW_DASHBOARD">
+              {withSuspense(<DashboardPage />)}
+            </RequirePermission>
+          }
+        />
 
         {/* Quản lý Phòng */}
         <Route
           path="rooms"
           element={
             <RequirePermission permission="MANAGE_ROOMS">
-              <RoomManagementPage />
+              {withSuspense(<RoomManagementPage />)}
             </RequirePermission>
           }
         />
@@ -61,7 +97,16 @@ export default function AdminRoutes() {
           path="rooms/:id"
           element={
             <RequirePermission permission="MANAGE_ROOMS">
-              <RoomDetailPage />
+              {withSuspense(<RoomDetailPage />)}
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="housekeeping"
+          element={
+            <RequirePermission permission="MANAGE_ROOMS">
+              {withSuspense(<HousekeepingPage />)}
             </RequirePermission>
           }
         />
@@ -71,27 +116,51 @@ export default function AdminRoutes() {
           path="room-types"
           element={
             <RequirePermission permission="MANAGE_ROOMS">
-              <RoomTypesPage />
+              {withSuspense(<RoomTypesPage />)}
             </RequirePermission>
           }
         />
 
-        {/* Vật tư & Minibar — placeholder, thay bằng page thực khi có */}
+        {/* Vật tư & Minibar */}
         <Route
           path="items"
           element={
             <RequirePermission permission="MANAGE_INVENTORY">
-              <EquipmentPage />
+              {withSuspense(<EquipmentPage />)}
             </RequirePermission>
           }
         />
 
-        {/* Booking & Voucher — placeholder, thay bằng page thực khi có */}
         <Route
           path="bookings"
           element={
             <RequirePermission permission="MANAGE_BOOKINGS">
-              <ComingSoonPage icon="confirmation_number" title="Booking & Voucher" />
+              {withSuspense(<BookingListPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="bookings/:id"
+          element={
+            <RequirePermission permission="MANAGE_BOOKINGS">
+              {withSuspense(<BookingDetailPage />)}
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="invoices"
+          element={
+            <RequirePermission permission="MANAGE_INVOICES">
+              {withSuspense(<InvoiceListPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="invoices/:id"
+          element={
+            <RequirePermission permission="MANAGE_INVOICES">
+              {withSuspense(<InvoiceDetailPage />)}
             </RequirePermission>
           }
         />
@@ -101,7 +170,7 @@ export default function AdminRoutes() {
           path="staff"
           element={
             <RequirePermission permission="MANAGE_USERS">
-              <UserListPage />
+              {withSuspense(<UserListPage />)}
             </RequirePermission>
           }
         />
@@ -111,7 +180,7 @@ export default function AdminRoutes() {
           path="roles"
           element={
             <RequirePermission permission="VIEW_ROLES">
-              <RolePermissionPage />
+              {withSuspense(<RolePermissionPage />)}
             </RequirePermission>
           }
         />
@@ -119,13 +188,13 @@ export default function AdminRoutes() {
           path="loss-damage"
           element={
             <RequirePermission permission="MANAGE_INVENTORY">
-              <LossAndDamagePage />
+              {withSuspense(<LossAndDamagePage />)}
             </RequirePermission>
           }
         />
       </Route>
 
-      {/* Wildcard: đã đăng nhập → redirect theo role, chưa đăng nhập → /login */}
+      {/* Wildcard: đã đăng nhập -> redirect theo role, chưa đăng nhập -> /login */}
       <Route
         path="*"
         element={
@@ -138,33 +207,3 @@ export default function AdminRoutes() {
   );
 }
 
-// ─── Placeholder component dùng chung cho trang đang phát triển ───────────────
-function ComingSoonPage({ icon, title }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "80px 40px",
-        fontFamily: "'Manrope', sans-serif",
-        textAlign: "center",
-      }}
-    >
-      <span
-        className="material-symbols-outlined"
-        style={{ fontSize: 64, color: "#d1d5db", display: "block", marginBottom: 16 }}
-      >
-        {icon}
-      </span>
-      <h2
-        style={{ color: "#1c1917", margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}
-        dangerouslySetInnerHTML={{ __html: title }}
-      />
-      <p style={{ color: "#9ca3af", fontSize: 14, margin: 0 }}>
-        Trang này đang được phát triển và sẽ sớm ra mắt.
-      </p>
-    </div>
-  );
-}

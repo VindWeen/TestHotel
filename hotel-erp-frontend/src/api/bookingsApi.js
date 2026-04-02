@@ -9,7 +9,25 @@ import { buildQueryString } from '../utils';
  */
 export const getBookings = (params = {}) => {
     const query = buildQueryString(params);
-    return axiosClient.get(`/Bookings?${query}`);
+    return axiosClient.get(`/Bookings?${query}`).then((res) => {
+        const payload = res?.data;
+        if (
+            payload &&
+            payload.data &&
+            !Array.isArray(payload.data) &&
+            Array.isArray(payload.data.data)
+        ) {
+            return {
+                ...res,
+                data: {
+                    ...payload,
+                    meta: payload.data,
+                    data: payload.data.data,
+                },
+            };
+        }
+        return res;
+    });
 };
 
 /**
@@ -18,6 +36,13 @@ export const getBookings = (params = {}) => {
  */
 export const getBookingById = (id) =>
     axiosClient.get(`/Bookings/${id}`);
+
+/**
+ * GET /api/Bookings/{id}/detail [MANAGE_BOOKINGS]
+ * Response: { message, data, timeline }
+ */
+export const getBookingDetail = (id) =>
+    axiosClient.get(`/Bookings/${id}/detail`);
 
 /**
  * GET /api/Bookings/my-bookings  [Authorize]

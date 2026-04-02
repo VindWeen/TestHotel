@@ -19,3 +19,5 @@ export * from './reviewsApi';
 export * from './articleCategoriesApi';
 export * from './articlesApi';
 export * from './attractionsApi';
+export * from './invoicesApi';
+export * from './paymentsApi';

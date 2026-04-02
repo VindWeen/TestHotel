@@ -1,4 +1,4 @@
-using HotelManagement.Core.Authorization;
+﻿using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
@@ -15,19 +15,19 @@ namespace HotelManagement.API.Controllers;
 public class RoomsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly IActivityLogService _activityLog;
+    private readonly IAuditTrailService _auditTrail;
 
-    public RoomsController(AppDbContext db, IActivityLogService activityLog)
+    public RoomsController(AppDbContext db, IAuditTrailService auditTrail)
     {
         _db = db;
-        _activityLog = activityLog;
+        _auditTrail = auditTrail;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // GET /api/Rooms  [MANAGE_ROOMS — nội bộ]
+    // -----------------------------------------------------------------------------
+    // GET /api/Rooms  [MANAGE_ROOMS - nội bộ]
     // Danh sách phòng vật lý kèm room_type_name, business_status, cleaning_status.
     // Filter: floor, viewType, businessStatus, cleaningStatus, roomTypeId
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     [HttpGet]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> GetAll(
@@ -74,13 +74,19 @@ public class RoomsController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(new { data = rooms, total = rooms.Count });
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách phòng thành công.",
+            data = rooms,
+            total = rooms.Count
+        });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // GET /api/Rooms/{id}  [MANAGE_ROOMS — nội bộ]
-    // Chi tiết 1 phòng kèm room_type_name, notes, inventory — FE load form sửa.
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
+    // GET /api/Rooms/{id}  [MANAGE_ROOMS - nội bộ]
+    // Chi tiết 1 phòng kèm room_type_name, notes, inventory - FE load form sửa.
+    // -----------------------------------------------------------------------------
     [HttpGet("{id:int}")]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> GetById(int id)
@@ -122,11 +128,11 @@ public class RoomsController : ControllerBase
         return Ok(room);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     // PUT /api/Rooms/{id}  [MANAGE_ROOMS]
     // Sửa thông tin phòng: floor, view_type, notes.
     // Không cho đổi room_number. Không cho đổi status ở đây.
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     [HttpPut("{id:int}")]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateRoomRequest request)
@@ -140,41 +146,28 @@ public class RoomsController : ControllerBase
         room.ViewType = request.ViewType?.Trim();
         room.Notes    = request.Notes?.Trim();
 
-        var userId = JwtHelper.GetUserId(User);
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = userId,
-            Action    = "UPDATE_ROOM",
+            ActionCode = "UPDATE_ROOM",
+            ActionLabel = "Cập nhật phòng",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cập nhật thông tin phòng {room.RoomNumber}.",
+            EntityType = "Room",
+            EntityId = id,
+            EntityLabel = room.RoomNumber,
+            Severity = "Info",
             TableName = "Rooms",
-            RecordId  = id,
-            OldValue  = null,
-            NewValue  = $"{{\"floor\": {request.Floor?.ToString() ?? "null"}, \"viewType\": \"{request.ViewType}\"}}",
-            UserAgent = Request.Headers.UserAgent.ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = null,
+            NewValue = $"{{\"floor\": {request.Floor?.ToString() ?? "null"}, \"viewType\": \"{request.ViewType}\"}}"
         });
 
-        await _db.SaveChangesAsync();
-
-        var currentUserId2 = JwtHelper.GetUserId(User);
-        await _activityLog.LogAsync(
-            actionCode: "UPDATE_ROOM",
-            actionLabel: "Cập nhật phòng",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cập nhật thông tin phòng {room.RoomNumber}.",
-            entityType: "Room",
-            entityId: id,
-            entityLabel: room.RoomNumber,
-            severity: "Info",
-            userId: currentUserId2,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        return Ok(new { message = "Cập nhật phòng thành công." });
+        return Ok(new { success = true, message = "Cập nhật phòng thành công." });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     // POST /api/Rooms  [MANAGE_ROOMS]
     // Tạo 1 phòng mới. Validate room_number unique.
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     [HttpPost]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> Create([FromBody] CreateRoomRequest request)
@@ -184,7 +177,7 @@ public class RoomsController : ControllerBase
 
         var roomTypeExists = await _db.RoomTypes.AnyAsync(rt => rt.Id == request.RoomTypeId);
         if (!roomTypeExists)
-            return BadRequest(new { message = $"RoomType #{request.RoomTypeId} không tồn tại." });
+            return BadRequest(new { message = $"Loại phòng #{request.RoomTypeId} không tồn tại." });
 
         var duplicate = await _db.Rooms.AnyAsync(r => r.RoomNumber == request.RoomNumber.Trim());
         if (duplicate)
@@ -204,44 +197,32 @@ public class RoomsController : ControllerBase
         _db.Rooms.Add(room);
         // await _db.SaveChangesAsync(); // Removed this extra SaveChangesAsync
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CREATE_ROOM",
-            actionLabel: "Tạo phòng mới",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo phòng mới: {room.RoomNumber}.",
-            entityType: "Room",
-            entityId: room.Id,
-            entityLabel: room.RoomNumber,
-            severity: "Info",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value,
-            metadata: $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}, \"viewType\": \"{room.ViewType}\"}}"
-        );
-
-        // Khôi phục AuditLog
-        _db.AuditLogs.Add(new AuditLog
-        {
-            UserId    = currentUserId,
-            Action    = "CREATE_ROOM",
-            TableName = "Rooms",
-            RecordId  = room.Id,
-            OldValue  = null,
-            NewValue  = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
-        });
         await _db.SaveChangesAsync();
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
+        {
+            ActionCode = "CREATE_ROOM",
+            ActionLabel = "Tạo phòng mới",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo phòng mới: {room.RoomNumber}.",
+            EntityType = "Room",
+            EntityId = room.Id,
+            EntityLabel = room.RoomNumber,
+            Severity = "Info",
+            TableName = "Rooms",
+            RecordId = room.Id,
+            OldValue = null,
+            NewValue = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}}}",
+            Metadata = $"{{\"roomNumber\": \"{room.RoomNumber}\", \"floor\": {room.Floor}, \"roomTypeId\": {room.RoomTypeId}, \"viewType\": \"{room.ViewType}\"}}"
+        });
 
-        return StatusCode(201, new { message = "Tạo phòng thành công.", id = room.Id });
+        return StatusCode(201, new { success = true, message = "Tạo phòng thành công.", id = room.Id });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // PATCH /api/Rooms/{id}/business_status  [MANAGE_ROOMS — Manager/Lễ tân]
+    // -----------------------------------------------------------------------------
+    // PATCH /api/Rooms/{id}/business_status  [MANAGE_ROOMS - Manager/Lễ tân]
     // Đổi business_status (Available / Occupied / Disabled). Ghi Audit_Log.
     // Housekeeping không có quyền này (cùng permission MANAGE_ROOMS, phân biệt
-    // qua role nếu cần — hiện tại guard bằng MANAGE_ROOMS là đủ).
-    // ──────────────────────────────────────────────────────────────────────────
+    // qua role nếu cần - hiện tại guard bằng MANAGE_ROOMS là đủ).
+    // -----------------------------------------------------------------------------
     [HttpPatch("{id:int}/business_status")]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> UpdateBusinessStatus(
@@ -262,43 +243,29 @@ public class RoomsController : ControllerBase
         // Tính lại Status dựa trên tổ hợp BusinessStatus + CleaningStatus
         room.Status = ComputeStatus(room.BusinessStatus, room.CleaningStatus);
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "UPDATE_ROOM_STATUS",
-            actionLabel: "Đổi trạng thái phòng",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi trạng thái phòng {room.RoomNumber} sang '{request.BusinessStatus}'.",
-            entityType: "Room",
-            entityId: id,
-            entityLabel: room.RoomNumber,
-            severity: "Info",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value,
-            metadata: $"{{\"oldStatus\": \"{oldValue}\", \"newStatus\": \"{request.BusinessStatus}\"}}"
-        );
-
-        // Khôi phục AuditLog
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "UPDATE_ROOM_STATUS",
+            ActionCode = "UPDATE_ROOM_STATUS",
+            ActionLabel = "Đổi trạng thái phòng",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi trạng thái phòng {room.RoomNumber} sang '{request.BusinessStatus}'.",
+            EntityType = "Room",
+            EntityId = id,
+            EntityLabel = room.RoomNumber,
+            Severity = "Info",
             TableName = "Rooms",
-            RecordId  = id,
-            OldValue  = $"{{\"businessStatus\": \"{oldValue}\"}}",
-            NewValue  = $"{{\"businessStatus\": \"{request.BusinessStatus}\"}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = $"{{\"businessStatus\": \"{oldValue}\"}}",
+            NewValue = $"{{\"businessStatus\": \"{request.BusinessStatus}\"}}",
+            Metadata = $"{{\"oldStatus\": \"{oldValue}\", \"newStatus\": \"{request.BusinessStatus}\"}}"
         });
 
-        await _db.SaveChangesAsync();
-
-        return Ok(new { message = $"Đã đổi trạng thái phòng #{id} thành '{request.BusinessStatus}'." });
+        return Ok(new { success = true, message = $"Đã đổi trạng thái phòng #{id} thành '{request.BusinessStatus}'." });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // PATCH /api/Rooms/{id}/cleaning-status  [MANAGE_ROOMS — Housekeeping]
+    // -----------------------------------------------------------------------------
+    // PATCH /api/Rooms/{id}/cleaning-status  [MANAGE_ROOMS - Housekeeping]
     // Chỉ đổi cleaning_status (Clean / Dirty).
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     [HttpPatch("{id:int}/cleaning-status")]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> UpdateCleaningStatus(
@@ -319,43 +286,29 @@ public class RoomsController : ControllerBase
         // Tính lại Status dựa trên tổ hợp BusinessStatus + CleaningStatus
         room.Status = ComputeStatus(room.BusinessStatus, room.CleaningStatus);
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "UPDATE_ROOM_CLEANING",
-            actionLabel: "Đổi trạng thái vệ sinh",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi trạng thái vệ sinh phòng {room.RoomNumber} thành '{request.CleaningStatus}'.",
-            entityType: "Room",
-            entityId: id,
-            entityLabel: room.RoomNumber,
-            severity: request.CleaningStatus == "Dirty" ? "Warning" : "Success",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value,
-            metadata: $"{{\"oldStatus\": \"{oldCleaningStatus}\", \"newStatus\": \"{request.CleaningStatus}\"}}"
-        );
-
-        // Khôi phục AuditLog
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "UPDATE_ROOM_CLEANING",
+            ActionCode = "UPDATE_ROOM_CLEANING",
+            ActionLabel = "Đổi trạng thái vệ sinh",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi trạng thái vệ sinh phòng {room.RoomNumber} thành '{request.CleaningStatus}'.",
+            EntityType = "Room",
+            EntityId = id,
+            EntityLabel = room.RoomNumber,
+            Severity = request.CleaningStatus == "Dirty" ? "Warning" : "Success",
             TableName = "Rooms",
-            RecordId  = id,
-            OldValue  = $"{{\"cleaningStatus\": \"{oldCleaningStatus}\"}}",
-            NewValue  = $"{{\"cleaningStatus\": \"{request.CleaningStatus}\"}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = $"{{\"cleaningStatus\": \"{oldCleaningStatus}\"}}",
+            NewValue = $"{{\"cleaningStatus\": \"{request.CleaningStatus}\"}}",
+            Metadata = $"{{\"oldStatus\": \"{oldCleaningStatus}\", \"newStatus\": \"{request.CleaningStatus}\"}}"
         });
 
-        await _db.SaveChangesAsync();
-
-        return Ok(new { message = $"Đã cập nhật cleaning_status phòng #{id} thành '{request.CleaningStatus}'." });
+        return Ok(new { success = true, message = $"Đã cập nhật cleaning_status phòng #{id} thành '{request.CleaningStatus}'." });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     // POST /api/Rooms/bulk-create  [MANAGE_ROOMS]
-    // Tạo nhiều phòng 1 lần. Bỏ qua số phòng trùng (không báo lỗi toàn bộ batch).
-    // ──────────────────────────────────────────────────────────────────────────
+    // Tạo nhiều phòng một lần. Bỏ qua số phòng trùng (không báo lỗi toàn bộ batch).
+    // -----------------------------------------------------------------------------
     [HttpPost("bulk-create")]
     [RequirePermission(PermissionCodes.ManageRooms)]
     public async Task<IActionResult> BulkCreate([FromBody] List<BulkCreateRoomItem> items)
@@ -426,50 +379,38 @@ public class RoomsController : ControllerBase
         {
             _db.Rooms.AddRange(newRooms);
             await _db.SaveChangesAsync();
-
-            var userId = JwtHelper.GetUserId(User);
-            _db.AuditLogs.Add(new AuditLog
+            await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
             {
-                UserId    = userId,
-                Action    = "BULK_CREATE_ROOMS",
+                ActionCode = "BULK_CREATE_ROOMS",
+                ActionLabel = "Tạo hàng loạt phòng",
+                Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo {created.Count} phòng.",
+                EntityType = "Room",
+                EntityId = null,
+                EntityLabel = null,
+                Severity = "Success",
                 TableName = "Rooms",
-                RecordId  = 0,
-                OldValue  = null,
-                NewValue  = $"{{\"count\": {created.Count}, \"rooms\": [{string.Join(",", created.Select(c => $"\"{c}\""))}]}}",
-                UserAgent = Request.Headers.UserAgent.ToString(),
-                CreatedAt = DateTime.UtcNow
+                RecordId = null,
+                OldValue = null,
+                NewValue = $"{{\"createdCount\": {created.Count}}}"
             });
-
-            await _activityLog.LogAsync(
-                actionCode: "BULK_CREATE_ROOMS",
-                actionLabel: "Tạo nhiều phòng",
-                message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo {created.Count} phòng mới cùng lúc.",
-                entityType: "Room",
-                entityId: 0,
-                entityLabel: $"{created.Count} phòng",
-                severity: "Info",
-                userId: userId,
-                roleName: User.FindFirst("role")?.Value
-            );
-
-            await _db.SaveChangesAsync();
         }
 
         return StatusCode(201, new
         {
+            success = true,
             message  = $"Đã tạo {created.Count} phòng.",
             created,
             skipped,
             invalid
         });
     }
-    // ──────────────────────────────────────────────────────────────────────────
+    // -----------------------------------------------------------------------------
     // Helper: tính Status từ tổ hợp BusinessStatus + CleaningStatus
-    // Available + Clean  → Available
-    // Available + Dirty  → Cleaning
-    // Occupied  (any)    → Occupied
-    // Disabled  (any)    → Maintenance
-    // ──────────────────────────────────────────────────────────────────────────
+    // Available + Clean  -> Available
+    // Available + Dirty  -> Cleaning
+    // Occupied  (any)    -> Occupied
+    // Disabled  (any)    -> Maintenance
+    // -----------------------------------------------------------------------------
     private static string ComputeStatus(string businessStatus, string cleaningStatus)
         => businessStatus switch
         {
@@ -480,7 +421,7 @@ public class RoomsController : ControllerBase
         };
 }
 
-// ── Request DTOs ─────────────────────────────────────────────────────────────
+// ------------------------------- Request DTOs -------------------------------
 
 public record UpdateRoomRequest(
     int?    Floor,
@@ -505,3 +446,5 @@ public record BulkCreateRoomItem(
     int     RoomTypeId,
     string? ViewType
 );
+
+

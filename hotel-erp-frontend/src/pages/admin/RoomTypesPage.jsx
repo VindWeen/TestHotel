@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
     getAdminRoomTypes,
     getAdminRoomTypeById,
-    deleteRoomType,
+    createRoomType,
     toggleRoomTypeActive,
 } from "../../api/roomTypesApi";
 
@@ -36,13 +36,130 @@ function Toast({ id, msg, type = "success", dur = 4000, onDismiss }) {
     );
 }
 
+function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [form, setForm] = useState({
+        name: "",
+        basePrice: "",
+        capacityAdults: "",
+        capacityChildren: "0",
+        areaSqm: "",
+        bedType: "",
+        viewType: "",
+        description: "",
+    });
+
+    const updateField = (key, value) => {
+        setForm(prev => ({ ...prev, [key]: value }));
+    };
+
+    const submit = async () => {
+        if (!form.name.trim()) {
+            showToast("Vui lòng nhập tên hạng phòng.", "warning");
+            return;
+        }
+        if (!form.basePrice || Number(form.basePrice) <= 0) {
+            showToast("Giá cơ bản phải lớn hơn 0.", "warning");
+            return;
+        }
+        if (!form.capacityAdults || Number(form.capacityAdults) <= 0) {
+            showToast("Sức chứa người lớn phải lớn hơn 0.", "warning");
+            return;
+        }
+        if (form.capacityChildren !== "" && Number(form.capacityChildren) < 0) {
+            showToast("Sức chứa trẻ em không được âm.", "warning");
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await createRoomType({
+                name: form.name.trim(),
+                basePrice: Number(form.basePrice),
+                capacityAdults: Number(form.capacityAdults),
+                capacityChildren: Number(form.capacityChildren || 0),
+                areaSqm: form.areaSqm ? Number(form.areaSqm) : null,
+                bedType: form.bedType.trim() || null,
+                viewType: form.viewType.trim() || null,
+                description: form.description.trim() || null,
+            });
+
+            showToast("Đã thêm hạng phòng mới.", "success");
+            onCreated();
+            onClose();
+        } catch (err) {
+            showToast(err?.response?.data?.message || "Không thể thêm hạng phòng.", "error");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 220, padding: 16 }}
+            onClick={e => e.target === e.currentTarget && onClose()}
+        >
+            <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 640, maxHeight: "92vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,.18)" }}>
+                <div style={{ padding: "22px 28px 16px", borderBottom: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: 0, fontFamily: "Manrope, sans-serif" }}>Thêm hạng phòng</h3>
+                    <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, color: "#9ca3af", display: "flex" }}>
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div style={{ padding: "20px 28px", overflowY: "auto", flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                        ["Tên hạng phòng *", "name", "text", "Ví dụ: Deluxe City View"],
+                        ["Giá cơ bản *", "basePrice", "number", "VND/đêm"],
+                        ["Sức chứa người lớn *", "capacityAdults", "number", "Ví dụ: 2"],
+                        ["Sức chứa trẻ em", "capacityChildren", "number", "Mặc định: 0"],
+                        ["Diện tích (m²)", "areaSqm", "number", "Ví dụ: 28"],
+                        ["Loại giường", "bedType", "text", "Ví dụ: King bed"],
+                        ["Hướng nhìn", "viewType", "text", "Ví dụ: City view"],
+                    ].map(([label, key, type, placeholder]) => (
+                        <label key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>{label}</span>
+                            <input
+                                type={type}
+                                value={form[key]}
+                                placeholder={placeholder}
+                                onChange={e => updateField(key, e.target.value)}
+                                style={{ height: 40, borderRadius: 10, border: "1.5px solid #d6d3d1", padding: "0 12px", fontSize: 13, outline: "none" }}
+                            />
+                        </label>
+                    ))}
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
+                        <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>Mô tả</span>
+                        <textarea
+                            value={form.description}
+                            placeholder="Mô tả ngắn về hạng phòng..."
+                            onChange={e => updateField("description", e.target.value)}
+                            rows={4}
+                            style={{ borderRadius: 10, border: "1.5px solid #d6d3d1", padding: "10px 12px", fontSize: 13, outline: "none", resize: "vertical" }}
+                        />
+                    </label>
+                </div>
+
+                <div style={{ padding: "14px 28px 22px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
+                    <button onClick={onClose} disabled={submitting} style={{ padding: "9px 16px", borderRadius: 12, background: "#f5f5f4", border: "1.5px solid #e7e5e4", color: "#57534e", fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: submitting ? 0.6 : 1 }}>
+                        Hủy
+                    </button>
+                    <button onClick={submit} disabled={submitting} style={{ padding: "9px 20px", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#4f645b,#43574f)", color: "#e7fef3", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 7, opacity: submitting ? 0.6 : 1 }}>
+                        {submitting && <div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,.3)", borderTopColor: "currentColor", borderRadius: "50%", animation: "spin .65s linear infinite" }} />}
+                        Thêm hạng phòng
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Room Type Detail Modal ────────────────────────────────────────────────────
 function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
     const [rt, setRt] = useState(null);
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const [deleting, setDeleting] = useState(false);
     const [selectedImg, setSelectedImg] = useState(null);
 
 
@@ -73,21 +190,6 @@ function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
             showToast(err?.response?.data?.message || "Không thể đổi trạng thái.", "error");
         } finally {
             setToggling(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        setDeleting(true);
-        try {
-            await deleteRoomType(roomTypeId);
-            showToast(`Đã xóa hạng phòng "${rt?.name}".`, "success");
-            onUpdated();
-            onClose();
-        } catch (err) {
-            showToast(err?.response?.data?.message || "Không thể xóa hạng phòng.", "error");
-            setConfirmDelete(false);
-        } finally {
-            setDeleting(false);
         }
     };
 
@@ -205,38 +307,13 @@ function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
                                 </div>
                             )}
 
-                            {/* Confirm Delete */}
-                            {confirmDelete && (
-                                <div style={{ padding: "14px 16px", background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 14, marginBottom: 4 }}>
-                                    <p style={{ fontSize: 13, fontWeight: 700, color: "#dc2626", margin: "0 0 10px" }}>
-                                        ⚠️ Xác nhận xóa hạng phòng "{rt.name}"?
-                                    </p>
-                                    <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px" }}>
-                                        Thao tác này không thể hoàn tác. Hạng phòng sẽ bị xóa nếu không có booking đang hoạt động.
-                                    </p>
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                        <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "white", border: "1.5px solid #e2e8e1", color: "#6b7280", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>Hủy</button>
-                                        <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "#dc2626", border: "none", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: deleting ? 0.6 : 1 }}>
-                                            {deleting ? "Đang xóa..." : "Xóa"}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </>
                     ) : null}
                 </div>
 
                 {/* Footer */}
                 {!loading && rt && (
-                    <div style={{ padding: "14px 28px 22px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", gap: 10, flexShrink: 0 }}>
-                        <button
-                            onClick={() => setConfirmDelete(true)}
-                            disabled={confirmDelete}
-                            style={{ padding: "9px 16px", borderRadius: 12, background: "#fef2f2", border: "1.5px solid #fecaca", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, opacity: confirmDelete ? 0.5 : 1 }}
-                        >
-                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
-                            Xóa
-                        </button>
+                    <div style={{ padding: "14px 28px 22px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
                         <button
                             onClick={handleToggle}
                             disabled={toggling}
@@ -259,6 +336,7 @@ export default function RoomTypesPage() {
     const [loading, setLoading] = useState(true);
     const [toasts, setToasts] = useState([]);
     const [detailId, setDetailId] = useState(null);
+    const [createOpen, setCreateOpen] = useState(false);
     const [filterActive, setFilterActive] = useState("all"); // all | active | inactive
 
     const showToast = useCallback((msg, type = "success") => {
@@ -307,17 +385,24 @@ export default function RoomTypesPage() {
         @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
       `}</style>
 
-            {/* Toast Container */}
+            {/* Khu v?c thông báo */}
             <div style={{ position: "fixed", top: 24, right: 24, zIndex: 300, pointerEvents: "none", minWidth: 280 }}>
                 {toasts.map(t => <Toast key={t.id} {...t} onDismiss={dismissToast} />)}
             </div>
 
-            {/* Detail Modal */}
+            {/* H?p tho?i chi ti?t */}
             {detailId && (
                 <RoomTypeDetailModal
                     roomTypeId={detailId}
                     onClose={() => setDetailId(null)}
                     onUpdated={loadRoomTypes}
+                    showToast={showToast}
+                />
+            )}
+            {createOpen && (
+                <CreateRoomTypeModal
+                    onClose={() => setCreateOpen(false)}
+                    onCreated={loadRoomTypes}
                     showToast={showToast}
                 />
             )}
@@ -333,6 +418,13 @@ export default function RoomTypesPage() {
                             Tổng <span style={{ fontWeight: 700, color: "#1c1917" }}>{stats.total}</span> hạng phòng
                         </p>
                     </div>
+                    <button
+                        onClick={() => setCreateOpen(true)}
+                        style={{ height: 40, padding: "0 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#4f645b,#43574f)", color: "#e7fef3", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                    >
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
+                        Thêm hạng phòng
+                    </button>
                 </div>
 
                 {/* Stat Cards */}
@@ -433,3 +525,4 @@ export default function RoomTypesPage() {
         </>
     );
 }
+

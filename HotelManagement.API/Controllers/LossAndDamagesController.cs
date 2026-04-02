@@ -201,6 +201,37 @@ public class LossAndDamagesController : ControllerBase
         _db.LossAndDamages.Add(record);
         await _db.SaveChangesAsync();
 
+        // Tự động trừ tồn kho khi lập biên bản từ vật tư phòng.
+        if (record.RoomInventoryId.HasValue)
+        {
+            var roomInventory = await _db.RoomInventories
+                .Include(ri => ri.Equipment)
+                .FirstOrDefaultAsync(ri => ri.Id == record.RoomInventoryId.Value);
+
+            if (roomInventory?.Equipment is not null)
+            {
+                var equipment = roomInventory.Equipment;
+                var deductQty = Math.Max(1, record.Quantity);
+
+                equipment.InUseQuantity = Math.Max(0, equipment.InUseQuantity - deductQty);
+                equipment.DamagedQuantity += deductQty;
+
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    UserId = userId,
+                    Action = "DEDUCT_EQUIPMENT",
+                    TableName = "Equipments",
+                    RecordId = equipment.Id,
+                    OldValue = null,
+                    NewValue = $"{{\"quantity\": {deductQty}, \"reason\": \"Ghi nhận từ biên bản mất/hư #{record.Id}\"}}",
+                    UserAgent = Request.Headers["User-Agent"].ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                await _db.SaveChangesAsync();
+            }
+        }
+
         // Lấy thông tin số phòng để gửi thông báo chi tiết hơn
         var roomNumber = "N/A";
         if (record.RoomInventoryId.HasValue)

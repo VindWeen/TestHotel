@@ -1,10 +1,12 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Constants;
+using HotelManagement.Core.DTOs;
 using HotelManagement.Core.Helpers;
 using HotelManagement.API.Services;
 
@@ -52,30 +54,64 @@ public class VouchersController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IActivityLogService _activityLog;
+    private readonly IVoucherValidationService _voucherValidationService;
 
-    public VouchersController(AppDbContext context, IActivityLogService activityLog)
+    public VouchersController(
+        AppDbContext context,
+        IActivityLogService activityLog,
+        IVoucherValidationService voucherValidationService)
     {
         _context = context;
         _activityLog = activityLog;
+        _voucherValidationService = voucherValidationService;
     }
 
     // ================= GET ALL =================
     [RequirePermission(PermissionCodes.ManageBookings)]
     [HttpGet]
     public async Task<IActionResult> GetAll(
-        bool? isActive,
-        int page = 1,
-        int pageSize = 10)
+        [FromQuery] ListQueryRequest queryRequest,
+        [FromQuery] bool? isActive)
     {
+        var page = Math.Max(1, queryRequest.Page);
+        var pageSize = Math.Clamp(queryRequest.PageSize <= 0 ? 10 : queryRequest.PageSize, 1, 100);
+
         var query = _context.Vouchers.AsQueryable();
 
         if (isActive.HasValue)
             query = query.Where(v => v.IsActive == isActive.Value);
 
+        if (!string.IsNullOrWhiteSpace(queryRequest.Status))
+        {
+            var activeByStatus = queryRequest.Status.Equals("active", StringComparison.OrdinalIgnoreCase);
+            query = query.Where(v => v.IsActive == activeByStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryRequest.Keyword))
+        {
+            var keyword = queryRequest.Keyword.Trim().ToLower();
+            query = query.Where(v => v.Code.ToLower().Contains(keyword));
+        }
+
+        if (queryRequest.FromDate.HasValue)
+            query = query.Where(v => !v.ValidFrom.HasValue || v.ValidFrom >= queryRequest.FromDate);
+
+        if (queryRequest.ToDate.HasValue)
+            query = query.Where(v => !v.ValidTo.HasValue || v.ValidTo <= queryRequest.ToDate);
+
+        var sortDirDesc = !string.Equals(queryRequest.SortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        query = queryRequest.SortBy?.ToLower() switch
+        {
+            "code" => sortDirDesc ? query.OrderByDescending(v => v.Code) : query.OrderBy(v => v.Code),
+            "validfrom" => sortDirDesc ? query.OrderByDescending(v => v.ValidFrom) : query.OrderBy(v => v.ValidFrom),
+            "validto" => sortDirDesc ? query.OrderByDescending(v => v.ValidTo) : query.OrderBy(v => v.ValidTo),
+            _ => sortDirDesc ? query.OrderByDescending(v => v.Id) : query.OrderBy(v => v.Id)
+        };
+
         var total = await query.CountAsync();
+        var activeTotal = await query.CountAsync(v => v.IsActive);
 
         var data = await query
-            .OrderByDescending(v => v.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(v => new
@@ -90,14 +126,29 @@ public class VouchersController : ControllerBase
                 v.ValidFrom,
                 v.ValidTo,
                 v.UsageLimit,
-                v.UsedCount,          // ← used_count / usage_limit
+                v.UsedCount,          // used_count / usage_limit
                 v.MaxUsesPerUser,
                 v.IsActive,
                 v.CreatedAt
             })
             .ToListAsync();
 
-        return Ok(new { total, page, pageSize, data });
+        var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+        var payload = new ApiListResponse<object>
+        {
+            Data = data,
+            Pagination = new PaginationMeta
+            {
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalItems = total,
+                TotalPages = totalPages
+            },
+            Summary = new { totalItems = total, activeItems = activeTotal },
+            Message = "Lấy danh sách voucher thành công."
+        };
+
+        return Ok(payload);
     }
 
     // ================= GET BY ID =================
@@ -116,11 +167,11 @@ public class VouchersController : ControllerBase
     public async Task<IActionResult> Create(CreateVoucherRequest request)
     {
         // Validate discount type
-        if (request.DiscountType != "PERCENT" && request.DiscountType != "FIXED_AMOUNT")
+        if (request.DiscountType != VoucherDiscountTypes.Percent && request.DiscountType != VoucherDiscountTypes.FixedAmount)
             return BadRequest("DiscountType phải là PERCENT hoặc FIXED_AMOUNT");
 
         // Validate PERCENT không vượt 100
-        if (request.DiscountType == "PERCENT" && request.DiscountValue > 100)
+        if (request.DiscountType == VoucherDiscountTypes.Percent && request.DiscountValue > 100)
             return BadRequest("Phần trăm giảm giá không được vượt quá 100%");
 
         // Validate ngày
@@ -157,8 +208,8 @@ public class VouchersController : ControllerBase
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "CREATE_VOUCHER",
-            actionLabel: "Tạo Voucher mới",
-            message: $"Đã tạo voucher khuyến mãi mới: {voucher.Code} (Giảm {voucher.DiscountValue}{(voucher.DiscountType == "PERCENT" ? "%" : "đ")}).",
+            actionLabel: "Tạo voucher mới",
+            message: $"Đã tạo voucher khuyến mãi mới: {voucher.Code} (Giảm {voucher.DiscountValue}{(voucher.DiscountType == VoucherDiscountTypes.Percent ? "%" : "đ")}).",
             entityType: "Voucher",
             entityId: voucher.Id,
             entityLabel: voucher.Code,
@@ -167,7 +218,7 @@ public class VouchersController : ControllerBase
             roleName: User.FindFirst("role")?.Value
         );
 
-        // Khôi phục AuditLog
+        // Ghi AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -194,11 +245,11 @@ public class VouchersController : ControllerBase
 
         // Validate discount type nếu có thay đổi
         if (request.DiscountType != null
-            && request.DiscountType != "PERCENT"
-            && request.DiscountType != "FIXED_AMOUNT")
+            && request.DiscountType != VoucherDiscountTypes.Percent
+            && request.DiscountType != VoucherDiscountTypes.FixedAmount)
             return BadRequest("DiscountType phải là PERCENT hoặc FIXED_AMOUNT");
 
-        if (request.DiscountType == "PERCENT"
+        if (request.DiscountType == VoucherDiscountTypes.Percent
             && request.DiscountValue.HasValue
             && request.DiscountValue > 100)
             return BadRequest("Phần trăm giảm giá không được vượt quá 100%");
@@ -225,7 +276,7 @@ public class VouchersController : ControllerBase
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "UPDATE_VOUCHER",
-            actionLabel: "Cập nhật Voucher",
+            actionLabel: "Cập nhật voucher",
             message: $"Đã cập nhật thông tin cho voucher {v.Code}.",
             entityType: "Voucher",
             entityId: id,
@@ -235,7 +286,7 @@ public class VouchersController : ControllerBase
             roleName: User.FindFirst("role")?.Value
         );
 
-        // Khôi phục AuditLog
+        // Ghi AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -262,13 +313,13 @@ public class VouchersController : ControllerBase
         var v = await _context.Vouchers.FindAsync(id);
         if (v == null) return NotFound();
 
-        v.IsActive = false; // ← Soft delete, không xóa khỏi DB
+        v.IsActive = false; // Soft delete, không xóa khỏi DB
 
         var currentUserId = JwtHelper.GetUserId(User);
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "DELETE_VOUCHER",
-            actionLabel: "Vô hiệu hóa Voucher",
+            actionLabel: "Vô hiệu hóa voucher",
             message: $"Voucher {v.Code} đã bị ngừng áp dụng.",
             entityType: "Voucher",
             entityId: id,
@@ -278,7 +329,7 @@ public class VouchersController : ControllerBase
             roleName: User.FindFirst("role")?.Value
         );
 
-        // Khôi phục AuditLog
+        // Ghi AuditLog
         _context.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -311,6 +362,9 @@ public class VouchersController : ControllerBase
         if (v == null || !v.IsActive)
             return BadRequest(new { valid = false, message = "Voucher không tồn tại hoặc đã bị vô hiệu hóa" });
 
+        if (!_voucherValidationService.ValidateUsage(v, request.BookingAmount, DateTime.UtcNow, out var voucherRuleError))
+            return BadRequest(new { valid = false, message = voucherRuleError });
+
         // Kiểm tra thời hạn
         if (v.ValidFrom.HasValue && DateTime.UtcNow < v.ValidFrom)
             return BadRequest(new { valid = false, message = "Voucher chưa đến ngày sử dụng" });
@@ -339,7 +393,7 @@ public class VouchersController : ControllerBase
 
         // Tính tiền giảm
         decimal discount = 0;
-        if (v.DiscountType == "PERCENT")
+        if (v.DiscountType == VoucherDiscountTypes.Percent)
         {
             discount = request.BookingAmount * v.DiscountValue / 100;
             if (v.MaxDiscountAmount.HasValue)
@@ -365,3 +419,6 @@ public class VouchersController : ControllerBase
         });
     }
 }
+
+
+

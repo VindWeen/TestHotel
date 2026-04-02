@@ -1,8 +1,9 @@
-// src/pages/LoginPage.jsx
+﻿// src/pages/LoginPage.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, register } from "../api/authApi";
+import { login, register, forgotPassword } from "../api/authApi";
 import { useAdminAuthStore } from "../store/adminAuthStore";
+import { getDefaultAdminPath } from "../routes/permissionRouting";
 
 export default function LoginPage() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -16,6 +17,11 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotError, setForgotError] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // Register form state
   const [regFullName, setRegFullName] = useState("");
@@ -65,7 +71,7 @@ export default function LoginPage() {
       if (remember)
         localStorage.setItem("hm_remember_email", loginEmail.trim());
       else localStorage.removeItem("hm_remember_email");
-      navigate("/admin/dashboard");
+      navigate(getDefaultAdminPath(data.role, data.permissions || []));
     } catch (err) {
       setLoginError(
         err?.response?.data?.message || "Email hoặc mật khẩu không đúng.",
@@ -108,13 +114,40 @@ export default function LoginPage() {
         },
         permissions: data.permissions || [],
       });
-      navigate("/admin/dashboard");
+      navigate(getDefaultAdminPath(data.role, data.permissions || []));
     } catch (err) {
       setRegError(
         err?.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.",
       );
     } finally {
       setRegLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotError("");
+    setForgotSuccess("");
+
+    const email = forgotEmail.trim();
+    if (!email) return setForgotError("Email không được để trống.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return setForgotError("Email không hợp lệ.");
+
+    setForgotLoading(true);
+    try {
+      const res = await forgotPassword(email);
+      setForgotSuccess(
+        res?.data?.message || "Mật khẩu mới đã được gửi về email của bạn.",
+      );
+      setForgotEmail("");
+    } catch (err) {
+      setForgotError(
+        err?.response?.data?.message ||
+          "Không thể gửi yêu cầu. Vui lòng thử lại.",
+      );
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -500,6 +533,13 @@ export default function LoginPage() {
                     <a
                       className="text-[10px] font-bold text-primary hover:text-primary-dim transition-colors create-account-link"
                       href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setForgotError("");
+                        setForgotSuccess("");
+                        setForgotEmail(loginEmail.trim());
+                        setIsForgotOpen(true);
+                      }}
                     >
                       Forgot?
                     </a>
@@ -619,6 +659,116 @@ export default function LoginPage() {
           </section>
         </main>
 
+        {/* MODAL: FORGOT PASSWORD */}
+        <div
+          id="forgotModal"
+          className={`fixed inset-0 bg-black/50 modal-bg ${isForgotOpen ? "flex" : "hidden"} items-center justify-center z-[210]`}
+          onClick={(e) => {
+            if (e.target.id === "forgotModal") setIsForgotOpen(false);
+          }}
+        >
+          <div className="bg-white rounded-2xl w-full max-w-md mx-4 modal-scroll shadow-2xl">
+            <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-stone-100">
+              <h3 className="text-xl font-bold">Quên mật khẩu</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setIsForgotOpen(false)}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: "20px",
+                    fontVariationSettings:
+                      "'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24",
+                  }}
+                >
+                  close
+                </span>
+              </button>
+            </div>
+
+            <form
+              className="px-8 py-6 space-y-4"
+              noValidate
+              onSubmit={handleForgotPassword}
+            >
+              <p className="text-sm text-stone-600">
+                Nhập email tài khoản để nhận mật khẩu ngẫu nhiên mới.
+              </p>
+
+              <div>
+                <label
+                  className="block text-[10px] tracking-[.15em] font-bold uppercase mb-1.5"
+                  style={{ color: "#5e6059" }}
+                  htmlFor="forgot_email"
+                >
+                  Email *
+                </label>
+                <input
+                  id="forgot_email"
+                  value={forgotEmail}
+                  onChange={(e) => {
+                    setForgotEmail(e.target.value);
+                    setForgotError("");
+                    setForgotSuccess("");
+                  }}
+                  type="email"
+                  placeholder="your@email.com"
+                  autoComplete="email"
+                  className="w-full border-none rounded-xl py-3.5 px-5 text-sm form-input-focus transition-all"
+                  style={{
+                    background: "rgba(227,227,219,.5)",
+                    color: "#31332e",
+                  }}
+                />
+              </div>
+
+              {forgotError && (
+                <div
+                  className="rounded-xl px-4 py-3 text-sm font-medium"
+                  style={{
+                    background: "rgba(168,56,54,.1)",
+                    border: "1px solid rgba(168,56,54,.25)",
+                    color: "#a83836",
+                  }}
+                >
+                  {forgotError}
+                </div>
+              )}
+
+              {forgotSuccess && (
+                <div
+                  className="rounded-xl px-4 py-3 text-sm font-medium"
+                  style={{
+                    background: "rgba(16,185,129,.1)",
+                    border: "1px solid rgba(16,185,129,.25)",
+                    color: "#047857",
+                  }}
+                >
+                  {forgotSuccess}
+                </div>
+              )}
+
+              <div className="pt-1 flex items-center gap-3">
+                <button
+                  type="button"
+                  className="reg-btn-cancel"
+                  onClick={() => setIsForgotOpen(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="reg-btn-submit"
+                >
+                  {forgotLoading ? "Đang gửi..." : "Gửi mật khẩu mới"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
         <div className="fixed top-8 left-8 md:top-12 md:left-12 pointer-events-none md:hidden">
           <span className="text-lg font-bold tracking-tighter text-on-surface">
             The Ethereal Concierge
@@ -628,3 +778,4 @@ export default function LoginPage() {
     </>
   );
 }
+

@@ -41,7 +41,7 @@ export default function AdminLayout() {
     if (user?.id || user?.fullName) {
       fetchProfile();
     }
-  }, []);
+  }, [user?.id, user?.fullName, updateUser]);
 
   const onSearch = (val) => {
     setTopSearch(val);
@@ -63,12 +63,6 @@ export default function AdminLayout() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
-        .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; }
-
-        @keyframes spin { to { transform:rotate(360deg) } }
         .spinner-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.6); z-index:9999; display:flex; alignItems:center; justify-content:center; }
         .spinner { width:40px; height:40px; border:4px solid #e5e7eb; border-top:4px solid #4f645b; border-radius:50%; animation:spin 0.8s linear infinite; }
       `}</style>
@@ -135,23 +129,25 @@ export default function AdminLayout() {
               gap: 4,
             }}
           >
-            <NavLink to="/admin/dashboard" style={navStyle}>
-              {({ isActive }) => (
-                <>
-                  <span
-                    className="material-symbols-outlined"
-                    style={{
-                      fontVariationSettings: isActive
-                        ? "'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24"
-                        : "'FILL' 0",
-                    }}
-                  >
-                    dashboard
-                  </span>
-                  <span>Dashboard</span>
-                </>
-              )}
-            </NavLink>
+            {hasPermission("VIEW_DASHBOARD") && (
+              <NavLink to="/admin/dashboard" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive
+                          ? "'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24"
+                          : "'FILL' 0",
+                      }}
+                    >
+                      dashboard
+                    </span>
+                    <span>Dashboard</span>
+                  </>
+                )}
+              </NavLink>
+            )}
 
             {hasPermission("MANAGE_ROOMS") && (
               <NavLink to="/admin/rooms" style={navStyle}>
@@ -168,6 +164,26 @@ export default function AdminLayout() {
                       meeting_room
                     </span>
                     <span>Quản lý Phòng</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_ROOMS") && (
+              <NavLink to="/admin/housekeeping" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive
+                          ? "'FILL' 1"
+                          : "'FILL' 0",
+                      }}
+                    >
+                      cleaning_services
+                    </span>
+                    <span>Dọn phòng</span>
                   </>
                 )}
               </NavLink>
@@ -249,6 +265,26 @@ export default function AdminLayout() {
                       confirmation_number
                     </span>
                     <span>Booking & Voucher</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_INVOICES") && (
+              <NavLink to="/admin/invoices" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive
+                          ? "'FILL' 1"
+                          : "'FILL' 0",
+                      }}
+                    >
+                      receipt_long
+                    </span>
+                    <span>Invoices</span>
                   </>
                 )}
               </NavLink>

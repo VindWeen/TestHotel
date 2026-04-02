@@ -1,6 +1,7 @@
-using CloudinaryDotNet;
+﻿using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Constants;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
@@ -17,12 +18,14 @@ public class RoomTypesController : ControllerBase
     private readonly AppDbContext _context; // Changed _db to _context
     private readonly Cloudinary _cloudinary;
     private readonly IActivityLogService _activityLog; // Added IActivityLogService
+    private readonly IAuditTrailService _auditTrail;
 
-    public RoomTypesController(AppDbContext context, Cloudinary cloudinary, IActivityLogService activityLog) // Modified constructor
+    public RoomTypesController(AppDbContext context, Cloudinary cloudinary, IActivityLogService activityLog, IAuditTrailService auditTrail) // Modified constructor
     {
         _context = context; // Changed _db = db to _context = context
         _cloudinary = cloudinary;
         _activityLog = activityLog; // Assigned activityLog
+        _auditTrail = auditTrail;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -65,7 +68,13 @@ public class RoomTypesController : ControllerBase
             .OrderBy(rt => rt.Name)
             .ToListAsync();
 
-        return Ok(new { data = roomTypes, total = roomTypes.Count });
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách loại phòng thành công.",
+            data = roomTypes,
+            total = roomTypes.Count
+        });
     }
 
     [HttpGet("admin")]
@@ -104,7 +113,13 @@ public class RoomTypesController : ControllerBase
             .OrderBy(rt => rt.Name)
             .ToListAsync();
 
-        return Ok(new { data = roomTypes, total = roomTypes.Count });
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách loại phòng (admin) thành công.",
+            data = roomTypes,
+            total = roomTypes.Count
+        });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -202,7 +217,7 @@ public class RoomTypesController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (roomType is null)
-            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y loáº¡i phĂ²ng #{id}." });
+            return NotFound(new { message = $"Không tìm thấy loại phòng #{id}." });
 
         return Ok(roomType);
     }
@@ -212,11 +227,11 @@ public class RoomTypesController : ControllerBase
     public async Task<IActionResult> Create([FromBody] SaveRoomTypeRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new { message = "TĂªn loáº¡i phĂ²ng khĂ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng." });
+            return BadRequest(new { message = "Tên loại phòng không được để trống." });
 
         var duplicate = await _context.RoomTypes.AnyAsync(rt => rt.Name == request.Name.Trim());
         if (duplicate)
-            return Conflict(new { message = $"Loáº¡i phĂ²ng '{request.Name}' Ä‘Ă£ tá»“n táº¡i." });
+            return Conflict(new { message = $"Loại phòng '{request.Name}' đã tồn tại." });
 
         var roomType = new RoomType
         {
@@ -234,7 +249,7 @@ public class RoomTypesController : ControllerBase
         _context.RoomTypes.Add(roomType);
         await _context.SaveChangesAsync();
 
-        return StatusCode(201, new { message = "Táº¡o loáº¡i phĂ²ng thĂ nh cĂ´ng.", id = roomType.Id });
+        return StatusCode(201, new { message = "Tạo loại phòng thành công.", id = roomType.Id });
     }
 
     [HttpPut("{id:int}")]
@@ -242,15 +257,15 @@ public class RoomTypesController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] SaveRoomTypeRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new { message = "TĂªn loáº¡i phĂ²ng khĂ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng." });
+            return BadRequest(new { message = "Tên loại phòng không được để trống." });
 
         var roomType = await _context.RoomTypes.FirstOrDefaultAsync(rt => rt.Id == id);
         if (roomType is null)
-            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y loáº¡i phĂ²ng #{id}." });
+            return NotFound(new { message = $"Không tìm thấy loại phòng #{id}." });
 
         var duplicate = await _context.RoomTypes.AnyAsync(rt => rt.Id != id && rt.Name == request.Name.Trim());
         if (duplicate)
-            return Conflict(new { message = $"Loáº¡i phĂ²ng '{request.Name}' Ä‘Ă£ tá»“n táº¡i." });
+            return Conflict(new { message = $"Loại phòng '{request.Name}' đã tồn tại." });
 
         roomType.Name = request.Name.Trim();
         roomType.BasePrice = request.BasePrice;
@@ -263,7 +278,7 @@ public class RoomTypesController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Cáº­p nháº­t loáº¡i phĂ²ng thĂ nh cĂ´ng." });
+        return Ok(new { message = "Cập nhật loại phòng thành công." });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -283,7 +298,7 @@ public class RoomTypesController : ControllerBase
 
         // Kiểm tra có booking active không:
         // BookingDetail.RoomTypeId = id, Booking.Status thuộc nhóm chưa kết thúc
-        var activeStatuses = new[] { "Pending", "Confirmed", "Checked_in" };
+        var activeStatuses = new[] { BookingStatuses.Pending, BookingStatuses.Confirmed, BookingStatuses.CheckedIn };
 
         var hasActiveBooking = await _context.BookingDetails // Changed _db.BookingDetails to _context.BookingDetails
             .AnyAsync(bd =>
@@ -299,34 +314,20 @@ public class RoomTypesController : ControllerBase
 
         roomType.IsActive = false;
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "DELETE_ROOM_TYPE",
-            actionLabel: "Xóa loại phòng",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa loại phòng '{roomType.Name}'.", // Changed rt.Name to roomType.Name
-            entityType: "RoomType",
-            entityId: id,
-            entityLabel: roomType.Name, // Changed rt.Name to roomType.Name
-            severity: "Warning",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _context.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
-            UserId = currentUserId,
-            Action = "DELETE_ROOM_TYPE",
+            ActionCode = "DELETE_ROOM_TYPE",
+            ActionLabel = "Xóa loại phòng",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa loại phòng '{roomType.Name}'.",
+            EntityType = "RoomType",
+            EntityId = id,
+            EntityLabel = roomType.Name,
+            Severity = "Warning",
             TableName = "RoomTypes",
             RecordId = id,
             OldValue = $"{{\"isActive\": true, \"name\": \"{roomType.Name}\"}}",
-            NewValue = "{\"isActive\": false}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            NewValue = "{\"isActive\": false}"
         });
-
-        await _context.SaveChangesAsync(); // Changed _db.SaveChangesAsync() to _context.SaveChangesAsync()
 
         return Ok(new { message = $"Đã xóa loại phòng '{roomType.Name}'." });
     }
@@ -387,34 +388,21 @@ public class RoomTypesController : ControllerBase
 
         _context.RoomImages.Add(image); // Changed _db.RoomImages.Add to _context.RoomImages.Add
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "UPLOAD_ROOM_IMAGE",
-            actionLabel: "Tải ảnh loại phòng",
-            message: $"Đã tải ảnh mới cho loại phòng '{roomType.Name}'.",
-            entityType: "RoomImage",
-            entityId: image.Id,
-            entityLabel: image.ImageUrl,
-            severity: "Info",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _context.AuditLogs.Add(new AuditLog
+        await _context.SaveChangesAsync(); // Changed _db.SaveChangesAsync() to _context.SaveChangesAsync()
+        await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
-            UserId = currentUserId,
-            Action = "UPLOAD_ROOM_IMAGE",
+            ActionCode = "UPLOAD_ROOM_IMAGE",
+            ActionLabel = "Tải ảnh loại phòng",
+            Message = $"Đã tải ảnh mới cho loại phòng '{roomType.Name}'.",
+            EntityType = "RoomImage",
+            EntityId = image.Id,
+            EntityLabel = image.ImageUrl,
+            Severity = "Info",
             TableName = "RoomImages",
             RecordId = image.Id,
             OldValue = null,
-            NewValue = $"{{\"url\": \"{image.ImageUrl}\", \"roomTypeId\": {id}}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            NewValue = $"{{\"url\": \"{image.ImageUrl}\", \"roomTypeId\": {id}}}"
         });
-
-        await _context.SaveChangesAsync(); // Changed _db.SaveChangesAsync() to _context.SaveChangesAsync()
 
         return StatusCode(201, new
         {
@@ -552,7 +540,7 @@ public class RoomTypesController : ControllerBase
         // Không cho tắt khi đang có booking active
         if (roomType.IsActive)
         {
-            var activeStatuses = new[] { "Pending", "Confirmed", "Checked_in" };
+            var activeStatuses = new[] { BookingStatuses.Pending, BookingStatuses.Confirmed, BookingStatuses.CheckedIn };
 
             var hasActiveBooking = await _context.BookingDetails // Changed _db.BookingDetails to _context.BookingDetails
                 .AnyAsync(bd =>

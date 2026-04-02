@@ -20,6 +20,77 @@ public class RoomInventoriesController : ControllerBase
         _db = db;
     }
 
+    private sealed class SyncStockPreviewItem
+    {
+        public int EquipmentId { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
+        public string EquipmentName { get; set; } = string.Empty;
+        public int RoomQuantity { get; set; }
+        public int OldInUseQuantity { get; set; }
+        public int GlobalCalculatedInUse { get; set; }
+        public int GlobalDelta => GlobalCalculatedInUse - OldInUseQuantity;
+
+        // Backward compatibility for existing clients.
+        public int NewInUseQuantity => GlobalCalculatedInUse;
+        public int Delta => GlobalDelta;
+    }
+
+    private async Task<List<SyncStockPreviewItem>> BuildSyncStockPreviewAsync(
+        HashSet<int>? equipmentFilter = null,
+        Dictionary<int, int>? roomQuantityByEquipment = null,
+        bool includeOnlyChanged = true)
+    {
+        var inUseByEquipment = await _db.RoomInventories
+            .AsNoTracking()
+            .Where(i => i.IsActive)
+            .GroupBy(i => i.EquipmentId)
+            .Select(g => new
+            {
+                EquipmentId = g.Key,
+                InUseQuantity = g.Sum(i => i.Quantity ?? 0)
+            })
+            .ToDictionaryAsync(x => x.EquipmentId, x => x.InUseQuantity);
+
+        var equipments = await _db.Equipments
+            .AsNoTracking()
+            .Select(e => new
+            {
+                e.Id,
+                e.ItemCode,
+                e.Name,
+                e.InUseQuantity
+            })
+            .ToListAsync();
+
+        return equipments
+            .Select(e =>
+            {
+                if (equipmentFilter is not null && !equipmentFilter.Contains(e.Id))
+                    return null;
+
+                var globalCalculatedInUse = inUseByEquipment.TryGetValue(e.Id, out var qty) ? qty : 0;
+                var roomQuantity = roomQuantityByEquipment is not null &&
+                                   roomQuantityByEquipment.TryGetValue(e.Id, out var rq)
+                    ? rq
+                    : 0;
+
+                return new SyncStockPreviewItem
+                {
+                    EquipmentId = e.Id,
+                    ItemCode = e.ItemCode,
+                    EquipmentName = e.Name,
+                    RoomQuantity = roomQuantity,
+                    OldInUseQuantity = e.InUseQuantity,
+                    GlobalCalculatedInUse = globalCalculatedInUse
+                };
+            })
+            .Where(x => x is not null && (!includeOnlyChanged || x.GlobalDelta != 0))
+            .Cast<SyncStockPreviewItem>()
+            .OrderByDescending(x => Math.Abs(x.GlobalDelta))
+            .ThenBy(x => x.EquipmentName)
+            .ToList();
+    }
+
     [HttpGet("room/{roomId:int}")]
     [RequirePermission(PermissionCodes.ManageInventory)]
     public async Task<IActionResult> GetByRoom(int roomId)
@@ -245,10 +316,41 @@ public class RoomInventoriesController : ControllerBase
         var clonedTo = new List<int>();
         var newItems = new List<RoomInventory>();
 
+        // Chi clone vat tu ma phong dich chua co (theo EquipmentId dang active).
+        var existingByRoom = await _db.RoomInventories
+            .AsNoTracking()
+            .Where(i => i.RoomId.HasValue && validTargetIds.Contains(i.RoomId.Value) && i.IsActive)
+            .Select(i => new { RoomId = i.RoomId!.Value, i.EquipmentId })
+            .ToListAsync();
+
+        var existingMap = existingByRoom
+            .GroupBy(x => x.RoomId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.EquipmentId).ToHashSet());
+
+        // Neu phong nguon bi trung EquipmentId, chi lay 1 ban ghi dau tien moi EquipmentId.
+        var sourceDistinctItems = sourceItems
+            .GroupBy(i => i.EquipmentId)
+            .Select(g => g.First())
+            .ToList();
+
+        var totalClonedItems = 0;
+        var totalSkippedItems = 0;
+
         foreach (var targetId in validTargetIds)
         {
-            foreach (var src in sourceItems)
+            var existingEquipments = existingMap.TryGetValue(targetId, out var set)
+                ? set
+                : new HashSet<int>();
+
+            var clonedCountForRoom = 0;
+            foreach (var src in sourceDistinctItems)
             {
+                if (existingEquipments.Contains(src.EquipmentId))
+                {
+                    totalSkippedItems++;
+                    continue;
+                }
+
                 newItems.Add(new RoomInventory
                 {
                     RoomId = targetId,
@@ -259,9 +361,13 @@ public class RoomInventoriesController : ControllerBase
                     Note = src.Note,
                     IsActive = src.IsActive
                 });
+
+                existingEquipments.Add(src.EquipmentId);
+                clonedCountForRoom++;
             }
 
             clonedTo.Add(targetId);
+            totalClonedItems += clonedCountForRoom;
         }
 
         if (newItems.Count > 0)
@@ -272,11 +378,155 @@ public class RoomInventoriesController : ControllerBase
 
         return StatusCode(201, new
         {
-            message = $"Da clone {sourceItems.Count} vat tu vao {clonedTo.Count} phong.",
+            message = $"Da clone {totalClonedItems} vat tu con thieu vao {clonedTo.Count} phong.",
             sourceRoomId = request.SourceRoomId,
-            itemsPerRoom = sourceItems.Count,
+            sourceDistinctItems = sourceDistinctItems.Count,
+            itemsPerRoom = sourceDistinctItems.Count,
+            clonedItems = totalClonedItems,
+            skippedExistingItems = totalSkippedItems,
             clonedToRooms = clonedTo,
             invalidRoomIds = invalidTargets
+        });
+    }
+
+    [HttpPost("sync-stock")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> SyncStock([FromQuery] int? roomId = null)
+    {
+        HashSet<int>? scopeEquipmentIds = null;
+        Dictionary<int, int>? roomQtyByEquipment = null;
+        var includeOnlyChanged = true;
+
+        if (roomId.HasValue)
+        {
+            var roomExists = await _db.Rooms.AnyAsync(r => r.Id == roomId.Value);
+            if (!roomExists)
+                return NotFound(new { message = $"Khong tim thay phong #{roomId.Value}." });
+
+            roomQtyByEquipment = await _db.RoomInventories
+                .AsNoTracking()
+                .Where(i => i.RoomId == roomId.Value && i.IsActive)
+                .GroupBy(i => i.EquipmentId)
+                .Select(g => new
+                {
+                    EquipmentId = g.Key,
+                    Quantity = g.Sum(x => x.Quantity ?? 0)
+                })
+                .ToDictionaryAsync(x => x.EquipmentId, x => x.Quantity);
+
+            scopeEquipmentIds = roomQtyByEquipment.Keys.ToHashSet();
+            includeOnlyChanged = false;
+        }
+
+        var preview = await BuildSyncStockPreviewAsync(
+            scopeEquipmentIds,
+            roomQtyByEquipment,
+            includeOnlyChanged);
+
+        if (roomId.HasValue && scopeEquipmentIds!.Count == 0)
+        {
+            return Ok(new
+            {
+                message = $"Phong #{roomId.Value} khong co vat tu dang active de dong bo.",
+                roomId,
+                changedEquipments = 0,
+                totalEquipments = 0,
+                changes = Array.Empty<object>()
+            });
+        }
+
+        var equipments = await _db.Equipments.ToListAsync();
+        var changed = 0;
+        var now = DateTime.UtcNow;
+        var previewMap = preview.ToDictionary(x => x.EquipmentId, x => x.GlobalCalculatedInUse);
+
+        foreach (var equipment in equipments)
+        {
+            if (!previewMap.TryGetValue(equipment.Id, out var newInUse)) continue;
+            if (equipment.InUseQuantity == newInUse) continue;
+
+            equipment.InUseQuantity = newInUse;
+            equipment.UpdatedAt = now;
+            changed++;
+        }
+
+        if (changed > 0)
+            await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = roomId.HasValue
+                ? $"Da dong bo kho vat tu cho phong #{roomId.Value}. Da cap nhat {changed} thiet bi."
+                : $"Da dong bo kho vat tu thanh cong. Da cap nhat {changed} thiet bi.",
+            roomId,
+            changedEquipments = changed,
+            totalEquipments = roomId.HasValue ? scopeEquipmentIds!.Count : equipments.Count,
+            changes = preview.Select(x => new
+            {
+                equipmentId = x.EquipmentId,
+                itemCode = x.ItemCode,
+                equipmentName = x.EquipmentName,
+                roomQuantity = x.RoomQuantity,
+                oldInUseQuantity = x.OldInUseQuantity,
+                globalCalculatedInUse = x.GlobalCalculatedInUse,
+                globalDelta = x.GlobalDelta,
+                // Backward compatibility
+                newInUseQuantity = x.NewInUseQuantity,
+                delta = x.Delta
+            })
+        });
+    }
+
+    [HttpGet("preview-sync-stock")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> PreviewSyncStock([FromQuery] int? roomId = null)
+    {
+        HashSet<int>? scopeEquipmentIds = null;
+        Dictionary<int, int>? roomQtyByEquipment = null;
+        var includeOnlyChanged = true;
+
+        if (roomId.HasValue)
+        {
+            var roomExists = await _db.Rooms.AnyAsync(r => r.Id == roomId.Value);
+            if (!roomExists)
+                return NotFound(new { message = $"Khong tim thay phong #{roomId.Value}." });
+
+            roomQtyByEquipment = await _db.RoomInventories
+                .AsNoTracking()
+                .Where(i => i.RoomId == roomId.Value && i.IsActive)
+                .GroupBy(i => i.EquipmentId)
+                .Select(g => new
+                {
+                    EquipmentId = g.Key,
+                    Quantity = g.Sum(x => x.Quantity ?? 0)
+                })
+                .ToDictionaryAsync(x => x.EquipmentId, x => x.Quantity);
+
+            scopeEquipmentIds = roomQtyByEquipment.Keys.ToHashSet();
+            includeOnlyChanged = false;
+        }
+
+        var preview = await BuildSyncStockPreviewAsync(
+            scopeEquipmentIds,
+            roomQtyByEquipment,
+            includeOnlyChanged);
+        return Ok(new
+        {
+            roomId,
+            data = preview.Select(x => new
+            {
+                equipmentId = x.EquipmentId,
+                itemCode = x.ItemCode,
+                equipmentName = x.EquipmentName,
+                roomQuantity = x.RoomQuantity,
+                oldInUseQuantity = x.OldInUseQuantity,
+                globalCalculatedInUse = x.GlobalCalculatedInUse,
+                globalDelta = x.GlobalDelta,
+                // Backward compatibility
+                newInUseQuantity = x.NewInUseQuantity,
+                delta = x.Delta
+            }),
+            total = preview.Count
         });
     }
 

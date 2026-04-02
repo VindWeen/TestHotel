@@ -1,13 +1,18 @@
-using System.Text;
+﻿using System.Text;
 using HotelManagement.API.Hubs;           // ← THÊM MỚI
+using HotelManagement.API.Middleware;
 using HotelManagement.API.Services;       // ← THÊM MỚI
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Infrastructure.Data;
+using HotelManagement.Core.DTOs;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -108,6 +113,12 @@ builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddScoped<IAuditTrailService, AuditTrailService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IBookingStatusFlowService, BookingStatusFlowService>();
+builder.Services.AddScoped<IVoucherValidationService, VoucherValidationService>();
 // ── 4.5 Cloudinary ──────────────────────────────────────────────────
 var cloudCfg     = builder.Configuration.GetSection("Cloudinary");
 var cloudAccount = new CloudinaryDotNet.Account(
@@ -119,6 +130,8 @@ builder.Services.AddSingleton(new CloudinaryDotNet.Cloudinary(cloudAccount));
 
 // ── 5. Mapster ───────────────────────────────────────────────────
 builder.Services.AddMapster();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // ── 6. Controllers ───────────────────────────────────────────────
 builder.Services.AddControllers()
@@ -127,6 +140,26 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler =
             System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(x => x.Value?.Errors.Count > 0)
+            .SelectMany(x => x.Value!.Errors.Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Dữ liệu không hợp lệ." : e.ErrorMessage))
+            .ToList();
+
+        var payload = new ApiErrorResponse
+        {
+            Success = false,
+            Message = "Dữ liệu đầu vào không hợp lệ.",
+            Errors = errors,
+            TraceId = context.HttpContext.TraceIdentifier
+        };
+
+        return new BadRequestObjectResult(payload);
+    };
+});
 
 // ── 7. SignalR ───────────────────────────────────────────────────
 builder.Services.AddSignalR();  // ← THÊM MỚI
@@ -177,6 +210,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
+app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -3,6 +3,9 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
+using Microsoft.Data.SqlClient;
 
 namespace HotelManagement.API.Controllers;
 
@@ -12,10 +15,12 @@ namespace HotelManagement.API.Controllers;
 public class EquipmentsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly Cloudinary _cloudinary;
 
-    public EquipmentsController(AppDbContext db)
+    public EquipmentsController(AppDbContext db, Cloudinary cloudinary)
     {
         _db = db;
+        _cloudinary = cloudinary;
     }
 
     [HttpGet]
@@ -52,4 +57,257 @@ public class EquipmentsController : ControllerBase
 
         return Ok(new { data = items, total = items.Count });
     }
+
+    [HttpPost]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Create([FromForm] SaveEquipmentRequest request)
+    {
+        var validationError = ValidateRequest(request);
+        if (validationError is not null)
+            return BadRequest(new { message = validationError });
+
+        var itemCode = request.ItemCode.Trim();
+        var codeExists = await _db.Equipments.AnyAsync(e => e.ItemCode.ToLower() == itemCode.ToLower());
+        if (codeExists)
+            return Conflict(new { message = $"Mã vật tư '{itemCode}' đã tồn tại." });
+
+        var now = DateTime.UtcNow;
+        string? uploadedImageUrl = null;
+        if (request.ImageFile is not null)
+        {
+            var uploadError = await ValidateImageFileAsync(request.ImageFile);
+            if (uploadError is not null)
+                return BadRequest(new { message = uploadError });
+
+            var uploadResult = await UploadImageToCloudinaryAsync(request.ImageFile);
+            if (uploadResult.Error is not null)
+                return StatusCode(502, new { message = $"Upload ảnh thất bại: {uploadResult.Error.Message}" });
+
+            uploadedImageUrl = uploadResult.SecureUrl?.ToString();
+        }
+
+        var equipment = new Core.Entities.Equipment
+        {
+            ItemCode = itemCode,
+            Name = request.Name.Trim(),
+            Category = request.Category.Trim(),
+            Unit = request.Unit.Trim(),
+            TotalQuantity = request.TotalQuantity,
+            BasePrice = request.BasePrice,
+            DefaultPriceIfLost = request.DefaultPriceIfLost,
+            Supplier = string.IsNullOrWhiteSpace(request.Supplier) ? null : request.Supplier.Trim(),
+            ImageUrl = uploadedImageUrl,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        _db.Equipments.Add(equipment);
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            return HandleDbUpdateException(ex);
+        }
+
+        return StatusCode(201, new
+        {
+            message = "Tạo vật tư thành công.",
+            id = equipment.Id
+        });
+    }
+
+    [HttpPut("{id:int}")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Update(int id, [FromForm] SaveEquipmentRequest request)
+    {
+        var validationError = ValidateRequest(request);
+        if (validationError is not null)
+            return BadRequest(new { message = validationError });
+
+        var equipment = await _db.Equipments.FirstOrDefaultAsync(e => e.Id == id);
+        if (equipment is null)
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
+
+        var itemCode = request.ItemCode.Trim();
+        var codeExists = await _db.Equipments.AnyAsync(e => e.Id != id && e.ItemCode.ToLower() == itemCode.ToLower());
+        if (codeExists)
+            return Conflict(new { message = $"Mã vật tư '{itemCode}' đã tồn tại." });
+
+        equipment.ItemCode = itemCode;
+        equipment.Name = request.Name.Trim();
+        equipment.Category = request.Category.Trim();
+        equipment.Unit = request.Unit.Trim();
+        equipment.TotalQuantity = request.TotalQuantity;
+        equipment.BasePrice = request.BasePrice;
+        equipment.DefaultPriceIfLost = request.DefaultPriceIfLost;
+        equipment.Supplier = string.IsNullOrWhiteSpace(request.Supplier) ? null : request.Supplier.Trim();
+
+        if (request.ImageFile is not null)
+        {
+            var uploadError = await ValidateImageFileAsync(request.ImageFile);
+            if (uploadError is not null)
+                return BadRequest(new { message = uploadError });
+
+            var oldPublicId = ExtractPublicIdFromUrl(equipment.ImageUrl);
+            if (!string.IsNullOrWhiteSpace(oldPublicId))
+            {
+                var deleteResult = await _cloudinary.DestroyAsync(new DeletionParams(oldPublicId));
+                if (deleteResult.Error is not null)
+                    Console.WriteLine($"[Cloudinary] Xóa ảnh cũ thất bại: {deleteResult.Error.Message}");
+            }
+
+            var uploadResult = await UploadImageToCloudinaryAsync(request.ImageFile);
+            if (uploadResult.Error is not null)
+                return StatusCode(502, new { message = $"Upload ảnh thất bại: {uploadResult.Error.Message}" });
+
+            equipment.ImageUrl = uploadResult.SecureUrl?.ToString();
+        }
+
+        equipment.UpdatedAt = DateTime.UtcNow;
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            return HandleDbUpdateException(ex);
+        }
+        return Ok(new { message = "Cập nhật vật tư thành công." });
+    }
+
+    [HttpPatch("{id:int}/toggle-active")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var equipment = await _db.Equipments.FirstOrDefaultAsync(e => e.Id == id);
+        if (equipment is null)
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
+
+        equipment.IsActive = !equipment.IsActive;
+        equipment.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = equipment.IsActive ? "Đã bật vật tư." : "Đã tắt vật tư.",
+            id = equipment.Id,
+            isActive = equipment.IsActive
+        });
+    }
+
+    private static string? ValidateRequest(SaveEquipmentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ItemCode))
+            return "Mã vật tư không được để trống.";
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return "Tên vật tư không được để trống.";
+        if (string.IsNullOrWhiteSpace(request.Category))
+            return "Danh mục không được để trống.";
+        if (string.IsNullOrWhiteSpace(request.Unit))
+            return "Đơn vị tính không được để trống.";
+        if (request.TotalQuantity < 0)
+            return "Tổng số lượng không được âm.";
+        if (request.BasePrice < 0)
+            return "Giá gốc không được âm.";
+        if (request.DefaultPriceIfLost < 0)
+            return "Giá đền bù không được âm.";
+
+        return null;
+    }
+
+    private static Task<string?> ValidateImageFileAsync(IFormFile file)
+    {
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        if (!allowedTypes.Contains(file.ContentType.ToLower()))
+            return Task.FromResult<string?>("Chỉ chấp nhận file ảnh JPEG, PNG, WebP, GIF.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            return Task.FromResult<string?>("File ảnh không được vượt quá 5MB.");
+
+        return Task.FromResult<string?>(null);
+    }
+
+    private async Task<ImageUploadResult> UploadImageToCloudinaryAsync(IFormFile file)
+    {
+        await using var stream = file.OpenReadStream();
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(file.FileName, stream),
+            Folder = "QuanTriKhachSan/Equipments",
+            Transformation = new Transformation().Quality("auto").FetchFormat("auto")
+        };
+
+        return await _cloudinary.UploadAsync(uploadParams);
+    }
+
+    private static string? ExtractPublicIdFromUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        try
+        {
+            var uri = new Uri(url);
+            var path = uri.AbsolutePath;
+            var uploadIndex = path.IndexOf("/upload/", StringComparison.Ordinal);
+            if (uploadIndex < 0) return null;
+
+            var afterUpload = path[(uploadIndex + 8)..];
+            var segments = afterUpload.Split('/');
+            var startIndex = 0;
+            for (var i = 0; i < segments.Length; i++)
+            {
+                if (segments[i].Length > 1 && segments[i][0] == 'v' && long.TryParse(segments[i][1..], out _))
+                {
+                    startIndex = i + 1;
+                    break;
+                }
+            }
+
+            if (startIndex >= segments.Length) return null;
+            var publicIdWithExt = string.Join('/', segments[startIndex..]);
+            var dotIndex = publicIdWithExt.LastIndexOf('.');
+            return dotIndex > 0 ? publicIdWithExt[..dotIndex] : publicIdWithExt;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private IActionResult HandleDbUpdateException(DbUpdateException ex)
+    {
+        var sqlEx = ex.InnerException as SqlException;
+        if (sqlEx is not null)
+        {
+            return sqlEx.Number switch
+            {
+                2601 or 2627 => Conflict(new { message = "Mã vật tư đã tồn tại (vi phạm unique)." }),
+                515 => BadRequest(new { message = "Thiếu dữ liệu bắt buộc. Vui lòng kiểm tra các trường có dấu *." }),
+                8152 => BadRequest(new { message = "Độ dài dữ liệu vượt quá giới hạn cột trong CSDL." }),
+                _ => StatusCode(500, new { message = $"Lỗi CSDL: {sqlEx.Message}" })
+            };
+        }
+
+        return StatusCode(500, new
+        {
+            message = ex.InnerException?.Message ?? ex.Message
+        });
+    }
 }
+
+public record SaveEquipmentRequest(
+    string ItemCode,
+    string Name,
+    string Category,
+    string Unit,
+    int TotalQuantity,
+    decimal BasePrice,
+    decimal DefaultPriceIfLost,
+    string? Supplier,
+    IFormFile? ImageFile
+);

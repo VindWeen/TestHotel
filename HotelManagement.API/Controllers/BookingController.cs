@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
@@ -6,25 +6,47 @@ using System.Security.Claims;
 using HotelManagement.Core.Entities;
 using HotelManagement.Infrastructure.Data;
 using HotelManagement.Core.Authorization;
+using HotelManagement.Core.Constants;
 using HotelManagement.Core.Helpers;
-using HotelManagement.API.Services;using HotelManagement.Core.DTOs;
+using HotelManagement.API.Services;
+using HotelManagement.Core.DTOs;
 
 namespace HotelManagement.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/Booking")]
 public class BookingsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConnectionMultiplexer _redis;
     private readonly IEmailService _email;
-    private readonly IActivityLogService _activityLog;
+    private readonly IBookingService _bookingService;
+    private readonly IBookingStatusFlowService _statusFlowService;
+    private readonly IVoucherValidationService _voucherValidationService;
+    private readonly IPaymentService _paymentService;
+    private readonly IInvoiceService _invoiceService;
+    private readonly IAuditTrailService _auditTrail;
 
-    public BookingsController(AppDbContext context, IConnectionMultiplexer redis, IEmailService email, IActivityLogService activityLog)
+    public BookingsController(
+        AppDbContext context,
+        IConnectionMultiplexer redis,
+        IEmailService email,
+        IBookingService bookingService,
+        IBookingStatusFlowService statusFlowService,
+        IVoucherValidationService voucherValidationService,
+        IPaymentService paymentService,
+        IInvoiceService invoiceService,
+        IAuditTrailService auditTrail)
     {
         _context = context;
         _redis = redis;
         _email = email;
-        _activityLog = activityLog;
+        _bookingService = bookingService;
+        _statusFlowService = statusFlowService;
+        _voucherValidationService = voucherValidationService;
+        _paymentService = paymentService;
+        _invoiceService = invoiceService;
+        _auditTrail = auditTrail;
     }
 
     private IDatabase RedisDb => _redis.GetDatabase();
@@ -64,46 +86,96 @@ public class BookingsController : ControllerBase
         }).ToList()
     };
 
+    private static IEnumerable<BookingTimelineEventResponse> BuildTimeline(Booking booking)
+    {
+        var createdAt = booking.BookingDetails
+            .OrderBy(d => d.CheckInDate)
+            .Select(d => (DateTime?)d.CheckInDate)
+            .FirstOrDefault();
+
+        var events = new List<BookingTimelineEventResponse>
+        {
+            new()
+            {
+                Type = "CREATED",
+                Label = "Tạo booking",
+                At = createdAt,
+                Note = booking.Note
+            }
+        };
+
+        if (booking.CheckInTime.HasValue)
+        {
+            events.Add(new BookingTimelineEventResponse
+            {
+                Type = "CHECKED_IN",
+                Label = "Khách đã check-in",
+                At = booking.CheckInTime
+            });
+        }
+
+        if (booking.CheckOutTime.HasValue)
+        {
+            events.Add(new BookingTimelineEventResponse
+            {
+                Type = "CHECKED_OUT",
+                Label = "Khách đã check-out",
+                At = booking.CheckOutTime
+            });
+        }
+
+        if (booking.CancelledAt.HasValue)
+        {
+            events.Add(new BookingTimelineEventResponse
+            {
+                Type = "CANCELLED",
+                Label = "Booking đã bị hủy",
+                At = booking.CancelledAt,
+                Note = booking.CancellationReason
+            });
+        }
+
+        return events
+            .Where(e => e.At.HasValue)
+            .OrderBy(e => e.At)
+            .ToList();
+    }
+
+    private IActionResult BookingActionSuccess(string message, Booking booking)
+    {
+        return Ok(new
+        {
+            success = true,
+            message,
+            data = MapToResponse(booking),
+            timeline = BuildTimeline(booking)
+        });
+    }
+
+    private IActionResult BookingActionError(int statusCode, string message)
+    {
+        return StatusCode(statusCode, new
+        {
+            success = false,
+            message,
+            errors = new[] { message }
+        });
+    }
+
     // ================= GET ALL =================
     [RequirePermission(PermissionCodes.ManageBookings)]
     [HttpGet]
     public async Task<IActionResult> GetAll(
-        string? status,
-        DateTime? fromDate,
-        DateTime? toDate,
-        int? userId,
-        int page = 1,
-        int pageSize = 10)
+        [FromQuery] ListQueryRequest queryRequest,
+        [FromQuery] int? userId)
     {
-        var query = _context.Bookings
-            .AsNoTracking()
-            .Include(b => b.BookingDetails)
-                .ThenInclude(d => d.Room)
-            .Include(b => b.BookingDetails)
-                .ThenInclude(d => d.RoomType)
-            .AsQueryable();
-
-        if (!string.IsNullOrEmpty(status))
-            query = query.Where(b => b.Status == status);
-
-        if (userId.HasValue)
-            query = query.Where(b => b.UserId == userId);
-
-        if (fromDate.HasValue)
-            query = query.Where(b => b.CheckInTime >= fromDate);
-
-        if (toDate.HasValue)
-            query = query.Where(b => b.CheckOutTime <= toDate);
-
-        var total = await query.CountAsync();
-
-        var data = await query
-            .OrderByDescending(b => b.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return Ok(new { total, page, pageSize, data = data.Select(MapToResponse) });
+        var payload = await _bookingService.GetAllAsync(queryRequest, userId);
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách booking thành công.",
+            data = payload
+        });
     }
 
     // ================= GET BY ID =================
@@ -119,8 +191,40 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.RoomType)
             .FirstOrDefaultAsync(b => b.Id == id);
 
-        if (booking == null) return NotFound();
-        return Ok(MapToResponse(booking));
+        if (booking == null)
+            return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
+
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy thông tin booking thành công.",
+            data = MapToResponse(booking)
+        });
+    }
+
+    // ================= GET DETAIL (WITH TIMELINE) =================
+    [RequirePermission(PermissionCodes.ManageBookings)]
+    [HttpGet("{id}/detail")]
+    public async Task<IActionResult> GetDetail(int id)
+    {
+        var booking = await _context.Bookings
+            .AsNoTracking()
+            .Include(b => b.BookingDetails)
+                .ThenInclude(d => d.Room)
+            .Include(b => b.BookingDetails)
+                .ThenInclude(d => d.RoomType)
+            .FirstOrDefaultAsync(b => b.Id == id);
+
+        if (booking == null)
+            return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
+
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy chi tiết booking thành công.",
+            data = MapToResponse(booking),
+            timeline = BuildTimeline(booking)
+        });
     }
 
     // ================= MY BOOKINGS =================
@@ -140,7 +244,12 @@ public class BookingsController : ControllerBase
             .OrderByDescending(b => b.Id)
             .ToListAsync();
 
-        return Ok(bookings.Select(MapToResponse));
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách booking của bạn thành công.",
+            data = bookings.Select(MapToResponse)
+        });
     }
 
     // ================= CREATE =================
@@ -160,7 +269,7 @@ public class BookingsController : ControllerBase
                     var key = $"lock:{d.RoomTypeId}:{d.CheckInDate:yyyyMMdd}:{d.CheckOutDate:yyyyMMdd}";
                     var ok = await RedisDb.StringSetAsync(key, "1", TimeSpan.FromSeconds(30), When.NotExists);
                     if (!ok)
-                        return BadRequest("Đang có người đặt cùng loại phòng, thử lại!");
+                        return BookingActionError(StatusCodes.Status400BadRequest, "Đang có người đặt cùng loại phòng, vui lòng thử lại.");
                     locks.Add(key);
                 }
             }
@@ -178,7 +287,7 @@ public class BookingsController : ControllerBase
                 );
 
                 if (conflict)
-                    return BadRequest("Phòng đã bị đặt trong khoảng này!");
+                    return BookingActionError(StatusCodes.Status400BadRequest, "Phòng đã bị đặt trong khoảng thời gian này.");
             }
 
             // ===== LẤY USER ID NẾU ĐÃ ĐĂNG NHẬP =====
@@ -194,7 +303,7 @@ public class BookingsController : ControllerBase
                 GuestEmail = request.GuestEmail,
                 NumAdults = request.NumAdults,
                 NumChildren = request.NumChildren,
-                Status = "Pending",
+                Status = BookingStatuses.Pending,
                 Source = request.Source ?? "online",
                 Note = request.Note,
                 // Thêm 4 ký tự random để tránh trùng khi concurrent same-second
@@ -218,10 +327,10 @@ public class BookingsController : ControllerBase
             foreach (var d in request.Details)
             {
                 if (!roomTypesDict.TryGetValue(d.RoomTypeId, out var rt))
-                    return BadRequest($"RoomType #{d.RoomTypeId} không tồn tại");
+                    return BookingActionError(StatusCodes.Status400BadRequest, $"Loại phòng #{d.RoomTypeId} không tồn tại.");
 
                 var nights = (d.CheckOutDate - d.CheckInDate).Days;
-                if (nights <= 0) return BadRequest("Ngày check-out phải sau check-in");
+                if (nights <= 0) return BookingActionError(StatusCodes.Status400BadRequest, "Ngày check-out phải sau check-in.");
 
                 total += nights * rt.BasePrice;
 
@@ -238,33 +347,13 @@ public class BookingsController : ControllerBase
             var v = voucherTask.Result;
             if (request.VoucherId.HasValue)
             {
-                if (v == null || !v.IsActive)
-                    return BadRequest("Voucher không hợp lệ");
+                if (v == null)
+                    return BookingActionError(StatusCodes.Status400BadRequest, "Voucher không hợp lệ.");
 
-                if (v.ValidFrom.HasValue && DateTime.UtcNow < v.ValidFrom)
-                    return BadRequest("Voucher chưa đến ngày sử dụng");
+                if (!_voucherValidationService.ValidateUsage(v, total, DateTime.UtcNow, out var voucherError))
+                    return BookingActionError(StatusCodes.Status400BadRequest, voucherError);
 
-                if (v.ValidTo.HasValue && DateTime.UtcNow > v.ValidTo)
-                    return BadRequest("Voucher đã hết hạn");
-
-                if (v.UsageLimit.HasValue && v.UsedCount >= v.UsageLimit)
-                    return BadRequest("Voucher đã hết lượt sử dụng");
-
-                if (v.MinBookingValue.HasValue && total < v.MinBookingValue)
-                    return BadRequest($"Đơn hàng tối thiểu {v.MinBookingValue:N0}đ để dùng voucher này");
-
-                decimal discount = 0;
-
-                if (v.DiscountType == "PERCENT")
-                {
-                    discount = total * v.DiscountValue / 100;
-                    if (v.MaxDiscountAmount.HasValue)
-                        discount = Math.Min(discount, v.MaxDiscountAmount.Value);
-                }
-                else // FIXED_AMOUNT
-                {
-                    discount = v.DiscountValue;
-                }
+                var discount = _voucherValidationService.CalculateDiscount(v, total);
 
                 booking.VoucherId = v.Id;
                 booking.TotalEstimatedAmount = total - discount;
@@ -277,37 +366,27 @@ public class BookingsController : ControllerBase
 
             // ===== DEPOSIT =====
             booking.DepositAmount = booking.TotalEstimatedAmount * 0.3m;
+            _paymentService.EnsureValidAmount(booking.DepositAmount ?? 0);
 
             _context.Bookings.Add(booking);
+            await _context.SaveChangesAsync();
 
-            // Ghi AuditLog trước SaveChanges (gộp chung 1 lần)
-            _context.AuditLogs.Add(new AuditLog
+            await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
             {
-                UserId    = currentUserId,
-                Action    = "CREATE_BOOKING",
+                ActionCode = "CREATE_BOOKING",
+                ActionLabel = "Đặt phòng mới",
+                Message = $"Khách hàng {booking.GuestName} đã đặt phòng thành công ({booking.BookingCode}). Tổng: {booking.TotalEstimatedAmount:N0}đ",
+                EntityType = "Booking",
+                EntityId = booking.Id,
+                EntityLabel = booking.BookingCode,
+                Severity = "Success",
                 TableName = "Bookings",
-                RecordId  = booking.Id,
-                OldValue  = null,
-                NewValue  = $"{{\"bookingCode\": \"{booking.BookingCode}\", \"total\": {booking.TotalEstimatedAmount}}}",
-                UserAgent = Request.Headers["User-Agent"].ToString(),
-                CreatedAt = DateTime.UtcNow
+                RecordId = booking.Id,
+                OldValue = null,
+                NewValue = $"{{\"bookingCode\": \"{booking.BookingCode}\", \"total\": {booking.TotalEstimatedAmount}}}"
             });
-            await _context.SaveChangesAsync(); // Chỉ 1 lần
 
-            // Ghi Activity Log (push SignalR)
-            await _activityLog.LogAsync(
-                actionCode: "CREATE_BOOKING",
-                actionLabel: "Đặt phòng mới",
-                message: $"Khách hàng {booking.GuestName} đã đặt phòng thành công ({booking.BookingCode}). Tổng: {booking.TotalEstimatedAmount:N0}đ",
-                entityType: "Booking",
-                entityId: booking.Id,
-                entityLabel: booking.BookingCode,
-                severity: "Success",
-                userId: currentUserId,
-                roleName: User.FindFirst("role")?.Value
-            );
-
-            return Ok(MapToResponse(booking));
+            return BookingActionSuccess("Tạo booking thành công.", booking);
         }
         finally
         {
@@ -325,41 +404,28 @@ public class BookingsController : ControllerBase
             .Include(x => x.BookingDetails)
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        if (b == null) return NotFound();
+        if (b == null)
+            return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
 
-        if (b.Status != "Pending")
-            return BadRequest("Sai trạng thái");
+        if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.Confirmed, out var confirmError))
+            return BookingActionError(StatusCodes.Status400BadRequest, confirmError);
 
-        b.Status = "Confirmed";
+        b.Status = BookingStatuses.Confirmed;
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CONFIRM_BOOKING",
-            actionLabel: "Xác nhận đặt phòng",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xác nhận booking {b.BookingCode} cho khách {b.GuestName}.",
-            entityType: "Booking",
-            entityId: id,
-            entityLabel: b.BookingCode,
-            severity: "Success",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _context.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "CONFIRM_BOOKING",
+            ActionCode = "CONFIRM_BOOKING",
+            ActionLabel = "Xác nhận booking",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xác nhận booking {b.BookingCode} cho khách {b.GuestName}.",
+            EntityType = "Booking",
+            EntityId = id,
+            EntityLabel = b.BookingCode,
+            Severity = "Success",
             TableName = "Bookings",
-            RecordId  = id,
-            OldValue  = "{\"status\": \"Pending\"}",
-            NewValue  = "{\"status\": \"Confirmed\"}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = $"{{\"status\": \"{BookingStatuses.Pending}\"}}",
+            NewValue = $"{{\"status\": \"{BookingStatuses.Confirmed}\"}}"
         });
-
-        await _context.SaveChangesAsync();
         // Gửi email xác nhận đặt phòng
         var toEmail = b.GuestEmail ?? b.User?.Email;
         if (!string.IsNullOrEmpty(toEmail))
@@ -375,7 +441,7 @@ public class BookingsController : ControllerBase
             );
         }
 
-        return Ok(MapToResponse(b));
+        return BookingActionSuccess("Xác nhận booking thành công.", b);
     }
 
     // ================= CANCEL =================
@@ -388,9 +454,13 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.Room)
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        if (b == null) return NotFound();
+        if (b == null)
+            return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
 
-        b.Status = "Cancelled";
+        if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.Cancelled, out var cancelError))
+            return BookingActionError(StatusCodes.Status400BadRequest, cancelError);
+
+        b.Status = BookingStatuses.Cancelled;
         b.CancellationReason = reason;
         b.CancelledAt = DateTime.UtcNow;
 
@@ -403,35 +473,21 @@ public class BookingsController : ControllerBase
             }
         }
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CANCEL_BOOKING",
-            actionLabel: "Hủy đặt phòng",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã hủy booking {b.BookingCode} của khách {b.GuestName}. Lý do: {reason}",
-            entityType: "Booking",
-            entityId: id,
-            entityLabel: b.BookingCode,
-            severity: "Warning",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _context.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "CANCEL_BOOKING",
+            ActionCode = "CANCEL_BOOKING",
+            ActionLabel = "Hủy đặt phòng",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã hủy booking {b.BookingCode} của khách {b.GuestName}. Lý do: {reason}",
+            EntityType = "Booking",
+            EntityId = id,
+            EntityLabel = b.BookingCode,
+            Severity = "Warning",
             TableName = "Bookings",
-            RecordId  = id,
-            OldValue  = $"{{\"status\": \"{b.Status}\"}}",
-            NewValue  = $"{{\"status\": \"Cancelled\", \"reason\": \"{reason}\"}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = null,
+            NewValue = $"{{\"status\": \"{BookingStatuses.Cancelled}\", \"reason\": \"{reason}\"}}"
         });
-
-        await _context.SaveChangesAsync();
-        return Ok(MapToResponse(b));
+        return BookingActionSuccess("Hủy booking thành công.", b);
     }
 
     // ================= CHECK-IN =================
@@ -443,10 +499,11 @@ public class BookingsController : ControllerBase
             .Include(x => x.BookingDetails)
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        if (b == null) return NotFound();
+        if (b == null)
+            return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
 
-        if (b.Status != "Confirmed")
-            return BadRequest("Chưa confirm");
+        if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.CheckedIn, out var checkInError))
+            return BookingActionError(StatusCodes.Status400BadRequest, checkInError);
 
         foreach (var d in b.BookingDetails)
         {
@@ -455,44 +512,30 @@ public class BookingsController : ControllerBase
                 .FirstOrDefaultAsync();
 
             if (room == null)
-                return BadRequest("Không còn phòng trống");
+                return BookingActionError(StatusCodes.Status400BadRequest, "Không còn phòng trống cho loại phòng này.");
 
             d.RoomId = room.Id;
             room.BusinessStatus = "Occupied";
         }
 
-        b.Status = "Checked_in";
+        b.Status = BookingStatuses.CheckedIn;
         b.CheckInTime = DateTime.UtcNow;
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CHECKIN_BOOKING",
-            actionLabel: "Check-in khách",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-in cho khách {b.GuestName} ({b.BookingCode}).",
-            entityType: "Booking",
-            entityId: id,
-            entityLabel: b.BookingCode,
-            severity: "Success",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _context.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "CHECKIN_BOOKING",
+            ActionCode = "CHECKIN_BOOKING",
+            ActionLabel = "Check-in khách",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-in cho khách {b.GuestName} ({b.BookingCode}).",
+            EntityType = "Booking",
+            EntityId = id,
+            EntityLabel = b.BookingCode,
+            Severity = "Success",
             TableName = "Bookings",
-            RecordId  = id,
-            OldValue  = "{\"status\": \"Confirmed\"}",
-            NewValue  = "{\"status\": \"Checked_in\"}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = null,
+            NewValue = $"{{\"status\": \"{BookingStatuses.CheckedIn}\"}}"
         });
-
-        await _context.SaveChangesAsync();
-        return Ok(MapToResponse(b));
+        return BookingActionSuccess("Check-in booking thành công.", b);
     }
 
     // ================= CHECK-OUT =================
@@ -505,10 +548,11 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.Room)
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        if (b == null) return NotFound();
+        if (b == null)
+            return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
 
-        if (b.Status != "Checked_in")
-            return BadRequest("Chưa check-in");
+        if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.Completed, out var checkOutError))
+            return BookingActionError(StatusCodes.Status400BadRequest, checkOutError);
 
         foreach (var d in b.BookingDetails)
         {
@@ -519,40 +563,28 @@ public class BookingsController : ControllerBase
             }
         }
 
-        b.Status = "Completed";
+        b.Status = BookingStatuses.Completed;
         b.CheckOutTime = DateTime.UtcNow;
 
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CHECKOUT_BOOKING",
-            actionLabel: "Check-out khách",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-out cho khách {b.GuestName} ({b.BookingCode}).",
-            entityType: "Booking",
-            entityId: id,
-            entityLabel: b.BookingCode,
-            severity: "Success",
-            userId: currentUserId,
-            roleName: User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _context.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "CHECKOUT_BOOKING",
+            ActionCode = "CHECKOUT_BOOKING",
+            ActionLabel = "Check-out khách",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-out cho khách {b.GuestName} ({b.BookingCode}).",
+            EntityType = "Booking",
+            EntityId = id,
+            EntityLabel = b.BookingCode,
+            Severity = "Success",
             TableName = "Bookings",
-            RecordId  = id,
-            OldValue  = "{\"status\": \"Checked_in\"}",
-            NewValue  = "{\"status\": \"Completed\"}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = null,
+            NewValue = $"{{\"status\": \"{BookingStatuses.Completed}\"}}"
         });
 
-        await _context.SaveChangesAsync();
+        await _invoiceService.CreateFromBookingAsync(b.Id);
 
-        // TODO: tạo Invoice ở đây nếu cần
-
-        return Ok(MapToResponse(b));
+        return BookingActionSuccess("Check-out booking thành công.", b);
     }
 }
+
+

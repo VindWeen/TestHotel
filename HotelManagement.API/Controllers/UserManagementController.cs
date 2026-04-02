@@ -1,4 +1,5 @@
-using HotelManagement.Core.Authorization;
+﻿using HotelManagement.Core.Authorization;
+using HotelManagement.Core.DTOs;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
@@ -18,13 +19,13 @@ public class UserManagementController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IEmailService _email;
-    private readonly IActivityLogService _activityLog;
+    private readonly IAuditTrailService _auditTrail;
 
-    public UserManagementController(AppDbContext db, IEmailService email, IActivityLogService activityLog)
+    public UserManagementController(AppDbContext db, IEmailService email, IAuditTrailService auditTrail)
     {
         _db = db;
         _email = email;
-        _activityLog = activityLog;
+        _auditTrail = auditTrail;
     }
 
     // GET /api/UserManagement?roleId=&page=&pageSize=
@@ -32,12 +33,10 @@ public class UserManagementController : ControllerBase
     [RequirePermission(PermissionCodes.ViewUsers)]
     public async Task<IActionResult> GetUsers(
         [FromQuery] int? roleId,
-        [FromQuery] int page     = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] ListQueryRequest queryRequest)
     {
-        if (page     < 1) page     = 1;
-        if (pageSize < 1) pageSize = 10;
-        if (pageSize > 100) pageSize = 100;
+        var page = Math.Max(1, queryRequest.Page);
+        var pageSize = Math.Clamp(queryRequest.PageSize <= 0 ? 10 : queryRequest.PageSize, 1, 100);
 
         var query = _db.Users
             .AsNoTracking()
@@ -46,11 +45,43 @@ public class UserManagementController : ControllerBase
         if (roleId.HasValue)
             query = query.Where(u => u.RoleId == roleId.Value);
 
+        if (!string.IsNullOrWhiteSpace(queryRequest.Status))
+        {
+            if (queryRequest.Status.Equals("active", StringComparison.OrdinalIgnoreCase))
+                query = query.Where(u => u.Status == true);
+            else if (queryRequest.Status.Equals("locked", StringComparison.OrdinalIgnoreCase))
+                query = query.Where(u => u.Status != true);
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryRequest.Keyword))
+        {
+            var keyword = queryRequest.Keyword.Trim().ToLower();
+            query = query.Where(u =>
+                (u.FullName != null && u.FullName.ToLower().Contains(keyword)) ||
+                (u.Email != null && u.Email.ToLower().Contains(keyword)) ||
+                (u.Phone != null && u.Phone.ToLower().Contains(keyword)));
+        }
+
+        if (queryRequest.FromDate.HasValue)
+            query = query.Where(u => u.CreatedAt >= queryRequest.FromDate.Value);
+
+        if (queryRequest.ToDate.HasValue)
+            query = query.Where(u => u.CreatedAt <= queryRequest.ToDate.Value);
+
         var totalItems = await query.CountAsync();
+        var activeItems = await query.CountAsync(u => u.Status == true);
         var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
+        var sortDirDesc = !string.Equals(queryRequest.SortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        query = queryRequest.SortBy?.ToLower() switch
+        {
+            "fullname" => sortDirDesc ? query.OrderByDescending(u => u.FullName) : query.OrderBy(u => u.FullName),
+            "email" => sortDirDesc ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
+            "createdat" => sortDirDesc ? query.OrderByDescending(u => u.CreatedAt) : query.OrderBy(u => u.CreatedAt),
+            _ => sortDirDesc ? query.OrderByDescending(u => u.CreatedAt) : query.OrderBy(u => u.CreatedAt)
+        };
+
         var users = await query
-            .OrderByDescending(u => u.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(u => new
@@ -79,20 +110,29 @@ public class UserManagementController : ControllerBase
 
         var notification = new Notification
         {
-            Title   = "Danh sách người dùng",
+            Title = "Danh sách người dùng",
             Message = $"Đã lấy danh sách người dùng thành công. Tổng cộng {totalItems} người dùng.",
-            Type    = NotificationType.Success,
-            Action  = NotificationAction.ViewUsers
+            Type = NotificationType.Success,
+            Action = NotificationAction.ViewUsers
         };
 
-        return Ok(new
+        var payload = new ApiListResponse<object>
         {
-            data       = users,
-            pagination = new { currentPage = page, pageSize, totalItems, totalPages },
-            notification
-        });
-    }
+            Data = users,
+            Pagination = new PaginationMeta
+            {
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages
+            },
+            Summary = new { totalItems, activeItems },
+            Message = "Lấy danh sách người dùng thành công.",
+            Notification = notification
+        };
 
+        return Ok(payload);
+    }
     // GET /api/UserManagement/{id}
     [HttpGet("{id:int}")]
     [RequirePermission(PermissionCodes.ViewUsers)]
@@ -147,10 +187,10 @@ public class UserManagementController : ControllerBase
         {
             var roleExists = await _db.Roles.AnyAsync(r => r.Id == request.RoleId.Value);
             if (!roleExists)
-                return BadRequest(new { message = $"Role #{request.RoleId} không tồn tại." });
+            return BadRequest(new { message = $"Vai trò #{request.RoleId} không tồn tại." });
         }
 
-        var plainPassword = request.Password; // lưu trước khi hash (để gửi email)
+        var plainPassword = PasswordGenerator.GenerateRandomPassword(12);
         var user = new User
         {
             FullName     = request.FullName.Trim(),
@@ -160,7 +200,7 @@ public class UserManagementController : ControllerBase
             Gender       = request.Gender?.Trim(),
             Address      = request.Address?.Trim(),
             NationalId   = request.NationalId?.Trim(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
             RoleId       = request.RoleId,
             Status       = true,
             CreatedAt    = DateTime.UtcNow
@@ -181,33 +221,20 @@ public class UserManagementController : ControllerBase
         );
 
         await _db.SaveChangesAsync();
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CREATE_USER",
-            actionLabel: "Tạo tài khoản mới",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo tài khoản nhân viên mới cho {user.FullName} ({roleName ?? "N/A"}).",
-            entityType: "User",
-            entityId: user.Id,
-            entityLabel: user.Email,
-            severity: "Success",
-            userId: currentUserId,
-            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "CREATE_USER",
+            ActionCode = "CREATE_USER",
+            ActionLabel = "Tạo tài khoản mới",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã tạo tài khoản nhân viên mới cho {user.FullName} ({roleName ?? "N/A"}).",
+            EntityType = "User",
+            EntityId = user.Id,
+            EntityLabel = user.Email,
+            Severity = "Success",
             TableName = "Users",
-            RecordId  = user.Id,
-            OldValue  = null,
-            NewValue  = $"{{\"email\": \"{user.Email}\", \"fullName\": \"{user.FullName}\", \"roleId\": {user.RoleId?.ToString() ?? "null"}}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = user.Id,
+            OldValue = null,
+            NewValue = $"{{\"email\": \"{user.Email}\", \"fullName\": \"{user.FullName}\", \"roleId\": {user.RoleId?.ToString() ?? "null"}}}"
         });
-        await _db.SaveChangesAsync();
 
         var notification = new Notification
         {
@@ -227,7 +254,7 @@ public class UserManagementController : ControllerBase
     {
         var user = await _db.Users.FindAsync(id);
         if (user is null)
-            return NotFound(new { message = $"Không tìm thấy user #{id}." });
+            return NotFound(new { message = $"Không tìm thấy người dùng #{id}." });
 
         var oldValues = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}";
 
@@ -239,34 +266,20 @@ public class UserManagementController : ControllerBase
         user.NationalId  = request.NationalId?.Trim() ?? user.NationalId;
         user.UpdatedAt   = DateTime.UtcNow;
 
-        var currentUserId = JwtHelper.GetUserId(User);
-
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "UPDATE_USER",
-            actionLabel: "Cập nhật thông tin nhân viên",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cập nhật thông tin của {user.FullName}.",
-            entityType: "User",
-            entityId: id,
-            entityLabel: user.Email,
-            severity: "Info",
-            userId: currentUserId,
-            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
-        );
-
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "UPDATE_USER",
+            ActionCode = "UPDATE_USER",
+            ActionLabel = "Cập nhật hồ sơ người dùng",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cập nhật thông tin người dùng {user.FullName}.",
+            EntityType = "User",
+            EntityId = id,
+            EntityLabel = user.Email,
+            Severity = "Info",
             TableName = "Users",
-            RecordId  = id,
-            OldValue  = oldValues,
-            NewValue  = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = oldValues,
+            NewValue = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}"
         });
-
-        await _db.SaveChangesAsync();
 
         var notification = new Notification
         {
@@ -299,31 +312,20 @@ public class UserManagementController : ControllerBase
         user.Status    = false;
         user.UpdatedAt = DateTime.UtcNow;
 
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "LOCK_ACCOUNT",
+            ActionCode = "LOCK_ACCOUNT",
+            ActionLabel = "Khóa tài khoản",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã khóa tài khoản của {user.FullName} ({user.Email}).",
+            EntityType = "User",
+            EntityId = id,
+            EntityLabel = user.Email,
+            Severity = "Warning",
             TableName = "Users",
-            RecordId  = id,
-            OldValue  = "{\"status\": true}",
-            NewValue  = "{\"status\": false}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = "{\"status\": true}",
+            NewValue = "{\"status\": false}"
         });
-
-        await _db.SaveChangesAsync();
-
-        await _activityLog.LogAsync(
-            actionCode: "LOCK_ACCOUNT",
-            actionLabel: "Khóa tài khoản",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã khóa tài khoản của {user.FullName} ({user.Email}).",
-            entityType: "User",
-            entityId: id,
-            entityLabel: user.Email,
-            severity: "Warning",
-            userId: currentUserId,
-            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
-        );
 
         var notification = new Notification
         {
@@ -348,7 +350,7 @@ public class UserManagementController : ControllerBase
 
         var role = await _db.Roles.FindAsync(request.NewRoleId);
         if (role is null)
-            return BadRequest(new { message = $"Role #{request.NewRoleId} không tồn tại." });
+            return BadRequest(new { message = $"Vai trò #{request.NewRoleId} không tồn tại." });
 
         var oldRoleId  = user.RoleId;
         user.RoleId    = request.NewRoleId;
@@ -357,34 +359,20 @@ public class UserManagementController : ControllerBase
         var oldRoleName = (await _db.Roles.FindAsync(oldRoleId))?.Name ?? $"ID {oldRoleId}";
 
         await _db.SaveChangesAsync();
-        var currentUserId = JwtHelper.GetUserId(User);
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: "CHANGE_ROLE",
-            actionLabel: "Đổi quyền người dùng",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi quyền của {user.FullName} từ '{oldRoleName}' sang '{role.Name}'.",
-            entityType: "User",
-            entityId: id,
-            entityLabel: user.Email,
-            severity: "Info",
-            userId: currentUserId,
-            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = "CHANGE_ROLE",
+            ActionCode = "CHANGE_ROLE",
+            ActionLabel = "Đổi quyền người dùng",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã đổi quyền của {user.FullName} từ '{oldRoleName}' sang '{role.Name}'.",
+            EntityType = "User",
+            EntityId = id,
+            EntityLabel = user.Email,
+            Severity = "Info",
             TableName = "Users",
-            RecordId  = id,
-            OldValue  = $"{{\"roleId\": {oldRoleId?.ToString() ?? "null"}}}",
-            NewValue  = $"{{\"roleId\": {request.NewRoleId}, \"roleName\": \"{role.Name}\"}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = $"{{\"roleId\": {oldRoleId?.ToString() ?? "null"}}}",
+            NewValue = $"{{\"roleId\": {request.NewRoleId}, \"roleName\": \"{role.Name}\"}}"
         });
-
-        await _db.SaveChangesAsync();
 
         var notification = new Notification
         {
@@ -402,8 +390,6 @@ public class UserManagementController : ControllerBase
     [RequirePermission(PermissionCodes.ManageUsers)]
     public async Task<IActionResult> ToggleStatus(int id)
     {
-        var currentUserId = JwtHelper.GetUserId(User);
-
         var user = await _db.Users.FindAsync(id);
         if (user is null)
             return NotFound(new { message = $"Không tìm thấy người dùng #{id}." });
@@ -412,33 +398,20 @@ public class UserManagementController : ControllerBase
         user.Status    = !(user.Status ?? true);
         user.UpdatedAt = DateTime.UtcNow;
 
-        // Ghi Activity Log
-        await _activityLog.LogAsync(
-            actionCode: user.Status == true ? "UNLOCK_ACCOUNT" : "LOCK_ACCOUNT",
-            actionLabel: user.Status == true ? "Mở khóa tài khoản" : "Khóa tài khoản",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã {(user.Status == true ? "mở khóa" : "khóa")} tài khoản của {user.FullName} ({user.Email}).",
-            entityType: "User",
-            entityId: id,
-            entityLabel: user.Email,
-            severity: user.Status == true ? "Success" : "Warning",
-            userId: currentUserId,
-            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
-        );
-
-        // Khôi phục AuditLog
-        _db.AuditLogs.Add(new AuditLog
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
-            UserId    = currentUserId,
-            Action    = user.Status == true ? "UNLOCK_ACCOUNT" : "LOCK_ACCOUNT",
+            ActionCode = user.Status == true ? "UNLOCK_ACCOUNT" : "LOCK_ACCOUNT",
+            ActionLabel = user.Status == true ? "Mở khóa tài khoản" : "Khóa tài khoản",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã {(user.Status == true ? "mở khóa" : "khóa")} tài khoản của {user.FullName} ({user.Email}).",
+            EntityType = "User",
+            EntityId = id,
+            EntityLabel = user.Email,
+            Severity = user.Status == true ? "Success" : "Warning",
             TableName = "Users",
-            RecordId  = id,
-            OldValue  = $"{{\"status\": {(oldStatus?.ToString().ToLower() ?? "null")}}}",
-            NewValue  = $"{{\"status\": {user.Status.ToString()!.ToLower()}}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
+            RecordId = id,
+            OldValue = $"{{\"status\": {(oldStatus?.ToString().ToLower() ?? "null")}}}",
+            NewValue = $"{{\"status\": {user.Status.ToString()!.ToLower()}}}"
         });
-
-        await _db.SaveChangesAsync();
 
         var notification = new Notification
         {
@@ -464,40 +437,27 @@ public class UserManagementController : ControllerBase
             return BadRequest(new { message = "Người dùng này không có email." });
 
         // Generate mật khẩu random 12 ký tự: chữ hoa + thường + số + đặc biệt
-        var newPassword = GenerateRandomPassword(12);
+        var newPassword = PasswordGenerator.GenerateRandomPassword(12);
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         user.UpdatedAt    = DateTime.UtcNow;
 
         var currentUserId = JwtHelper.GetUserId(User);
-
-        // Ghi AuditLog
-        _db.AuditLogs.Add(new AuditLog
-        {
-            UserId    = currentUserId,
-            Action    = "RESET_PASSWORD",
-            TableName = "Users",
-            RecordId  = id,
-            OldValue  = null,
-            NewValue  = $"{{\"resetBy\": {currentUserId}, \"targetUser\": \"{user.Email}\"}}",
-            UserAgent = Request.Headers["User-Agent"].ToString(),
-            CreatedAt = DateTime.UtcNow
-        });
-
         await _db.SaveChangesAsync();
-
-        // Ghi ActivityLog
-        await _activityLog.LogAsync(
-            actionCode: "RESET_PASSWORD",
-            actionLabel: "Reset mật khẩu",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã reset mật khẩu cho {user.FullName} ({user.Email}).",
-            entityType: "User",
-            entityId: id,
-            entityLabel: user.Email,
-            severity: "Warning",
-            userId: currentUserId,
-            roleName: User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value
-        );
+        await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
+        {
+            ActionCode = "RESET_PASSWORD",
+            ActionLabel = "Reset mật khẩu",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã reset mật khẩu cho {user.FullName} ({user.Email}).",
+            EntityType = "User",
+            EntityId = id,
+            EntityLabel = user.Email,
+            Severity = "Warning",
+            TableName = "Users",
+            RecordId = id,
+            OldValue = null,
+            NewValue = $"{{\"resetBy\": {currentUserId}, \"targetUser\": \"{user.Email}\"}}"
+        });
 
         // Gửi email (fire-and-forget — không block response)
         _ = _email.SendPasswordResetByAdminAsync(user.Email, user.FullName, newPassword);
@@ -513,38 +473,12 @@ public class UserManagementController : ControllerBase
         return Ok(new { message = "Đã reset mật khẩu và gửi email thành công.", notification });
     }
 
-    // ── Helper: generate random password ──────────────────────────────────────
-    private static string GenerateRandomPassword(int length)
-    {
-        const string upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // Bỏ O, I
-        const string lower   = "abcdefghjkmnpqrstuvwxyz";  // Bỏ o, i, l
-        const string digits  = "23456789";                 // Bỏ 0, 1
-        const string special = "@#$%*!?";                  // Bỏ & < > để tránh mâu thuẫn HTML, thêm !?
-        const string all     = upper + lower + digits + special;
-
-        var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
-        var bytes = new byte[length];
-        rng.GetBytes(bytes);
-
-        var chars = new char[length];
-        // Đảm bảo có ít nhất 1 ký tự mỗi loại
-        chars[0] = upper[bytes[0]  % upper.Length];
-        chars[1] = lower[bytes[1]  % lower.Length];
-        chars[2] = digits[bytes[2] % digits.Length];
-        chars[3] = special[bytes[3] % special.Length];
-        for (int i = 4; i < length; i++)
-            chars[i] = all[bytes[i] % all.Length];
-
-        // Shuffle để không lộ pattern vị trí
-        return new string(chars.OrderBy(_ => System.Security.Cryptography.RandomNumberGenerator.GetInt32(length)).ToArray());
-    }
 }
 
 
 public record CreateUserRequest(
     string    FullName,
     string    Email,
-    string    Password,
     string?   Phone,
     DateOnly? DateOfBirth,
     string?   Gender,
@@ -563,3 +497,4 @@ public record UpdateUserRequest(
 );
 
 public record ChangeRoleRequest(int NewRoleId);
+

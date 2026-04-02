@@ -1,5 +1,5 @@
 // src/pages/admin/RolePermissionPage.jsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getRoles, getRoleById, assignPermission } from "../../api/rolesApi";
 import { getPermissions } from "../../api/permissionsApi";
 import { useAdminAuthStore } from "../../store/adminAuthStore";
@@ -7,7 +7,8 @@ import { useAdminAuthStore } from "../../store/adminAuthStore";
 const inferModuleName = (permissionCode) => {
   if (permissionCode.includes("ROLE")) return "Role";
   if (permissionCode.includes("USER")) return "User";
-  if (permissionCode.includes("ROOM") || permissionCode.includes("INVENTORY")) return "Room";
+  if (permissionCode.includes("ROOM") || permissionCode.includes("INVENTORY"))
+    return "Room";
   if (permissionCode.includes("BOOKING")) return "Booking";
   if (permissionCode.includes("INVOICE")) return "Billing";
   if (permissionCode.includes("SERVICE")) return "Service";
@@ -34,7 +35,9 @@ const PERMISSION_LABELS = {
 };
 
 const getPermissionLabel = (permission) =>
-  PERMISSION_LABELS[permission.permissionCode] || permission.name || permission.permissionCode;
+  PERMISSION_LABELS[permission.permissionCode] ||
+  permission.name ||
+  permission.permissionCode;
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const TOAST_STYLES = {
@@ -73,7 +76,7 @@ function Toast({ id, msg, type = "success", dur = 3500, onDismiss }) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(id), dur);
     return () => clearTimeout(t);
-  }, []);
+  }, [id, dur, onDismiss]);
   return (
     <div
       style={{
@@ -204,7 +207,15 @@ function SkeletonRows() {
 }
 
 // ─── Permission Modal ─────────────────────────────────────────────────────────
-function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onClose, onSaved, showToast }) {
+function PermissionModal({
+  role,
+  initialPerms,
+  permissionsCatalog,
+  canEdit,
+  onClose,
+  onSaved,
+  showToast,
+}) {
   const [currentPerms] = useState(initialPerms || []);
   const [checked, setChecked] = useState(() => {
     const map = {};
@@ -217,7 +228,8 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
           (cp) => cp.permissionCode === p.permissionCode || cp.id === p.id,
         ) ||
         (hasManageRoles &&
-          (p.permissionCode === "VIEW_ROLES" || p.permissionCode === "EDIT_ROLES"));
+          (p.permissionCode === "VIEW_ROLES" ||
+            p.permissionCode === "EDIT_ROLES"));
     });
     return map;
   });
@@ -236,6 +248,22 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
     });
   };
 
+  const syncRolePermissionDependency = (map) => {
+    const hasManageRoles = getCheckedByCode(map, "MANAGE_ROLES");
+    if (hasManageRoles) {
+      setCheckedByCode(map, "VIEW_ROLES", true);
+      setCheckedByCode(map, "EDIT_ROLES", true);
+      return map;
+    }
+
+    const hasView = getCheckedByCode(map, "VIEW_ROLES");
+    const hasEdit = getCheckedByCode(map, "EDIT_ROLES");
+    if (!hasView || !hasEdit) {
+      setCheckedByCode(map, "MANAGE_ROLES", false);
+    }
+    return map;
+  };
+
   const toggle = (id) =>
     setChecked((prev) => {
       const next = { ...prev, [id]: !prev[id] };
@@ -247,18 +275,57 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
         const enabled = !!next[id];
         setCheckedByCode(next, "VIEW_ROLES", enabled);
         setCheckedByCode(next, "EDIT_ROLES", enabled);
-        return next;
+        return syncRolePermissionDependency(next);
       }
 
       if (code === "VIEW_ROLES" || code === "EDIT_ROLES") {
-        const hasView = getCheckedByCode(next, "VIEW_ROLES");
-        const hasEdit = getCheckedByCode(next, "EDIT_ROLES");
-        if (!hasView || !hasEdit) {
-          setCheckedByCode(next, "MANAGE_ROLES", false);
-        }
+        return syncRolePermissionDependency(next);
       }
 
       return next;
+    });
+
+  const grouped = useMemo(() => {
+    const map = {};
+    permissionsCatalog.forEach((p) => {
+      if (!map[p.moduleName]) map[p.moduleName] = [];
+      map[p.moduleName].push(p);
+    });
+    return map;
+  }, [permissionsCatalog]);
+
+  const allPermissionIds = useMemo(
+    () => permissionsCatalog.map((p) => p.id),
+    [permissionsCatalog],
+  );
+
+  const selectedCount = useMemo(
+    () =>
+      allPermissionIds.reduce((count, id) => count + (checked[id] ? 1 : 0), 0),
+    [allPermissionIds, checked],
+  );
+  const allChecked =
+    allPermissionIds.length > 0 && selectedCount === allPermissionIds.length;
+  const partiallyChecked = selectedCount > 0 && !allChecked;
+
+  const toggleAll = () =>
+    setChecked((prev) => {
+      const enableAll = !allChecked;
+      const next = { ...prev };
+      allPermissionIds.forEach((id) => {
+        next[id] = enableAll;
+      });
+      return syncRolePermissionDependency(next);
+    });
+
+  const toggleModule = (modulePerms) =>
+    setChecked((prev) => {
+      const isModuleFullyChecked = modulePerms.every((perm) => !!prev[perm.id]);
+      const next = { ...prev };
+      modulePerms.forEach((perm) => {
+        next[perm.id] = !isModuleFullyChecked;
+      });
+      return syncRolePermissionDependency(next);
     });
 
   const handleSave = async () => {
@@ -288,13 +355,6 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
       setSaving(false);
     }
   };
-
-  // Group by module
-  const grouped = {};
-  permissionsCatalog.forEach((p) => {
-    if (!grouped[p.moduleName]) grouped[p.moduleName] = [];
-    grouped[p.moduleName].push(p);
-  });
 
   const moduleLabels = {
     System: "Hệ thống",
@@ -394,20 +454,96 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
         <div
           style={{ padding: "20px 28px 0", maxHeight: 440, overflowY: "auto" }}
         >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 16,
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: "1.5px solid #d8e2dc",
+              background: "#f5f8f6",
+              cursor: canEdit ? "pointer" : "not-allowed",
+              userSelect: "none",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={allChecked}
+              disabled={!canEdit}
+              onChange={toggleAll}
+              ref={(node) => {
+                if (node) node.indeterminate = partiallyChecked;
+              }}
+              style={{
+                width: 17,
+                height: 17,
+                accentColor: "#4f645b",
+                cursor: canEdit ? "pointer" : "not-allowed",
+                flexShrink: 0,
+                outline: "2px solid #b7d1c5",
+                outlineOffset: 1,
+                borderRadius: 3,
+              }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#2f3d36" }}>
+              Tất cả quyền
+            </span>
+          </label>
+
           {Object.entries(grouped).map(([module, perms]) => (
             <div key={module} style={{ marginBottom: 20 }}>
-              <p
+              <div
                 style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: ".12em",
-                  textTransform: "uppercase",
-                  color: "#9ca3af",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
                   marginBottom: 10,
                 }}
               >
-                {moduleLabels[module] || module}
-              </p>
+                <input
+                  type="checkbox"
+                  checked={
+                    perms.length > 0 && perms.every((p) => !!checked[p.id])
+                  }
+                  disabled={!canEdit}
+                  onChange={() => toggleModule(perms)}
+                  ref={(node) => {
+                    if (node) {
+                      const checkedCount = perms.reduce(
+                        (count, permission) =>
+                          count + (checked[permission.id] ? 1 : 0),
+                        0,
+                      );
+                      node.indeterminate =
+                        checkedCount > 0 && checkedCount < perms.length;
+                    }
+                  }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: "#4f645b",
+                    cursor: canEdit ? "pointer" : "not-allowed",
+                    flexShrink: 0,
+                    outline: "2px solid #c8d8d2",
+                    outlineOffset: 1,
+                    borderRadius: 3,
+                  }}
+                />
+                <p
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: ".12em",
+                    textTransform: "uppercase",
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
+                  {moduleLabels[module] || module}
+                </p>
+              </div>
               <div
                 style={{
                   display: "grid",
@@ -442,8 +578,13 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
                         width: 17,
                         height: 17,
                         accentColor: "#4f645b",
-                        cursor: "pointer",
+                        cursor: canEdit ? "pointer" : "not-allowed",
                         flexShrink: 0,
+                        outline: checked[p.id]
+                          ? "2px solid rgba(79,100,91,.5)"
+                          : "2px solid #d0dbd6",
+                        outlineOffset: 1,
+                        borderRadius: 3,
                       }}
                     />
                     <span
@@ -461,7 +602,6 @@ function PermissionModal({ role, initialPerms, permissionsCatalog, canEdit, onCl
               </div>
             </div>
           ))}
-
         </div>
 
         {/* Footer */}
@@ -550,33 +690,36 @@ export default function RolePermissionPage() {
     [],
   );
 
-  const loadRoles = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    try {
-      const [rolesRes, permissionsRes] = await Promise.all([
-        getRoles(),
-        getPermissions(),
-      ]);
-      setRoles(rolesRes.data?.data || []);
-      setPermissionsCatalog(
-        (permissionsRes.data?.data || []).map((p) => ({
-          ...p,
-          moduleName: inferModuleName(p.permissionCode),
-          displayNameVi: getPermissionLabel(p),
-        })),
-      );
-    } catch {
-      showToast("Không thể tải dữ liệu phân quyền.", "error");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const loadRoles = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const [rolesRes, permissionsRes] = await Promise.all([
+          getRoles(),
+          getPermissions(),
+        ]);
+        setRoles(rolesRes.data?.data || []);
+        setPermissionsCatalog(
+          (permissionsRes.data?.data || []).map((p) => ({
+            ...p,
+            moduleName: inferModuleName(p.permissionCode),
+            displayNameVi: getPermissionLabel(p),
+          })),
+        );
+      } catch {
+        showToast("Không thể tải dữ liệu phân quyền.", "error");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [showToast],
+  );
 
   useEffect(() => {
     loadRoles();
-  }, []);
+  }, [loadRoles]);
 
   const handleRefresh = () => loadRoles(true);
 
@@ -595,7 +738,6 @@ export default function RolePermissionPage() {
   const paginatedRoles = roles.slice((page - 1) * pageSize, page * pageSize);
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, roles.length);
-
 
   const hasPermission = (code) =>
     permissions.some(
@@ -644,7 +786,7 @@ export default function RolePermissionPage() {
                 tr:hover td { background:rgba(249,248,243,.6) !important; }
             `}</style>
 
-      {/* Toast Container */}
+      {/* Khu v?c thông báo */}
       <div
         style={{
           position: "fixed",
@@ -666,12 +808,14 @@ export default function RolePermissionPage() {
           initialPerms={selectedRolePerms}
           permissionsCatalog={permissionsCatalog}
           canEdit={hasPermission("EDIT_ROLES")}
-          onClose={() => { setSelectedRole(null); setSelectedRolePerms([]); }}
+          onClose={() => {
+            setSelectedRole(null);
+            setSelectedRolePerms([]);
+          }}
           onSaved={() => loadRoles()}
           showToast={showToast}
         />
       )}
-
 
       {/* Content Area */}
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -945,15 +1089,17 @@ export default function RolePermissionPage() {
                     chevron_left
                   </span>
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    className={`pg-btn${n === page ? " active" : ""}`}
-                    onClick={() => setPage(n)}
-                  >
-                    {n}
-                  </button>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (n) => (
+                    <button
+                      key={n}
+                      className={`pg-btn${n === page ? " active" : ""}`}
+                      onClick={() => setPage(n)}
+                    >
+                      {n}
+                    </button>
+                  ),
+                )}
                 <button
                   className="pg-btn"
                   disabled={page >= totalPages}
@@ -1003,14 +1149,13 @@ export default function RolePermissionPage() {
               lineHeight: 1.6,
             }}
           >
-            Tài khoản có quyền <strong>VIEW_ROLES</strong> có thể xem danh sách vai trò.
-            Chỉ tài khoản có quyền <strong>EDIT_ROLES</strong> mới có thể thay
-            đổi phân quyền. Các thay đổi sẽ được áp dụng ngay khi người dùng
-            đăng nhập lại.
+            Tài khoản có quyền <strong>VIEW_ROLES</strong> có thể xem danh sách
+            vai trò. Chỉ tài khoản có quyền <strong>EDIT_ROLES</strong> mới có
+            thể thay đổi phân quyền. Các thay đổi sẽ được áp dụng ngay khi người
+            dùng đăng nhập lại.
           </p>
         </div>
       </div>
     </>
   );
 }
-

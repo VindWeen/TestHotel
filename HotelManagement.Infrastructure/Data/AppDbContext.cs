@@ -176,6 +176,12 @@ public class AppDbContext : DbContext
             .HasForeignKey(ri => ri.EquipmentId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Equipments.in_stock_quantity là computed column trong SQL
+        // -> EF chỉ đọc giá trị, không ghi trực tiếp khi insert/update.
+        modelBuilder.Entity<Equipment>()
+            .Property(e => e.InStockQuantity)
+            .HasComputedColumnSql("(([total_quantity]-[in_use_quantity])-[damaged_quantity])-[liquidated_quantity]", stored: false);
+
         // ── 5. Map tên cột snake_case cho toàn bộ entity ─────────
         // EF Core mặc định dùng PascalCase, SQL dùng snake_case
         // Convention này convert tự động: RoomTypeId → room_type_id

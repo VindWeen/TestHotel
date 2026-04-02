@@ -1,26 +1,18 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
+using System.Net;
 
 namespace HotelManagement.API.Services;
 
-// ── Interface ────────────────────────────────────────────────────────────────
 public interface IEmailService
 {
-    /// <summary>Gửi email xác nhận đặt phòng cho khách.</summary>
     Task SendBookingConfirmationAsync(string toEmail, string guestName, string bookingCode, DateTime checkIn, DateTime checkOut, decimal totalAmount);
-
-    /// <summary>Gửi email thông báo tạo tài khoản nhân viên mới.</summary>
     Task SendNewStaffAccountAsync(string toEmail, string fullName, string password, string roleName);
-
-    /// <summary>Gửi email thông báo đổi mật khẩu thành công.</summary>
     Task SendPasswordChangedAsync(string toEmail, string fullName);
-
-    /// <summary>Admin reset mật khẩu người dùng và gửi mật khẩu mới qua email.</summary>
     Task SendPasswordResetByAdminAsync(string toEmail, string fullName, string newPassword);
 }
 
-// ── Implementation ────────────────────────────────────────────────────────────
 public class EmailService : IEmailService
 {
     private readonly IConfiguration _config;
@@ -30,27 +22,19 @@ public class EmailService : IEmailService
         _config = config;
     }
 
-    // ── Booking Confirmation ──────────────────────────────────────────────────
-    public async Task SendBookingConfirmationAsync(
-        string toEmail,
-        string guestName,
-        string bookingCode,
-        DateTime checkIn,
-        DateTime checkOut,
-        decimal totalAmount)
+    public Task SendBookingConfirmationAsync(string toEmail, string guestName, string bookingCode, DateTime checkIn, DateTime checkOut, decimal totalAmount)
     {
         var subject = $"[Hotel] Xác nhận đặt phòng #{bookingCode}";
-
         var body = $"""
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
                 <h2 style="color: #4f645b;">✅ Đặt phòng thành công!</h2>
-                <p>Xin chào <strong>{guestName}</strong>,</p>
+                <p>Xin chào <strong>{WebUtility.HtmlEncode(guestName)}</strong>,</p>
                 <p>Đặt phòng của bạn đã được xác nhận. Dưới đây là thông tin chi tiết:</p>
 
                 <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
                     <tr style="background: #f9f8f3;">
                         <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Mã đặt phòng</td>
-                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{bookingCode}</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{WebUtility.HtmlEncode(bookingCode)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Check-in</td>
@@ -71,36 +55,30 @@ public class EmailService : IEmailService
             </div>
             """;
 
-        await SendAsync(toEmail, guestName, subject, body);
+        return SendAsync(toEmail, guestName, subject, body);
     }
 
-    // ── New Staff Account ─────────────────────────────────────────────────────
-    public async Task SendNewStaffAccountAsync(
-        string toEmail,
-        string fullName,
-        string password,
-        string roleName)
+    public Task SendNewStaffAccountAsync(string toEmail, string fullName, string password, string roleName)
     {
         var subject = "[Hotel] Tài khoản nhân viên của bạn đã được tạo";
-
         var body = $"""
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
                 <h2 style="color: #4f645b;">👋 Chào mừng bạn đến với đội ngũ!</h2>
-                <p>Xin chào <strong>{fullName}</strong>,</p>
+                <p>Xin chào <strong>{WebUtility.HtmlEncode(fullName)}</strong>,</p>
                 <p>Tài khoản nhân viên của bạn đã được tạo thành công. Dưới đây là thông tin đăng nhập:</p>
 
                 <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
                     <tr style="background: #f9f8f3;">
                         <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Email đăng nhập</td>
-                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{toEmail}</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{WebUtility.HtmlEncode(toEmail)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Mật khẩu tạm thời</td>
-                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 700; color: #dc2626;">{password}</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 700; color: #dc2626;">{WebUtility.HtmlEncode(password)}</td>
                     </tr>
                     <tr style="background: #f9f8f3;">
                         <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Vai trò</td>
-                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{roleName}</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{WebUtility.HtmlEncode(roleName)}</td>
                     </tr>
                 </table>
 
@@ -109,18 +87,16 @@ public class EmailService : IEmailService
             </div>
             """;
 
-        await SendAsync(toEmail, fullName, subject, body);
+        return SendAsync(toEmail, fullName, subject, body);
     }
 
-    // ── Password Changed ──────────────────────────────────────────────────────
-    public async Task SendPasswordChangedAsync(string toEmail, string fullName)
+    public Task SendPasswordChangedAsync(string toEmail, string fullName)
     {
         var subject = "[Hotel] Mật khẩu của bạn vừa được thay đổi";
-
         var body = $"""
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
                 <h2 style="color: #4f645b;">🔐 Mật khẩu đã được thay đổi</h2>
-                <p>Xin chào <strong>{fullName}</strong>,</p>
+                <p>Xin chào <strong>{WebUtility.HtmlEncode(fullName)}</strong>,</p>
                 <p>Mật khẩu tài khoản của bạn vừa được thay đổi thành công vào lúc <strong>{DateTime.Now:HH:mm dd/MM/yyyy}</strong>.</p>
 
                 <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0;">
@@ -131,22 +107,20 @@ public class EmailService : IEmailService
             </div>
             """;
 
-        await SendAsync(toEmail, fullName, subject, body);
+        return SendAsync(toEmail, fullName, subject, body);
     }
 
-    // ── Password Reset By Admin ──────────────────────────────────────
-    public async Task SendPasswordResetByAdminAsync(string toEmail, string fullName, string newPassword)
+    public Task SendPasswordResetByAdminAsync(string toEmail, string fullName, string newPassword)
     {
         var subject = "[Hotel] Mật khẩu của bạn đã được thiết lập lại";
-
         var body = $"""
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
                 <h2 style="color: #4f645b;">&#128274; Mật khẩu đã được thiết lập lại</h2>
-                <p>Xin chào <strong>{fullName}</strong>,</p>
+                <p>Xin chào <strong>{WebUtility.HtmlEncode(fullName)}</strong>,</p>
                 <p>Quản trị viên đã thiết lập lại mật khẩu tài khoản của bạn. Dưới đây là mật khẩu mới:</p>
 
                 <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
-                    <span style="font-size: 24px; font-weight: 700; letter-spacing: 0.1em; color: #15803d; font-family: monospace; padding: 4px 8px; background: #dcfce7; border-radius: 4px; user-select: all; cursor: copy;">{System.Net.WebUtility.HtmlEncode(newPassword)}</span>
+                    <span style="font-size: 24px; font-weight: 700; letter-spacing: 0.1em; color: #15803d; font-family: monospace; padding: 4px 8px; background: #dcfce7; border-radius: 4px; user-select: all; cursor: copy;">{WebUtility.HtmlEncode(newPassword)}</span>
                 </div>
 
                 <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0;">
@@ -158,23 +132,21 @@ public class EmailService : IEmailService
             </div>
             """;
 
-        await SendAsync(toEmail, fullName, subject, body);
+        return SendAsync(toEmail, fullName, subject, body);
     }
 
-    // ── Core Send Method ──────────────────────────────────────────────────────
     private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody)
     {
-        var smtpHost    = _config["Email:SmtpHost"]!;
-        var smtpPort    = int.Parse(_config["Email:SmtpPort"]!);
+        var smtpHost = _config["Email:SmtpHost"]!;
+        var smtpPort = int.Parse(_config["Email:SmtpPort"]!);
         var senderEmail = _config["Email:SenderEmail"]!;
-        var senderName  = _config["Email:SenderName"]!;
-        var password    = _config["Email:Password"]!;
+        var senderName = _config["Email:SenderName"]!;
+        var password = _config["Email:Password"]!;
 
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(senderName, senderEmail));
         message.To.Add(new MailboxAddress(toName, toEmail));
         message.Subject = subject;
-
         message.Body = new TextPart("html") { Text = htmlBody };
 
         using var client = new SmtpClient();

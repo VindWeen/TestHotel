@@ -18,15 +18,17 @@ public class AuthController : ControllerBase
     private readonly JwtHelper _jwt;
     private readonly IConfiguration _config;
     private readonly IActivityLogService _activityLog;
+    private readonly IEmailService _email;
 
     private const int RefreshTokenExpiryDays = 7;
 
-    public AuthController(AppDbContext context, JwtHelper jwt, IConfiguration config, IActivityLogService activityLog)
+    public AuthController(AppDbContext context, JwtHelper jwt, IConfiguration config, IActivityLogService activityLog, IEmailService email)
     {
         _context = context;
         _jwt = jwt;
         _config = config;
         _activityLog = activityLog;
+        _email = email;
     }
 
     // POST /api/Auth/login
@@ -127,6 +129,15 @@ public class AuthController : ControllerBase
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
+        var roleName = guestRole?.Name ?? "Guest";
+
+        // Gửi email thông tin tài khoản mới tạo (theo yêu cầu đồng bộ với UserManagementController)
+        _ = _email.SendNewStaffAccountAsync(
+            user.Email,
+            user.FullName,
+            request.Password,
+            roleName
+        );
 
         // Ghi Activity Log
         await _activityLog.LogAsync(
@@ -156,7 +167,6 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         var permissionCodes = await GetPermissionCodesAsync(user.RoleId);
-        var roleName = guestRole?.Name ?? "Guest";
         var token = _jwt.GenerateToken(user, roleName, permissionCodes);
 
         var notification = new Notification
@@ -221,6 +231,42 @@ public class AuthController : ControllerBase
         });
     }
 
+    // POST /api/Auth/forgot-password
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var normalizedEmail = request.Email?.Trim().ToLower() ?? "";
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+            return BadRequest(new { message = "Email không được để trống." });
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        if (user is null)
+            return NotFound(new { message = "Email không tồn tại trong hệ thống." });
+
+        var newPassword = PasswordGenerator.GenerateRandomPassword(12);
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+        user.RefreshToken = null;
+        user.RefreshTokenExpiry = null;
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId = user.Id,
+            Action = "FORGOT_PASSWORD_RESET",
+            TableName = "Users",
+            RecordId = user.Id,
+            OldValue = null,
+            NewValue = $"{{\"email\": \"{user.Email}\"}}",
+            UserAgent = Request.Headers["User-Agent"].ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+        await _email.SendPasswordResetByAdminAsync(user.Email, user.FullName, newPassword);
+
+        return Ok(new { message = "Mật khẩu mới đã được gửi về email của bạn." });
+    }
+
     // POST /api/Auth/logout
     [Authorize]
     [HttpPost("logout")]
@@ -266,6 +312,7 @@ public class AuthController : ControllerBase
 
     private static string GenerateRefreshToken()
         => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+
 }
 
 public record LoginRequest(string Email, string Password);
@@ -279,3 +326,4 @@ public record RegisterRequest(
 );
 
 public record RefreshTokenRequest(string RefreshToken);
+public record ForgotPasswordRequest(string Email);

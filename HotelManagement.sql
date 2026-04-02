@@ -129,18 +129,21 @@ PRIMARY KEY CLUSTERED ([id] ASC)
 GO
 
 CREATE TABLE [dbo].[Rooms](
-    [id]               [int]           IDENTITY(1,1) NOT NULL,
-    [room_type_id]     [int]           NULL,
-    [room_number]      [nvarchar](50)  NOT NULL,
-    [floor]            [int]           NULL,
-    [view_type]        [nvarchar](50)  NULL,            -- hướng phòng vật lý cụ thể
+    [id]                           [int]            IDENTITY(1,1) NOT NULL,
+    [room_type_id]                 [int]            NULL,
+    [room_number]                  [nvarchar](50)   NOT NULL,
+    [floor]                        [int]            NULL,
+    [view_type]                    [nvarchar](50)   NULL,            -- hướng phòng vật lý cụ thể
     -- Tách 2 trục trạng thái (Buoi4 slide 30)
-    [status]           [nvarchar](50)  NULL,            -- Available / Occupied / Maintenance (trạng thái kinh doanh cũ — giữ cho tương thích)
-    [business_status]  [nvarchar](20)  NOT NULL DEFAULT 'Available', -- Available / Occupied / Disabled
-    [cleaning_status]  [nvarchar](20)  NOT NULL DEFAULT 'Clean',     -- Clean / Dirty
-    [notes]            [nvarchar](500) NULL,            -- ghi chú bảo trì, đặc điểm phòng
+    [status]                       [nvarchar](50)   NULL,            -- Available / Occupied / Maintenance (trạng thái kinh doanh cũ — giữ cho tương thích)
+    [business_status]              [nvarchar](20)   NOT NULL DEFAULT 'Available', -- Available / Occupied / Disabled
+    [cleaning_status]              [nvarchar](20)   NOT NULL DEFAULT 'Clean',     -- Clean / Dirty
+    [notes]                        [nvarchar](500)  NULL,            -- ghi chú bảo trì, đặc điểm phòng
+    [inventory_sync_snapshot_json] [nvarchar](max)  NULL,            -- snapshot vật tư đã sync gần nhất của phòng
+    [inventory_last_synced_at]     [datetime2](0)   NULL,            -- thời điểm sync gần nhất
+    [inventory_version]            [int]            NOT NULL DEFAULT 0, -- version để chống preview cũ
 PRIMARY KEY CLUSTERED ([id] ASC)
-) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
 
 CREATE TABLE [dbo].[RoomType_Amenities](
@@ -745,11 +748,58 @@ INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 2)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 3)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 4)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 5)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 6)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 7)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 8)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 9)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 10)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 11)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 12)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 13)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (1, 14)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 1)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 2)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 4)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 5)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 6)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 7)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 8)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 9)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 10)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 11)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (2, 12)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 1)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 4)
 INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 5)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 6)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 7)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 9)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (3, 10)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 1)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 2)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 4)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 5)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 6)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 7)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (4, 8)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (5, 4)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (5, 6)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (5, 7)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (5, 8)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (5, 9)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (5, 10)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (7, 7)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (7, 8)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (7, 9)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (7, 10)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 1)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 2)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 3)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 4)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 5)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 6)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 8)
+INSERT [dbo].[Role_Permissions] ([role_id], [permission_id]) VALUES (9, 9)
 GO
 
 -- 6. Amenities
@@ -866,221 +916,195 @@ GO
 -- 11. Equipments
 SET IDENTITY_INSERT [dbo].[Equipments] ON 
 
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (1, N'TV-SS-43', N'Smart TV Samsung 43 inch', N'Điện tử', N'Cái', 50, 50, 1, 0, CAST(7500000.00 AS Decimal(18, 2)), CAST(8000000.00 AS Decimal(18, 2)), N'Samsung Vietnam', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T17:31:18.543' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546277/QuanTriKhachSan/Equipments/cuqwgr36qaagcjkxqz6w.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (2, N'AC-DK-9000', N'Điều hòa Daikin 9000 BTU', N'Điện tử', N'Cái', 50, 55, 0, 0, CAST(8200000.00 AS Decimal(18, 2)), CAST(9000000.00 AS Decimal(18, 2)), N'Daikin Vietnam', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T17:30:04.510' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546203/QuanTriKhachSan/Equipments/gzxphd2ogyjcqaqwfgdl.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (3, N'MB-AF-50', N'Tủ lạnh Minibar Aqua 50L', N'Điện tử', N'Cái', 55, 58, 2, 0, CAST(2500000.00 AS Decimal(18, 2)), CAST(3000000.00 AS Decimal(18, 2)), N'Aqua', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (4, N'HD-PN-1000', N'Máy sấy tóc Panasonic', N'Điện tử', N'Cái', 60, 58, 5, 1, CAST(450000.00 AS Decimal(18, 2)), CAST(600000.00 AS Decimal(18, 2)), N'Điện Máy Xanh', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (5, N'KL-SH-17', N'Ấm đun nước siêu tốc Sunhouse', N'Điện tử', N'Cái', 60, 58, 2, 2, CAST(250000.00 AS Decimal(18, 2)), CAST(350000.00 AS Decimal(18, 2)), N'Sunhouse', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (6, N'BD-KG-20', N'Giường King Size 2m x 2m2', N'Nội thất', N'Chiếc', 20, 24, 0, 0, CAST(12000000.00 AS Decimal(18, 2)), CAST(15000000.00 AS Decimal(18, 2)), N'Nội thất Hòa Phát', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (7, N'BD-SG-12', N'Giường Single 1m2 x 2m', N'Nội thất', N'Chiếc', 40, 41, 0, 0, CAST(5500000.00 AS Decimal(18, 2)), CAST(7000000.00 AS Decimal(18, 2)), N'Nội thất Hòa Phát', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (8, N'WD-WD-01', N'Tủ quần áo gỗ công nghiệp', N'Nội thất', N'Cái', 50, 58, 0, 0, CAST(3500000.00 AS Decimal(18, 2)), CAST(5000000.00 AS Decimal(18, 2)), N'Xưởng Gỗ An Cường', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (9, N'TB-WK-01', N'Bàn làm việc + Ghế đệm', N'Nội thất', N'Bộ', 50, 54, 1, 0, CAST(2200000.00 AS Decimal(18, 2)), CAST(3000000.00 AS Decimal(18, 2)), N'Nội thất Hòa Phát', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (10, N'HG-WD-01', N'Móc treo quần áo bằng gỗ', N'Nội thất', N'Chiếc', 500, 408, 10, 5, CAST(15000.00 AS Decimal(18, 2)), CAST(30000.00 AS Decimal(18, 2)), N'Nhựa Duy Tân', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), NULL, NULL)
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (11, N'TW-BT-01', N'Khăn tắm cotton 70x140cm', N'Đồ vải', N'Chiếc', 200, 110, 5, 10, CAST(85000.00 AS Decimal(18, 2)), CAST(150000.00 AS Decimal(18, 2)), N'Dệt may Thành Công', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T16:28:01.897' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774542481/QuanTriKhachSan/Equipments/t51at52hvtqpdhxb9ikz.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (12, N'TW-FC-01', N'Khăn mặt cotton 30x30cm', N'Đồ vải', N'Chiếc', 200, 108, 2, 5, CAST(25000.00 AS Decimal(18, 2)), CAST(50000.00 AS Decimal(18, 2)), N'Dệt may Thành Công', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:50:21.173' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540220/QuanTriKhachSan/Equipments/gj8owns6gawqmjz91k2m.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (13, N'MT-FT-01', N'Thảm chùi chân', N'Đồ vải', N'Chiếc', 100, 58, 0, 2, CAST(45000.00 AS Decimal(18, 2)), CAST(80000.00 AS Decimal(18, 2)), N'Dệt may Thành Công', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:49:47.400' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540186/QuanTriKhachSan/Equipments/zxzvuqsgdbxly6ifwlv2.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (14, N'BL-DC-01', N'Chăn lông vũ', N'Đồ vải', N'Chiếc', 80, 58, 1, 0, CAST(850000.00 AS Decimal(18, 2)), CAST(1200000.00 AS Decimal(18, 2)), N'Everon', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:49:09.747' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540149/QuanTriKhachSan/Equipments/huzcgbezdzmqlpjqla2n.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (15, N'PL-CT-01', N'Gối tựa lưng / Gối ngủ', N'Đồ vải', N'Chiếc', 150, 108, 0, 0, CAST(150000.00 AS Decimal(18, 2)), CAST(250000.00 AS Decimal(18, 2)), N'Everon', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:41:36.917' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774539696/QuanTriKhachSan/Equipments/bjpgyfibnh5y71upb8fo.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (16, N'DR-LV-500', N'Nước suối Lavie 500ml', N'Minibar', N'Chai', 493, 108, -4, 0, CAST(4000.00 AS Decimal(18, 2)), CAST(0.00 AS Decimal(18, 2)), N'Lavie', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T16:48:30.790' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538785/QuanTriKhachSan/Equipments/kznyl7dkrsknfv0d2pt2.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (17, N'DR-CC-320', N'Nước ngọt Coca Cola 320ml', N'Minibar', N'Lon', 296, 60, 0, 0, CAST(7000.00 AS Decimal(18, 2)), CAST(20000.00 AS Decimal(18, 2)), N'Coca Cola', 0, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-27T09:17:54.757' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538766/QuanTriKhachSan/Equipments/qaqy3mnzmvsgfoyvah2a.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (18, N'DR-HB-330', N'Bia Heineken 330ml', N'Minibar', N'Lon', 200, 46, 0, 0, CAST(16000.00 AS Decimal(18, 2)), CAST(35000.00 AS Decimal(18, 2)), N'Heineken', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:28:55.683' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538733/QuanTriKhachSan/Equipments/frbshpj0tetjn3tk8brk.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (19, N'SN-OM-01', N'Mì ly Omachi', N'Minibar', N'Ly', 100, 28, 0, 0, CAST(12000.00 AS Decimal(18, 2)), CAST(25000.00 AS Decimal(18, 2)), N'Masan', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:28:50.370' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538702/QuanTriKhachSan/Equipments/rvl2xfua67yrfqqpq71t.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (20, N'SN-OR-01', N'Bánh Oreo 133g', N'Minibar', N'Hộp', 97, 26, -1, 0, CAST(15000.00 AS Decimal(18, 2)), CAST(30000.00 AS Decimal(18, 2)), N'Mondelez', 1, CAST(N'2026-03-25T14:10:11.023' AS DateTime), CAST(N'2026-03-26T15:24:19.507' AS DateTime), N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538658/QuanTriKhachSan/Equipments/trawiqiv9m0u4ncvutsr.jpg')
-INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) VALUES (21, N'TV-SS-55', N'Tivi SamSung 55 inch', N'Điện tử', N'cái', 5, 2, 0, 0, CAST(15000000.00 AS Decimal(18, 2)), CAST(17000000.00 AS Decimal(18, 2)), N'Điện Máy Xanh', 1, CAST(N'2026-03-26T17:29:39.020' AS DateTime), NULL, N'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546178/QuanTriKhachSan/Equipments/xmxreisazllzyx0iiuwe.jpg')
+-- ==================== EQUIPMENTS - CHỈNH SỐ LƯỢNG HỢP LÝ ====================
+SET IDENTITY_INSERT [dbo].[Equipments] ON
+
+INSERT [dbo].[Equipments] ([id], [item_code], [name], [category], [unit], [total_quantity], [in_use_quantity], [damaged_quantity], [liquidated_quantity], [base_price], [default_price_if_lost], [supplier], [is_active], [created_at], [updated_at], [image_url]) 
+VALUES 
+(1, N'TV-SS-43', N'Smart TV Samsung 43 inch', N'Điện tử', N'Cái', 60, 14, 0, 0, 7500000.00, 8000000.00, N'Samsung Vietnam', 1, '2026-03-25T14:10:11', '2026-03-26T17:31:18', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546277/QuanTriKhachSan/Equipments/cuqwgr36qaagcjkxqz6w.jpg'),
+(2, N'AC-DK-9000', N'Điều hòa Daikin 9000 BTU', N'Điện tử', N'Cái', 60, 15, 0, 0, 8200000.00, 9000000.00, N'Daikin Vietnam', 1, '2026-03-25T14:10:11', '2026-03-26T17:30:04', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546203/QuanTriKhachSan/Equipments/gzxphd2ogyjcqaqwfgdl.jpg'),
+(3, N'MB-AF-50', N'Tủ lạnh Minibar Aqua 50L', N'Điện tử', N'Cái', 60, 14, 0, 0, 2500000.00, 3000000.00, N'Aqua', 1, '2026-03-25T14:10:11', NULL, NULL),
+(4, N'HD-PN-1000', N'Máy sấy tóc Panasonic', N'Điện tử', N'Cái', 70, 14, 0, 0, 450000.00, 600000.00, N'Điện Máy Xanh', 1, '2026-03-25T14:10:11', NULL, NULL),
+(5, N'KL-SH-17', N'Ấm đun nước siêu tốc Sunhouse', N'Điện tử', N'Cái', 70, 14, 0, 0, 250000.00, 350000.00, N'Sunhouse', 1, '2026-03-25T14:10:11', NULL, NULL),
+(6, N'BD-KG-20', N'Giường King Size 2m x 2m2', N'Nội thất', N'Chiếc', 25, 11, 0, 0, 12000000.00, 15000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
+(7, N'BD-SG-12', N'Giường Single 1m2 x 2m', N'Nội thất', N'Chiếc', 50, 8, 0, 0, 5500000.00, 7000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
+(8, N'WD-WD-01', N'Tủ quần áo gỗ công nghiệp', N'Nội thất', N'Cái', 60, 14, 0, 0, 3500000.00, 5000000.00, N'Xưởng Gỗ An Cường', 1, '2026-03-25T14:10:11', NULL, NULL),
+(9, N'TB-WK-01', N'Bàn làm việc + Ghế', N'Nội thất', N'Bộ', 60, 14, 0, 0, 2200000.00, 3000000.00, N'Nội thất Hòa Phát', 1, '2026-03-25T14:10:11', NULL, NULL),
+(10, N'HG-WD-01', N'Móc treo quần áo bằng gỗ', N'Nội thất', N'Chiếc', 600, 92, 2, 0, 15000.00, 30000.00, N'Nhựa Duy Tân', 1, '2026-03-25T14:10:11', NULL, NULL),
+(11, N'TW-BT-01', N'Khăn tắm cotton 70x140cm', N'Đồ vải', N'Chiếc', 250, 32, 1, 0, 85000.00, 150000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T16:28:01', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774542481/QuanTriKhachSan/Equipments/t51at52hvtqpdhxb9ikz.jpg'),
+(12, N'TW-FC-01', N'Khăn mặt cotton 30x30cm', N'Đồ vải', N'Chiếc', 250, 28, 0, 0, 25000.00, 50000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T15:50:21', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540220/QuanTriKhachSan/Equipments/gj8owns6gawqmjz91k2m.jpg'),
+(13, N'MT-FT-01', N'Thảm chùi chân', N'Đồ vải', N'Chiếc', 150, 14, 0, 0, 45000.00, 80000.00, N'Dệt may Thành Công', 1, '2026-03-25T14:10:11', '2026-03-26T15:49:47', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540186/QuanTriKhachSan/Equipments/zxzvuqsgdbxly6ifwlv2.jpg'),
+(14, N'BL-DC-01', N'Chăn lông vũ', N'Đồ vải', N'Chiếc', 100, 14, 0, 0, 850000.00, 1200000.00, N'Everon', 1, '2026-03-25T14:10:11', '2026-03-26T15:49:09', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774540149/QuanTriKhachSan/Equipments/huzcgbezdzmqlpjqla2n.jpg'),
+(15, N'PL-CT-01', N'Gối tựa lưng / Gối ngủ', N'Đồ vải', N'Chiếc', 200, 28, 0, 0, 150000.00, 250000.00, N'Everon', 1, '2026-03-25T14:10:11', '2026-03-26T15:41:36', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774539696/QuanTriKhachSan/Equipments/bjpgyfibnh5y71upb8fo.jpg'),
+(16, N'DR-LV-500', N'Nước suối Lavie 500ml', N'Minibar', N'Chai', 800, 56, 0, 0, 4000.00, 0.00, N'Lavie', 1, '2026-03-25T14:10:11', '2026-03-26T16:48:30', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538785/QuanTriKhachSan/Equipments/kznyl7dkrsknfv0d2pt2.jpg'),
+(17, N'DR-CC-320', N'Nước ngọt Coca Cola 320ml', N'Minibar', N'Lon', 400, 28, 1, 0, 7000.00, 20000.00, N'Coca Cola', 1, '2026-03-25T14:10:11', '2026-03-27T09:17:54', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538766/QuanTriKhachSan/Equipments/qaqy3mnzmvsgfoyvah2a.jpg'),
+(18, N'DR-HB-330', N'Bia Heineken 330ml', N'Minibar', N'Lon', 300, 28, 1, 0, 16000.00, 35000.00, N'Heineken', 1, '2026-03-25T14:10:11', '2026-03-26T15:28:55', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538733/QuanTriKhachSan/Equipments/frbshpj0tetjn3tk8brk.jpg'),
+(19, N'SN-OM-01', N'Mì ly Omachi', N'Minibar', N'Ly', 150, 14, 0, 0, 12000.00, 25000.00, N'Masan', 1, '2026-03-25T14:10:11', '2026-03-26T15:28:50', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538702/QuanTriKhachSan/Equipments/rvl2xfua67yrfqqpq71t.jpg'),
+(20, N'SN-OR-01', N'Bánh Oreo 133g', N'Minibar', N'Hộp', 150, 14, 0, 0, 15000.00, 30000.00, N'Mondelez', 1, '2026-03-25T14:10:11', '2026-03-26T15:24:19', 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774538658/QuanTriKhachSan/Equipments/trawiqiv9m0u4ncvutsr.jpg'),
+(21, N'TV-SS-55', N'Tivi Samsung 55 inch', N'Điện tử', N'cái', 10, 2, 0, 0, 15000000.00, 17000000.00, N'Điện Máy Xanh', 1, '2026-03-26T17:29:39', NULL, 'https://res.cloudinary.com/dzfuzh2xg/image/upload/v1774546178/QuanTriKhachSan/Equipments/xmxreisazllzyx0iiuwe.jpgg')
+
+SET IDENTITY_INSERT [dbo].[Equipments] OFF
+GO
 SET IDENTITY_INSERT [dbo].[Equipments] OFF
 GO
 
 -- 12. Room_Inventory
-SET IDENTITY_INSERT [dbo].[Room_Inventory] ON 
+-- ==================== ROOM_INVENTORY - 115 RECORDS (ĐẦY ĐỦ) ====================
+SET IDENTITY_INSERT [dbo].[Room_Inventory] ON
 
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (83, 1, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Treo tường', 0, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (84, 1, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Mới bảo dưỡng', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (85, 1, 1, CAST(15000000.00 AS Decimal(18, 2)), N'Không đệm', 0, N'Asset', 6)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (86, 1, 2, CAST(150000.00 AS Decimal(18, 2)), N'Gấp trên giường', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (87, 1, 2, CAST(15000.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (88, 1, 2, CAST(20000.00 AS Decimal(18, 2)), N'Trong Minibar', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (89, 2, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Treo tường', 0, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (90, 2, 1, CAST(9000000.00 AS Decimal(18, 2)), N'', 0, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (91, 2, 2, CAST(7000000.00 AS Decimal(18, 2)), N'Phòng Twin', 0, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (92, 2, 2, CAST(150000.00 AS Decimal(18, 2)), N'', 0, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (93, 2, 2, CAST(15000.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 0, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (94, 2, 2, CAST(35000.00 AS Decimal(18, 2)), N'Trong Minibar', 0, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (95, 14, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Treo tường', 0, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (96, 14, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Mới bảo dưỡng', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (97, 14, 1, CAST(15000000.00 AS Decimal(18, 2)), N'Không đệm', 1, N'Asset', 6)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (98, 14, 2, CAST(150000.00 AS Decimal(18, 2)), N'Gấp trên giường', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (99, 14, 2, CAST(15000.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (100, 14, 2, CAST(20000.00 AS Decimal(18, 2)), N'Trong Minibar', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (101, 1, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (102, 1, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (103, 1, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (104, 1, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (105, 1, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (106, 1, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (107, 1, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (108, 1, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (109, 1, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (110, 1, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (111, 1, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (112, 1, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (113, 1, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (114, 2, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Treo tường', 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (115, 2, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Mới bảo dưỡng', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (116, 2, 2, CAST(150000.00 AS Decimal(18, 2)), N'Gấp trên giường', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (117, 2, 2, CAST(0.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (118, 2, 2, CAST(20000.00 AS Decimal(18, 2)), N'Trong Minibar', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (119, 2, 0, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (120, 2, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (121, 2, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (122, 2, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (123, 2, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (124, 2, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (125, 2, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (126, 2, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (127, 2, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (128, 2, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (129, 2, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (130, 2, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (131, 2, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (132, 13, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Treo tường', 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (133, 13, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Mới bảo dưỡng', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (134, 13, 2, CAST(150000.00 AS Decimal(18, 2)), N'Gấp trên giường', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (135, 13, 2, CAST(15000.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (136, 13, 2, CAST(20000.00 AS Decimal(18, 2)), N'Trong Minibar', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (137, 13, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (138, 13, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (139, 13, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (140, 13, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (141, 13, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (142, 13, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (143, 13, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (144, 13, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (145, 13, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (146, 13, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (147, 13, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (148, 13, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (149, 13, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (150, 3, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (151, 3, 1, CAST(15000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 6)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (152, 3, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (153, 3, 1, CAST(20000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (154, 3, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (155, 3, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (156, 3, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (157, 3, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (158, 3, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (159, 3, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (160, 3, 1, CAST(15000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (161, 3, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (162, 3, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (163, 3, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (164, 3, 1, CAST(150000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (165, 3, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (166, 3, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (167, 3, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (168, 3, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 9)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (169, 3, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (170, 4, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (171, 4, 1, CAST(15000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 6)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (172, 4, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (173, 4, 1, CAST(20000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (174, 4, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (175, 4, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (176, 4, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (177, 4, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (178, 4, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (179, 4, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (180, 4, 1, CAST(15000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (181, 4, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-GO
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (182, 4, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (183, 4, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (184, 4, 1, CAST(150000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (185, 4, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (186, 4, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (187, 4, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (188, 4, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 9)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (189, 4, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (190, 6, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Treo tường', 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (191, 6, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Mới bảo dưỡng', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (192, 6, 2, CAST(150000.00 AS Decimal(18, 2)), N'Gấp trên giường', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (193, 6, 2, CAST(0.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (194, 6, 2, CAST(20000.00 AS Decimal(18, 2)), N'Trong Minibar', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (195, 6, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (196, 6, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (197, 6, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (198, 6, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (199, 6, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (200, 6, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (201, 6, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (202, 6, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (203, 6, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (204, 6, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (205, 6, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (206, 6, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (207, 6, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (208, 1, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (209, 3, 1, CAST(17000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 21)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (210, 15, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Mới bảo dưỡng', 0, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (211, 15, 2, CAST(150000.00 AS Decimal(18, 2)), N'Gấp trên giường', 0, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (212, 15, 2, CAST(15000.00 AS Decimal(18, 2)), N'Miễn phí hàng ngày', 0, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (213, 15, 2, CAST(20000.00 AS Decimal(18, 2)), N'Trong Minibar', 0, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (214, 15, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (215, 15, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (216, 15, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (217, 15, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (218, 15, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (219, 15, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (220, 15, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (221, 15, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (222, 15, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (223, 15, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (224, 15, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (225, 15, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (226, 15, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (227, 15, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (228, 15, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (229, 15, 1, CAST(15000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 6)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (230, 15, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (231, 15, 1, CAST(20000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (232, 15, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (233, 15, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (234, 15, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (235, 15, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (236, 15, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (237, 15, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (238, 15, 1, CAST(15000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (239, 15, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (240, 15, 1, CAST(8000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 0, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (241, 15, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (242, 15, 1, CAST(150000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (243, 15, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (244, 15, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (245, 15, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (246, 15, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 9)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (247, 15, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (248, 14, 1, CAST(8000000.00 AS Decimal(18, 2)), NULL, 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (249, 14, 1, CAST(8000000.00 AS Decimal(18, 2)), NULL, 1, N'Asset', 1)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (250, 16, 1, CAST(9000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 2)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (251, 16, 1, CAST(15000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 6)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (252, 16, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 3)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (253, 16, 1, CAST(20000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 17)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (254, 16, 1, CAST(600000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 4)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (255, 16, 1, CAST(35000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 18)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (256, 16, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 10)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (257, 16, 1, CAST(250000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 15)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (258, 16, 1, CAST(80000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 13)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (259, 16, 1, CAST(30000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 20)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (260, 16, 1, CAST(15000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 16)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (261, 16, 1, CAST(350000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 5)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (262, 16, 1, CAST(5000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 8)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (263, 16, 1, CAST(150000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 11)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (264, 16, 1, CAST(7000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 7)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (265, 16, 1, CAST(1200000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 14)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (266, 16, 1, CAST(25000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 19)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (267, 16, 1, CAST(3000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 9)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (268, 16, 1, CAST(50000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 12)
-INSERT [dbo].[Room_Inventory] ([id], [room_id], [quantity], [price_if_lost], [note], [is_active], [item_type], [equipment_id]) VALUES (269, 16, 1, CAST(17000000.00 AS Decimal(18, 2)), N'Đồng bộ từ kho', 1, N'Asset', 21)
+-- Room 1 (King - Thành phố)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (1,1,1,8000000.00,N'TV Samsung 43 inch treo tường',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (2,1,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (3,1,1,3000000.00,N'Tủ lạnh Minibar Aqua',1,N'Asset',3)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (4,1,1,600000.00,N'Máy sấy tóc Panasonic',1,N'Asset',4)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (5,1,1,350000.00,N'Ấm đun nước Sunhouse',1,N'Asset',5)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (6,1,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (7,1,1,5000000.00,N'Tủ quần áo gỗ',1,N'Asset',8)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (8,1,1,3000000.00,N'Bàn làm việc + ghế',1,N'Asset',9)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (9,1,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (10,1,2,150000.00,N'Khăn tắm cotton',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (11,1,2,50000.00,N'Khăn mặt cotton',1,N'Asset',12)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (12,1,1,80000.00,N'Thảm chùi chân',1,N'Asset',13)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (13,1,1,1200000.00,N'Chăn lông vũ',1,N'Asset',14)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (14,1,2,250000.00,N'Gối ngủ',1,N'Asset',15)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (15,1,4,0.00,N'Nước suối Lavie miễn phí',1,N'Asset',16)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (16,1,2,20000.00,N'Coca Cola trong minibar',1,N'Asset',17)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (17,1,2,35000.00,N'Bia Heineken trong minibar',1,N'Asset',18)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (18,1,1,25000.00,N'Mì ly Omachi',1,N'Asset',19)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (19,1,1,30000.00,N'Bánh Oreo',1,N'Asset',20)
+
+-- Room 2 (Twin - Occupied)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (20,2,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (21,2,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (22,2,1,3000000.00,N'Tủ lạnh Minibar',1,N'Asset',3)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (23,2,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (24,2,1,350000.00,N'Ấm siêu tốc',1,N'Asset',5)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (25,2,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (26,2,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (27,2,1,3000000.00,N'Bàn làm việc + ghế',1,N'Asset',9)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (28,2,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (29,2,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (30,2,2,50000.00,N'Khăn mặt',1,N'Asset',12)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (31,2,1,80000.00,N'Thảm chùi chân',1,N'Asset',13)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (32,2,1,1200000.00,N'Chăn lông vũ',1,N'Asset',14)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (33,2,2,250000.00,N'Gối ngủ',1,N'Asset',15)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (34,2,4,0.00,N'Nước suối miễn phí',1,N'Asset',16)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (35,2,2,20000.00,N'Coca Cola minibar',1,N'Asset',17)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (36,2,2,35000.00,N'Bia Heineken minibar',1,N'Asset',18)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (37,2,1,25000.00,N'Mì Omachi',1,N'Asset',19)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (38,2,1,30000.00,N'Bánh Oreo',1,N'Asset',20)
+
+-- Room 3 (King)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (39,3,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (40,3,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (41,3,1,3000000.00,N'Tủ lạnh Minibar',1,N'Asset',3)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (42,3,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (43,3,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (44,3,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (45,3,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (46,3,2,50000.00,N'Khăn mặt',1,N'Asset',12)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (47,3,1,80000.00,N'Thảm chùi chân',1,N'Asset',13)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (48,3,1,1200000.00,N'Chăn lông vũ',1,N'Asset',14)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (49,3,2,250000.00,N'Gối ngủ',1,N'Asset',15)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (50,3,4,0.00,N'Nước suối Lavie',1,N'Asset',16)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (51,3,2,20000.00,N'Coca Cola',1,N'Asset',17)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (52,3,2,35000.00,N'Bia Heineken',1,N'Asset',18)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (53,3,1,25000.00,N'Mì Omachi',1,N'Asset',19)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (54,3,1,30000.00,N'Bánh Oreo',1,N'Asset',20)
+
+-- Room 4 (Twin - Maintenance)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (55,4,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (56,4,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (57,4,1,3000000.00,N'Tủ lạnh Minibar',1,N'Asset',3)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (58,4,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (59,4,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (60,4,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (61,4,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (62,4,4,0.00,N'Nước suối',1,N'Asset',16)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (63,4,2,20000.00,N'Coca Cola',1,N'Asset',17)
+
+-- Room 5 (King)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (64,5,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (65,5,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (66,5,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (67,5,6,30000.00,N'Móc treo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (68,5,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (69,5,4,0.00,N'Nước suối',1,N'Asset',16)
+
+-- Room 6 (King - Biển)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (70,6,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (71,6,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (72,6,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (73,6,1,5000000.00,N'Tủ quần áo',1,N'Asset',8)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (74,6,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (75,6,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (76,6,4,0.00,N'Nước suối',1,N'Asset',16)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (77,6,2,35000.00,N'Bia Heineken',1,N'Asset',18)
+
+-- Room 7 (Twin)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (78,7,1,8000000.00,N'TV Samsung',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (79,7,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (80,7,6,30000.00,N'Móc treo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (81,7,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+
+-- Room 8 (King)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (82,8,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (83,8,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (84,8,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+
+-- Room 9 (King)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (85,9,1,8000000.00,N'TV Samsung',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (86,9,1,15000000.00,N'Giường King',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (87,9,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+
+-- Room 10 (Villa)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (88,10,1,17000000.00,N'TV Samsung 55 inch',1,N'Asset',21)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (89,10,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (90,10,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (91,10,8,30000.00,N'Móc treo (Villa)',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (92,10,4,150000.00,N'Khăn tắm lớn',1,N'Asset',11)
+
+-- Room 13 (Twin - Occupied)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (93,13,1,8000000.00,N'TV Samsung',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (94,13,2,7000000.00,N'Giường Single (Twin)',1,N'Asset',7)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (95,13,6,30000.00,N'Móc treo',1,N'Asset',10)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (96,13,2,150000.00,N'Khăn tắm',1,N'Asset',11)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (97,13,4,0.00,N'Nước suối',1,N'Asset',16)
+
+-- Room 14 (Twin - Cleaning)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (98,14,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (99,14,2,7000000.00,N'Giường Single',1,N'Asset',7)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (100,14,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (101,14,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+
+-- Room 15 (Twin - Maintenance)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (102,15,1,9000000.00,N'Điều hòa',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (103,15,2,7000000.00,N'Giường Single',1,N'Asset',7)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (104,15,1,15000000.00,N'Giường King (dự phòng)',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (105,15,6,30000.00,N'Móc treo',1,N'Asset',10)
+
+-- Room 16 (King)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (106,16,1,8000000.00,N'TV Samsung 43 inch',1,N'Asset',1)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (107,16,1,15000000.00,N'Giường King Size',1,N'Asset',6)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (108,16,1,9000000.00,N'Điều hòa Daikin',1,N'Asset',2)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (109,16,6,30000.00,N'Móc treo quần áo',1,N'Asset',10)
+
+-- ==================== Bổ sung thêm để đủ 115 records ====================
+
+-- Room 1 bổ sung
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (110,1,1,80000.00,N'Thảm dự phòng',1,N'Asset',13)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (111,1,1,1200000.00,N'Chăn dự phòng',1,N'Asset',14)
+
+-- Room 2 bổ sung
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (112,2,1,80000.00,N'Thảm dự phòng',1,N'Asset',13)
+
+-- Room 3 bổ sung
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (113,3,1,350000.00,N'Ấm siêu tốc',1,N'Asset',5)
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (114,3,1,600000.00,N'Máy sấy tóc',1,N'Asset',4)
+
+-- Room 6 bổ sung
+INSERT [dbo].[Room_Inventory] ([id],[room_id],[quantity],[price_if_lost],[note],[is_active],[item_type],[equipment_id]) VALUES (115,6,1,350000.00,N'Ấm siêu tốc',1,N'Asset',5)
+
 SET IDENTITY_INSERT [dbo].[Room_Inventory] OFF
 GO
 
@@ -1291,18 +1315,19 @@ GO
 
 -- 22. Loss_And_Damages
 SET IDENTITY_INSERT [dbo].[Loss_And_Damages] ON
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at])
-VALUES (24, 10, 135, NULL, 1, CAST(15000.00 AS Decimal(18,2)), NULL,         NULL, CAST(N'2026-03-27T15:08:59.037' AS DateTime))
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at])
-VALUES (25, 10, 136, NULL, 2, CAST(20000.00 AS Decimal(18,2)), NULL,         NULL, CAST(N'2026-03-27T15:16:06.550' AS DateTime))
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at])
-VALUES (26, 10, 137, NULL, 1, CAST(30000.00 AS Decimal(18,2)), NULL,         NULL, CAST(N'2026-03-27T15:16:37.547' AS DateTime))
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at])
-VALUES (31, 2,  118, NULL, 2, CAST(20000.00 AS Decimal(18,2)), NULL,         NULL, CAST(N'2026-03-27T15:42:13.707' AS DateTime))
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at])
-VALUES (32, 2,  117, NULL, 2, CAST(0.00     AS Decimal(18,2)), NULL,         NULL, CAST(N'2026-03-27T15:43:18.230' AS DateTime))
-INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at])
-VALUES (34, 2,  119, NULL, 1, CAST(30000.00 AS Decimal(18,2)), N'khách dùng', NULL, CAST(N'2026-03-28T01:26:23.170' AS DateTime))
+-- ==================== LOSS_AND_DAMAGES DATASEED MỚI (10 records) ====================
+INSERT [dbo].[Loss_And_Damages] ([id],[booking_detail_id],[room_inventory_id],[reported_by],[quantity],[penalty_amount],[description],[img_url],[created_at],[status])
+VALUES 
+(1, 10, 15, 5, 2, 0.00, N'Khách dùng hết nước suối miễn phí', NULL, '2026-03-27T14:30:15', 'Confirmed'),
+(2, 10, 16, 5, 1, 20000.00, N'Mất 1 lon Coca Cola', NULL, '2026-03-27T15:08:59', 'Confirmed'),
+(3, 10, 17, 5, 1, 35000.00, N'Làm vỡ lon bia Heineken', NULL, '2026-03-27T15:16:06', 'Confirmed'),
+(4, 2, 29, 5, 1, 150000.00, N'Mất khăn tắm', NULL, '2026-03-27T15:42:13', 'Confirmed'),
+(5, 2, 34, 5, 3, 0.00, N'Khách dùng hết nước suối', NULL, '2026-03-27T15:43:18', 'Confirmed'),
+(6, 2, 37, NULL, 1, 25000.00, N'Mất mì ly Omachi', NULL, '2026-03-28T01:26:23', 'Pending'),
+(7, 5, 10, 5, 2, 60000.00, N'Mất 2 móc treo quần áo', NULL, '2026-03-28T09:45:12', 'Confirmed'),
+(8, 8, 45, 5, 1, 150000.00, N'Khăn tắm bị rách nặng', NULL, '2026-03-28T10:20:33', 'Confirmed'),
+(9, 10, 18, 5, 1, 30000.00, N'Mất bánh Oreo', NULL, '2026-03-29T14:55:22', 'Confirmed'),
+(10, 2, 30, 5, 1, 50000.00, N'Mất 1 khăn mặt', NULL, '2026-03-29T16:10:45', 'Pending')
 SET IDENTITY_INSERT [dbo].[Loss_And_Damages] OFF
 GO
 

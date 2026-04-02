@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
@@ -79,7 +79,9 @@ public class ArticlesController : ControllerBase
 
         return Ok(new
         {
-            data       = items,
+            success = true,
+            message = "Lấy danh sách bài viết thành công.",
+            data = items,
             pagination = new
             {
                 page,

@@ -60,3 +60,11 @@ public class BookingResponse
     public DateTime? CancelledAt { get; set; }
     public List<BookingDetailResponse> BookingDetails { get; set; } = new();
 }
+
+public class BookingTimelineEventResponse
+{
+    public string Type { get; set; } = null!;
+    public string Label { get; set; } = null!;
+    public DateTime? At { get; set; }
+    public string? Note { get; set; }
+}
