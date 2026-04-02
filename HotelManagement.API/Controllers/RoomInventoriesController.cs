@@ -216,6 +216,50 @@ public class RoomInventoriesController : ControllerBase
         if (equipment is null)
             return BadRequest(new { message = $"Equipment #{request.EquipmentId} khong ton tai." });
 
+        var existingItem = await _db.RoomInventories
+            .Where(i => i.RoomId == request.RoomId && i.EquipmentId == request.EquipmentId)
+            .OrderByDescending(i => i.IsActive)
+            .ThenByDescending(i => i.Id)
+            .FirstOrDefaultAsync();
+
+        if (existingItem is not null)
+        {
+            var wasActive = existingItem.IsActive;
+            var oldSnapshot = $"{{\"isActive\": {existingItem.IsActive.ToString().ToLower()}, \"quantity\": {existingItem.Quantity ?? 0}, \"itemType\": \"{existingItem.ItemType}\", \"priceIfLost\": {(existingItem.PriceIfLost?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null")}}}";
+
+            existingItem.ItemType = request.ItemType;
+            existingItem.Quantity = request.Quantity;
+            existingItem.PriceIfLost = request.PriceIfLost;
+            existingItem.Note = request.Note?.Trim();
+            existingItem.IsActive = true;
+
+            BumpRoomInventoryVersion(room);
+
+            var userId = JwtHelper.GetUserId(User);
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                Action = wasActive ? "UPDATE_INVENTORY_FROM_CREATE" : "RESTORE_INVENTORY",
+                TableName = "Room_Inventory",
+                RecordId = existingItem.Id,
+                OldValue = oldSnapshot,
+                NewValue = $"{{\"roomId\": {existingItem.RoomId}, \"equipmentId\": {existingItem.EquipmentId}, \"equipmentName\": \"{equipment.Name}\", \"quantity\": {existingItem.Quantity ?? 0}, \"isActive\": true}}",
+                UserAgent = Request.Headers["User-Agent"].ToString(),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = wasActive
+                    ? "Vat tu da ton tai trong phong. He thong da cap nhat so luong thay vi tao dong moi."
+                    : "Vat tu da ton tai o trang thai ngung su dung. He thong da kich hoat lai va cap nhat so luong.",
+                id = existingItem.Id,
+                roomInventoryVersion = room.InventoryVersion
+            });
+        }
+
         var item = new RoomInventory
         {
             RoomId = request.RoomId,
@@ -230,10 +274,10 @@ public class RoomInventoriesController : ControllerBase
         _db.RoomInventories.Add(item);
         BumpRoomInventoryVersion(room);
 
-        var userId = JwtHelper.GetUserId(User);
+        var createUserId = JwtHelper.GetUserId(User);
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId = userId,
+            UserId = createUserId,
             Action = "CREATE_INVENTORY",
             TableName = "Room_Inventory",
             RecordId = item.Id,

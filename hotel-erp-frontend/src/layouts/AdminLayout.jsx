@@ -284,7 +284,7 @@ export default function AdminLayout() {
                     >
                       receipt_long
                     </span>
-                    <span>Invoices</span>
+                    <span>Hóa đơn</span>
                   </>
                 )}
               </NavLink>

@@ -400,6 +400,11 @@ public class RoomsController : ControllerBase
             success = true,
             message  = $"Đã tạo {created.Count} phòng.",
             created,
+            createdRooms = newRooms.Select(r => new
+            {
+                r.Id,
+                r.RoomNumber
+            }),
             skipped,
             invalid
         });

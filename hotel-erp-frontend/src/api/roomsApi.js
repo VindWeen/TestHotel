@@ -54,7 +54,7 @@ export const updateCleaningStatus = (id, cleaningStatus) =>
 /**
  * POST /api/Rooms/bulk-create  [MANAGE_ROOMS]
  * Body: [{ roomNumber, floor, roomTypeId, viewType }]
- * Response: { message, created, skipped, invalid }
+ * Response: { message, created, createdRooms: [{ id, roomNumber }], skipped, invalid }
  */
 export const bulkCreateRooms = (items) =>
     axiosClient.post('/Rooms/bulk-create', items);

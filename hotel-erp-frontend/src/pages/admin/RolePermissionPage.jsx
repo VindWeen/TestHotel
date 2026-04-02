@@ -159,6 +159,79 @@ function Toast({ id, msg, type = "success", dur = 3500, onDismiss }) {
   );
 }
 
+function PermissionCheckbox({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  onChange,
+  size = 17,
+}) {
+  const isActive = checked || indeterminate;
+
+  return (
+    <span
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0,
+          margin: 0,
+          cursor: disabled ? "not-allowed" : "pointer",
+        }}
+      />
+      <span
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 4,
+          border: `1.5px solid ${isActive ? "#4f645b" : "#7b9a88"}`,
+          background: isActive ? "#4f645b" : "#ffffff",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#ffffff",
+          boxShadow: isActive ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : "none",
+          opacity: disabled ? 0.65 : 1,
+          transition: "all .18s ease",
+        }}
+      >
+        {indeterminate ? (
+          <span
+            style={{
+              width: Math.max(8, size - 7),
+              height: 2,
+              borderRadius: 9999,
+              background: "#ffffff",
+              display: "block",
+            }}
+          />
+        ) : checked ? (
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: Math.max(12, size - 4), fontVariationSettings: "'FILL' 1" }}
+          >
+            check
+          </span>
+        ) : null}
+      </span>
+    </span>
+  );
+}
+
 // ─── Role color dots ──────────────────────────────────────────────────────────
 const ROLE_COLORS = {
   Admin: "#7c3aed",
@@ -468,24 +541,12 @@ function PermissionModal({
               userSelect: "none",
             }}
           >
-            <input
-              type="checkbox"
+            <PermissionCheckbox
               checked={allChecked}
+              indeterminate={partiallyChecked}
               disabled={!canEdit}
               onChange={toggleAll}
-              ref={(node) => {
-                if (node) node.indeterminate = partiallyChecked;
-              }}
-              style={{
-                width: 17,
-                height: 17,
-                accentColor: "#4f645b",
-                cursor: canEdit ? "pointer" : "not-allowed",
-                flexShrink: 0,
-                outline: "2px solid #b7d1c5",
-                outlineOffset: 1,
-                borderRadius: 3,
-              }}
+              size={17}
             />
             <span style={{ fontSize: 13, fontWeight: 700, color: "#2f3d36" }}>
               Tất cả quyền
@@ -502,34 +563,25 @@ function PermissionModal({
                   marginBottom: 10,
                 }}
               >
-                <input
-                  type="checkbox"
+                <PermissionCheckbox
                   checked={
                     perms.length > 0 && perms.every((p) => !!checked[p.id])
                   }
+                  indeterminate={
+                    perms.reduce(
+                      (count, permission) =>
+                        count + (checked[permission.id] ? 1 : 0),
+                      0,
+                    ) > 0 &&
+                    perms.reduce(
+                      (count, permission) =>
+                        count + (checked[permission.id] ? 1 : 0),
+                      0,
+                    ) < perms.length
+                  }
                   disabled={!canEdit}
                   onChange={() => toggleModule(perms)}
-                  ref={(node) => {
-                    if (node) {
-                      const checkedCount = perms.reduce(
-                        (count, permission) =>
-                          count + (checked[permission.id] ? 1 : 0),
-                        0,
-                      );
-                      node.indeterminate =
-                        checkedCount > 0 && checkedCount < perms.length;
-                    }
-                  }}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    accentColor: "#4f645b",
-                    cursor: canEdit ? "pointer" : "not-allowed",
-                    flexShrink: 0,
-                    outline: "2px solid #c8d8d2",
-                    outlineOffset: 1,
-                    borderRadius: 3,
-                  }}
+                  size={16}
                 />
                 <p
                   style={{
@@ -569,23 +621,11 @@ function PermissionModal({
                       userSelect: "none",
                     }}
                   >
-                    <input
-                      type="checkbox"
+                    <PermissionCheckbox
                       checked={!!checked[p.id]}
                       disabled={!canEdit}
                       onChange={() => toggle(p.id)}
-                      style={{
-                        width: 17,
-                        height: 17,
-                        accentColor: "#4f645b",
-                        cursor: canEdit ? "pointer" : "not-allowed",
-                        flexShrink: 0,
-                        outline: checked[p.id]
-                          ? "2px solid rgba(79,100,91,.5)"
-                          : "2px solid #d0dbd6",
-                        outlineOffset: 1,
-                        borderRadius: 3,
-                      }}
+                      size={17}
                     />
                     <span
                       style={{

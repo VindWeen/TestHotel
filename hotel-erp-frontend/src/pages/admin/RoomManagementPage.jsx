@@ -6,6 +6,7 @@ import { useAdminAuthStore } from "../../store/adminAuthStore";
 import {
     getRooms,
     createRoom,
+    bulkCreateRooms,
     updateBusinessStatus,
     updateCleaningStatus,
 } from "../../api/roomsApi";
@@ -250,26 +251,141 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     // Step 1 states
     const [roomNumber, setRoomNumber] = useState("");
     const [floor, setFloor] = useState("");
     const [roomTypeId, setRoomTypeId] = useState("");
     const [viewType, setViewType] = useState("");
-    const [roomId, setRoomId] = useState(null);
 
-    // Step 3 states
+    // Inventory states
     const [cloneFromRoomId, setCloneFromRoomId] = useState("");
     const [inventories, setInventories] = useState([]);
     const [loadingInv, setLoadingInv] = useState(false);
+    const [bulkBlocks, setBulkBlocks] = useState([{ id: 1, floor: "", fromNumber: "", toNumber: "", step: "1" }]);
 
     const selectedType = roomTypes.find((rt) => rt.id === parseInt(roomTypeId));
+    const activeColor = "#4f645b";
+
+    const buildBulkPreview = () => {
+        const preview = [];
+        const seen = new Set();
+        const errors = [];
+
+        bulkBlocks.forEach((block, index) => {
+            const floorValue = block.floor?.toString().trim();
+            const fromValue = block.fromNumber?.toString().trim();
+            const toValue = block.toNumber?.toString().trim();
+            const stepValue = block.step?.toString().trim();
+
+            if (!floorValue && !fromValue && !toValue) return;
+
+            const parsedFloor = Number(floorValue);
+            const parsedFrom = Number(fromValue);
+            const parsedTo = Number(toValue);
+            const parsedStep = Number(stepValue || 1);
+
+            if (!floorValue || !fromValue || !toValue) {
+                errors.push(`Block ${index + 1}: Vui lòng nhập đủ tầng, từ số phòng và đến số phòng.`);
+                return;
+            }
+
+            if (!Number.isInteger(parsedFloor) || !Number.isInteger(parsedFrom) || !Number.isInteger(parsedTo)) {
+                errors.push(`Block ${index + 1}: Tầng và dải số phòng phải là số nguyên.`);
+                return;
+            }
+
+            if (!Number.isInteger(parsedStep) || parsedStep <= 0) {
+                errors.push(`Block ${index + 1}: Bước nhảy phải lớn hơn 0.`);
+                return;
+            }
+
+            if (parsedFrom > parsedTo) {
+                errors.push(`Block ${index + 1}: Số bắt đầu không được lớn hơn số kết thúc.`);
+                return;
+            }
+
+            for (let num = parsedFrom; num <= parsedTo; num += parsedStep) {
+                const roomNo = String(num);
+                if (seen.has(roomNo)) {
+                    errors.push(`Phòng ${roomNo} đang bị trùng giữa các block.`);
+                    continue;
+                }
+                seen.add(roomNo);
+                preview.push({
+                    roomNumber: roomNo,
+                    floor: parsedFloor,
+                    roomTypeId: parseInt(roomTypeId, 10),
+                    viewType: viewType || undefined,
+                });
+            }
+        });
+
+        return { preview, errors };
+    };
+
+    const syncCreatedRooms = async (createdRooms) => {
+        if (!canManageInventory || !cloneFromRoomId || !createdRooms.length) return [];
+
+        await cloneInventory(parseInt(cloneFromRoomId, 10), createdRooms.map((room) => room.id));
+
+        const syncFailedRooms = [];
+        for (const room of createdRooms) {
+            try {
+                const previewRes = await previewSyncInventoryStock(room.id);
+                const inventoryVersion = previewRes?.data?.inventoryVersion ?? 0;
+                await syncInventoryStock(room.id, inventoryVersion);
+            } catch (err) {
+                console.error("Sync inventory error", err);
+                syncFailedRooms.push(room.roomNumber);
+            }
+        }
+
+        return syncFailedRooms;
+    };
+
+    const handleModeToggle = (checked) => {
+        setIsBulkMode(checked);
+        setStep(1);
+        setError("");
+        setCloneFromRoomId("");
+        setInventories([]);
+        setLoadingInv(false);
+        setRoomNumber("");
+        setFloor("");
+        setBulkBlocks([{ id: 1, floor: "", fromNumber: "", toNumber: "", step: "1" }]);
+    };
 
     const handleCreateMainInfo = async () => {
         setError("");
+        if (isBulkMode) {
+            if (!roomTypeId) return setError("Vui lòng chọn hạng phòng.");
+            setStep(2);
+            return;
+        }
+
         if (!roomNumber.trim()) return setError("Số phòng không được để trống.");
         if (!roomTypeId) return setError("Vui lòng chọn hạng phòng.");
         setStep(2);
+    };
+
+    const handleBulkContinue = () => {
+        setError("");
+        const { preview, errors } = buildBulkPreview();
+        if (!preview.length) {
+            setError("Vui lòng nhập ít nhất một block phòng hợp lệ.");
+            return;
+        }
+        if (errors.length > 0) {
+            setError(errors[0]);
+            return;
+        }
+        if (canManageInventory) {
+            setStep(3);
+            return;
+        }
+        handleFinish();
     };
 
     const fetchInventory = async (rId) => {
@@ -304,6 +420,38 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
     const handleFinish = async () => {
         setLoading(true);
         try {
+            if (isBulkMode) {
+                const { preview, errors } = buildBulkPreview();
+                if (!preview.length) {
+                    setError("Vui lòng nhập ít nhất một block phòng hợp lệ.");
+                    return;
+                }
+                if (errors.length > 0) {
+                    setError(errors[0]);
+                    return;
+                }
+
+                const res = await bulkCreateRooms(preview);
+                const createdRooms = res?.data?.createdRooms || [];
+                const skipped = res?.data?.skipped || [];
+                const invalid = res?.data?.invalid || [];
+                const syncFailedRooms = await syncCreatedRooms(createdRooms);
+
+                const parts = [];
+                parts.push(`Đã tạo ${createdRooms.length} phòng`);
+                if (skipped.length) parts.push(`bỏ qua ${skipped.length} phòng trùng`);
+                if (invalid.length) parts.push(`${invalid.length} phòng không hợp lệ`);
+                showToast(`${parts.join(", ")}.`, createdRooms.length > 0 ? "success" : "warning");
+
+                if (syncFailedRooms.length > 0) {
+                    showToast(`Đã tạo phòng nhưng chưa sync vật tư cho: ${syncFailedRooms.join(", ")}.`, "warning");
+                }
+
+                onCreated();
+                onClose();
+                return;
+            }
+
             const res = await createRoom({
                 roomNumber: roomNumber.trim(),
                 floor: floor ? parseInt(floor) : null,
@@ -311,13 +459,12 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                 viewType: viewType || undefined,
             });
             const createdRoomId = res?.data?.id;
-            setRoomId(createdRoomId);
 
             if (canManageInventory && cloneFromRoomId && createdRoomId) {
-                await cloneInventory(parseInt(cloneFromRoomId), [createdRoomId]);
-                const previewRes = await previewSyncInventoryStock(createdRoomId);
-                const inventoryVersion = previewRes?.data?.inventoryVersion ?? 0;
-                await syncInventoryStock(createdRoomId, inventoryVersion);
+                const syncFailedRooms = await syncCreatedRooms([{ id: createdRoomId, roomNumber: roomNumber.trim() }]);
+                if (syncFailedRooms.length > 0) {
+                    showToast(`Phòng ${roomNumber} đã tạo nhưng sync vật tư chưa hoàn tất.`, "warning");
+                }
             }
 
             showToast(`Đã tạo phòng ${roomNumber} thành công!`, "success");
@@ -330,13 +477,12 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
         }
     };
 
-    // UI Styles
-    const activeColor = "#4f645b";
+    const bulkPreview = isBulkMode ? buildBulkPreview() : { preview: [], errors: [] };
 
     return (
         <div style={{ background: "#f9f8f3", display: "flex", flexDirection: "column", borderRadius: 20, border: "1px solid #e2e8e1", overflow: "hidden", minHeight: "calc(100vh - 120px)", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
             {/* Header */}
-            <div style={{ padding: "20px 40px", background: "white", borderBottom: "1px solid #e2e8e1", display: "flex", alignItems: "center" }}>
+            <div style={{ padding: "20px 40px", background: "white", borderBottom: "1px solid #e2e8e1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                 <button
                     onClick={() => {
                         if (step > 1) {
@@ -350,13 +496,47 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                     <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_back</span>
                     Quy trình thiết lập phòng trọn gói
                 </button>
+
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 12, background: isBulkMode ? "linear-gradient(135deg, #dff3e7 0%, #cce8d8 100%)" : "linear-gradient(135deg, #eef7f1 0%, #ddeee4 100%)", border: isBulkMode ? "1.5px solid #4f645b" : "1.5px solid #a7c4b2", borderRadius: 9999, padding: "10px 16px", boxShadow: isBulkMode ? "0 6px 16px rgba(79,100,91,0.22)" : "0 6px 16px rgba(79,100,91,0.10)", cursor: "pointer", flexShrink: 0, transition: "all .2s ease" }}>
+                    <input
+                        type="checkbox"
+                        checked={isBulkMode}
+                        onChange={(e) => handleModeToggle(e.target.checked)}
+                        style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
+                    />
+                    <span
+                        style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            border: isBulkMode ? "1.5px solid #4f645b" : "1.5px solid #7b9a88",
+                            background: isBulkMode ? "#4f645b" : "#ffffff",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#ffffff",
+                            boxShadow: isBulkMode ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : "none",
+                            transition: "all .2s ease",
+                            flexShrink: 0,
+                        }}
+                    >
+                        {isBulkMode && (
+                            <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'FILL' 1" }}>
+                                check
+                            </span>
+                        )}
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: isBulkMode ? "#2f4a3d" : "#4f645b" }}>
+                        Tạo phòng hàng loạt
+                    </span>
+                </label>
             </div>
 
             {/* Stepper */}
             <div style={{ padding: "40px 20px", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                <StepItem active={step >= 1} current={step === 1} icon="home" label="Thông tin chính" color={activeColor} />
+                <StepItem active={step >= 1} current={step === 1} icon="home" label={isBulkMode ? "Thông tin chung" : "Thông tin chính"} color={activeColor} />
                 <div style={{ height: 2, width: 100, background: step >= 2 ? activeColor : "#e5e7eb", margin: "0 16px" }} />
-                <StepItem active={step >= 2} current={step === 2} icon="local_cafe" label="Tiện ích" color={activeColor} />
+                <StepItem active={step >= 2} current={step === 2} icon={isBulkMode ? "format_list_numbered" : "local_cafe"} label={isBulkMode ? "Danh sách phòng" : "Tiện ích"} color={activeColor} />
                 <div style={{ height: 2, width: 100, background: step >= 3 ? activeColor : "#e5e7eb", margin: "0 16px" }} />
                 <StepItem active={canManageInventory && step >= 3} current={step === 3} icon="key" label="Vật tư & Minibar" color={activeColor} />
             </div>
@@ -367,25 +547,27 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                     <div style={{ display: "flex", gap: 60 }}>
                         {/* Form area */}
                         <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
-                                <div style={{ flex: 3 }}>
-                                    <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 8 }}>* Số phòng</label>
-                                    <input
-                                        value={roomNumber}
-                                        onChange={e => setRoomNumber(e.target.value)}
-                                        style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 15, outline: "none", background: "white", boxSizing: "border-box", fontFamily: "Manrope, sans-serif" }}
-                                    />
+                            {!isBulkMode && (
+                                <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
+                                    <div style={{ flex: 3 }}>
+                                        <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 8 }}>* Số phòng</label>
+                                        <input
+                                            value={roomNumber}
+                                            onChange={e => setRoomNumber(e.target.value)}
+                                            style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 15, outline: "none", background: "white", boxSizing: "border-box", fontFamily: "Manrope, sans-serif" }}
+                                        />
+                                    </div>
+                                    <div style={{ flex: 2 }}>
+                                        <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 8 }}>* Tầng</label>
+                                        <input
+                                            type="number"
+                                            value={floor}
+                                            onChange={e => setFloor(e.target.value)}
+                                            style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 15, outline: "none", background: "white", boxSizing: "border-box", fontFamily: "Manrope, sans-serif" }}
+                                        />
+                                    </div>
                                 </div>
-                                <div style={{ flex: 2 }}>
-                                    <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 8 }}>* Tầng</label>
-                                    <input
-                                        type="number"
-                                        value={floor}
-                                        onChange={e => setFloor(e.target.value)}
-                                        style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 15, outline: "none", background: "white", boxSizing: "border-box", fontFamily: "Manrope, sans-serif" }}
-                                    />
-                                </div>
-                            </div>
+                            )}
 
                             <div style={{ display: "flex", gap: 20, marginBottom: 32 }}>
                                 <div style={{ flex: 1 }}>
@@ -436,14 +618,18 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
 
                         {/* Image preview area */}
                         <div style={{ flex: 1 }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: "#4b5563", marginBottom: 8 }}>Hình ảnh hạng phòng</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#4b5563", marginBottom: 8 }}>
+                                {isBulkMode ? "Xem nhanh cấu hình batch" : "Hình ảnh hạng phòng"}
+                            </p>
                             <div style={{ background: "#e2e8e0", borderRadius: 16, height: 260, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#6b7280", overflow: "hidden", position: "relative" }}>
                                 {selectedType && selectedType.primaryImage ? (
                                     <img src={selectedType.primaryImage.imageUrl} alt={selectedType.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                 ) : (
                                     <>
                                         <span className="material-symbols-outlined" style={{ fontSize: 64, opacity: 0.5, marginBottom: 16 }}>image</span>
-                                        <span style={{ fontSize: 14, fontWeight: 600 }}>Chọn hạng phòng để xem ảnh</span>
+                                        <span style={{ fontSize: 14, fontWeight: 600 }}>
+                                            {isBulkMode ? "Chọn hạng phòng để áp dụng cho cả batch" : "Chọn hạng phòng để xem ảnh"}
+                                        </span>
                                     </>
                                 )}
                             </div>
@@ -451,7 +637,7 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                     </div>
                 )}
 
-                {step === 2 && (
+                {!isBulkMode && step === 2 && (
                     <div style={{ maxWidth: 800, margin: "0 auto" }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: "#4b5563", marginBottom: 12 }}>Các tiện ích cố định theo hạng phòng {selectedType?.name}:</p>
                         <div style={{ background: "#e8edea", borderRadius: 16, minHeight: 180, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -483,6 +669,92 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                     </div>
                 )}
 
+                {isBulkMode && step === 2 && (
+                    <div style={{ maxWidth: 980, margin: "0 auto" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                            <div>
+                                <p style={{ fontSize: 16, fontWeight: 800, color: "#334155", margin: "0 0 4px" }}>Thiết lập dải phòng theo tầng</p>
+                                <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Mỗi block tương ứng một tầng và một dải số phòng sẽ được tạo.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setBulkBlocks((prev) => [...prev, { id: Date.now(), floor: "", fromNumber: "", toNumber: "", step: "1" }])}
+                                style={{ background: "white", color: activeColor, border: `1px solid ${activeColor}`, borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "Manrope, sans-serif" }}
+                            >
+                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
+                                Thêm block tầng
+                            </button>
+                        </div>
+
+                        <div style={{ display: "grid", gap: 14, marginBottom: 24 }}>
+                            {bulkBlocks.map((block, index) => (
+                                <div key={block.id} style={{ background: "white", border: "1px solid #e2e8e1", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                                        <span style={{ fontSize: 13, fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: ".05em" }}>Block {index + 1}</span>
+                                        {bulkBlocks.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setBulkBlocks((prev) => prev.filter((item) => item.id !== block.id))}
+                                                style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
+                                            >
+                                                Xóa block
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14 }}>
+                                        {[
+                                            { key: "floor", label: "Tầng", type: "number" },
+                                            { key: "fromNumber", label: "Từ số phòng", type: "number" },
+                                            { key: "toNumber", label: "Đến số phòng", type: "number" },
+                                            { key: "step", label: "Bước nhảy", type: "number" },
+                                        ].map((field) => (
+                                            <div key={field.key}>
+                                                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 8 }}>{field.label}</label>
+                                                <input
+                                                    type={field.type}
+                                                    value={block[field.key]}
+                                                    min={field.key === "step" ? 1 : undefined}
+                                                    onChange={(e) => setBulkBlocks((prev) => prev.map((item) => item.id === block.id ? { ...item, [field.key]: e.target.value } : item))}
+                                                    style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, outline: "none", background: "white", boxSizing: "border-box", fontFamily: "Manrope, sans-serif" }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8e1", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                                <p style={{ fontSize: 15, fontWeight: 800, color: "#334155", margin: 0 }}>Preview danh sách phòng sẽ tạo</p>
+                                <span style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>{bulkPreview.preview.length} phòng</span>
+                            </div>
+                            {bulkPreview.preview.length === 0 ? (
+                                <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Nhập dải phòng để xem preview.</p>
+                            ) : (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                                    {bulkPreview.preview.map((room) => (
+                                        <span key={`${room.floor}-${room.roomNumber}`} style={{ background: "#f8fafc", color: "#334155", border: "1px solid #e2e8f0", borderRadius: 9999, padding: "8px 12px", fontSize: 12, fontWeight: 700 }}>
+                                            Phòng {room.roomNumber} • Tầng {room.floor}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ marginTop: 32 }}>
+                            <button
+                                onClick={handleBulkContinue}
+                                disabled={loading}
+                                style={{ background: "linear-gradient(135deg, #4f645b 0%, #43574f 100%)", color: "white", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(79,100,91,.2)", fontFamily: "Manrope, sans-serif", opacity: loading ? 0.7 : 1 }}
+                            >
+                                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_forward</span>
+                                {canManageInventory ? "Tiếp theo: Thiết lập vật tư" : "Hoàn tất tạo phòng"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {canManageInventory && step === 3 && (
                     <div style={{ maxWidth: 900, margin: "0 auto" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 24, marginBottom: 32 }}>
@@ -502,13 +774,17 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                                             </option>
                                         ))}
                                     </select>
-                                    <span style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>(Tự động thêm Tivi, Tủ lạnh, đồ Minibar...)</span>
+                                    <span style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>
+                                        {isBulkMode ? "(Áp dụng cùng một phòng mẫu cho toàn bộ batch)" : "(Tự động thêm Tivi, Tủ lạnh, đồ Minibar...)"}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         <div style={{ marginBottom: 32 }}>
-                            <p style={{ fontSize: 15, fontWeight: 800, color: "#4b5563", marginBottom: 16 }}>Danh sách vật tư sẽ được clone từ phòng mẫu</p>
+                            <p style={{ fontSize: 15, fontWeight: 800, color: "#4b5563", marginBottom: 16 }}>
+                                {isBulkMode ? "Danh sách vật tư sẽ được clone cho tất cả phòng mới" : "Danh sách vật tư sẽ được clone từ phòng mẫu"}
+                            </p>
                             <div style={{ background: "white", borderRadius: 12, border: "1px solid #e2e8e1", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
                                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                     <thead>
@@ -556,13 +832,20 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                         <div style={{ paddingBottom: 40 }}>
                             <button
                                 onClick={handleFinish}
+                                disabled={loading}
                                 style={{ background: "linear-gradient(135deg, #4f645b 0%, #43574f 100%)", color: "white", padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 4px 12px rgba(79,100,91,.2)", fontFamily: "Manrope, sans-serif" }}
                             >
                                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>check_circle</span>
-                                {loading ? "Đang tạo phòng..." : "Hoàn tất tạo phòng"}
+                                {loading ? "Đang tạo phòng..." : isBulkMode ? "Hoàn tất tạo hàng loạt" : "Hoàn tất tạo phòng"}
                             </button>
                         </div>
                     </div>
+                )}
+
+                {error && (
+                    <p style={{ color: "#ef4444", marginTop: 16, fontSize: 13, fontWeight: 600, textAlign: "center" }}>
+                        {error}
+                    </p>
                 )}
             </div>
         </div>

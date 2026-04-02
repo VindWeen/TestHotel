@@ -4,15 +4,6 @@ import axiosClient from "../../api/axios";
 import { getRooms, updateCleaningStatus, updateBusinessStatus } from "../../api/roomsApi";
 import { getInventoryByRoom } from "../../api/roomInventoriesApi";
 
-// ─── Helpers & Configurations ───────────────────────────────────────────────
-const ROOM_STATUS_CONFIG = {
-  Available: { label: "Sẵn sàng", bg: "#ecfdf5", color: "#059669", dot: "#10b981" },
-  Occupied: { label: "Đang dùng", bg: "#fffbeb", color: "#d97706", dot: "#f59e0b" },
-  Cleaning: { label: "Đang dọn", bg: "#eff6ff", color: "#2563eb", dot: "#3b82f6" },
-  Maintenance: { label: "Bảo trì", bg: "#f5f3ff", color: "#7c3aed", dot: "#8b5cf6" },
-  Disabled: { label: "Bảo trì", bg: "#f5f3ff", color: "#7c3aed", dot: "#8b5cf6" },
-};
-
 // ─── Toast Component ──────────────────────────────────────────────────────────
 function Toast({ id, msg, type = "success", dur = 4000, onDismiss }) {
   const styles = {
@@ -254,8 +245,6 @@ export default function HousekeepingPage() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
             {rooms.map((room) => {
-              const bCfg = ROOM_STATUS_CONFIG[room.businessStatus] || ROOM_STATUS_CONFIG.Occupied;
-
               return (
                 <div
                   key={room.id}
@@ -281,11 +270,6 @@ export default function HousekeepingPage() {
                   <p style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     Tầng {room.floor} • {room.roomTypeName || "Hạng phòng chung"}
                   </p>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, paddingTop: 16, borderTop: "1px dashed #e2e8f0" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: bCfg.dot }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: bCfg.color }}>{bCfg.label}</span>
-                  </div>
                 </div>
               )
             })}
