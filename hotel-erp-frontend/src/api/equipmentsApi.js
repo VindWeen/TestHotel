@@ -31,3 +31,11 @@ export const updateEquipment = (id, data) => {
 export const toggleEquipmentActive = (id) => {
   return axiosClient.patch(`/Equipments/${id}/toggle-active`);
 };
+
+export const previewSyncEquipmentInUse = () => {
+  return axiosClient.get("/Equipments/preview-sync-inuse");
+};
+
+export const syncEquipmentInUse = () => {
+  return axiosClient.post("/Equipments/sync-inuse");
+};

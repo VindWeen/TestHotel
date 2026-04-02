@@ -10,7 +10,12 @@ import {
     updateCleaningStatus,
 } from "../../api/roomsApi";
 import { getAdminRoomTypes } from "../../api/roomTypesApi";
-import { getInventoryByRoom, cloneInventory } from "../../api/roomInventoriesApi";
+import {
+    getInventoryByRoom,
+    cloneInventory,
+    previewSyncInventoryStock,
+    syncInventoryStock,
+} from "../../api/roomInventoriesApi";
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const BUSINESS_STATUS_CONFIG = {
     Available: {
@@ -264,23 +269,7 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
         setError("");
         if (!roomNumber.trim()) return setError("Số phòng không được để trống.");
         if (!roomTypeId) return setError("Vui lòng chọn hạng phòng.");
-
-        setLoading(true);
-        try {
-            const res = await createRoom({
-                roomNumber: roomNumber.trim(),
-                floor: floor ? parseInt(floor) : null,
-                roomTypeId: parseInt(roomTypeId),
-                viewType: viewType || undefined,
-            });
-            setRoomId(res.data.id);
-            showToast(`Đã tạo phòng ${roomNumber} thành công!`, "success");
-            setStep(2);
-        } catch (err) {
-            setError(err?.response?.data?.message || "Tạo phòng thất bại.");
-        } finally {
-            setLoading(false);
-        }
+        setStep(2);
     };
 
     const fetchInventory = async (rId) => {
@@ -303,22 +292,42 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
             setInventories([]);
             return;
         }
-        setLoadingInv(true);
         try {
-            await cloneInventory(parseInt(fromRoomId), [roomId]);
-            showToast("Đã clone vật tư thành công.", "success");
-            await fetchInventory(roomId);
+            await fetchInventory(parseInt(fromRoomId));
         } catch (err) {
-            showToast(err?.response?.data?.message || "Lỗi khi sao chép vật tư.", "error");
+            showToast(err?.response?.data?.message || "Lỗi khi tải vật tư từ phòng mẫu.", "error");
             setCloneFromRoomId("");
         } finally {
-            setLoadingInv(false);
         }
     };
 
-    const handleFinish = () => {
-        onCreated();
-        onClose();
+    const handleFinish = async () => {
+        setLoading(true);
+        try {
+            const res = await createRoom({
+                roomNumber: roomNumber.trim(),
+                floor: floor ? parseInt(floor) : null,
+                roomTypeId: parseInt(roomTypeId),
+                viewType: viewType || undefined,
+            });
+            const createdRoomId = res?.data?.id;
+            setRoomId(createdRoomId);
+
+            if (canManageInventory && cloneFromRoomId && createdRoomId) {
+                await cloneInventory(parseInt(cloneFromRoomId), [createdRoomId]);
+                const previewRes = await previewSyncInventoryStock(createdRoomId);
+                const inventoryVersion = previewRes?.data?.inventoryVersion ?? 0;
+                await syncInventoryStock(createdRoomId, inventoryVersion);
+            }
+
+            showToast(`Đã tạo phòng ${roomNumber} thành công!`, "success");
+            onCreated();
+            onClose();
+        } catch (err) {
+            setError(err?.response?.data?.message || "Không thể hoàn tất tạo phòng.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     // UI Styles
@@ -328,7 +337,16 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
         <div style={{ background: "#f9f8f3", display: "flex", flexDirection: "column", borderRadius: 20, border: "1px solid #e2e8e1", overflow: "hidden", minHeight: "calc(100vh - 120px)", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
             {/* Header */}
             <div style={{ padding: "20px 40px", background: "white", borderBottom: "1px solid #e2e8e1", display: "flex", alignItems: "center" }}>
-                <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", color: "#4b5563", fontSize: 16, fontWeight: 700, fontFamily: "Manrope, sans-serif" }}>
+                <button
+                    onClick={() => {
+                        if (step > 1) {
+                            setStep((prev) => Math.max(1, prev - 1));
+                            return;
+                        }
+                        onClose();
+                    }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", color: "#4b5563", fontSize: 16, fontWeight: 700, fontFamily: "Manrope, sans-serif" }}
+                >
                     <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_back</span>
                     Quy trình thiết lập phòng trọn gói
                 </button>
@@ -411,7 +429,7 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                                 style={{ background: "linear-gradient(135deg, #4f645b 0%, #43574f 100%)", color: "white", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(79,100,91,.2)", fontFamily: "Manrope, sans-serif", opacity: loading ? 0.7 : 1 }}
                             >
                                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_forward</span>
-                                {loading ? "Đang xử lý..." : "Tạo phòng & Tiếp tục"}
+                                {loading ? "Đang xử lý..." : "Tiếp tục"}
                             </button>
                             {error && <p style={{ color: "#ef4444", marginTop: 12, fontSize: 13, fontWeight: 600 }}>{error}</p>}
                         </div>
@@ -490,7 +508,7 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                         </div>
 
                         <div style={{ marginBottom: 32 }}>
-                            <p style={{ fontSize: 15, fontWeight: 800, color: "#4b5563", marginBottom: 16 }}>Danh sách vật tư hiện tại của phòng</p>
+                            <p style={{ fontSize: 15, fontWeight: 800, color: "#4b5563", marginBottom: 16 }}>Danh sách vật tư sẽ được clone từ phòng mẫu</p>
                             <div style={{ background: "white", borderRadius: 12, border: "1px solid #e2e8e1", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
                                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                     <thead>
@@ -511,7 +529,7 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                                             <tr>
                                                 <td colSpan={5} style={{ padding: "60px 0", textAlign: "center", color: "#9ca3af" }}>
                                                     <span className="material-symbols-outlined" style={{ fontSize: 40, opacity: 0.5, marginBottom: 8, display: "block" }}>inventory_2</span>
-                                                    Chưa có vật tư. Hãy chọn phòng mẫu để sao chép nhanh.
+                                                    Chưa chọn phòng mẫu. Hãy chọn một phòng để xem trước vật tư sẽ được clone.
                                                 </td>
                                             </tr>
                                         ) : (
@@ -538,10 +556,10 @@ function CreateRoomWizard({ roomTypes, allRooms, onClose, onCreated, showToast, 
                         <div style={{ paddingBottom: 40 }}>
                             <button
                                 onClick={handleFinish}
-                                style={{ background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)", color: "white", padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 4px 12px rgba(29,78,216,.25)", fontFamily: "Manrope, sans-serif" }}
+                                style={{ background: "linear-gradient(135deg, #4f645b 0%, #43574f 100%)", color: "white", padding: "14px 28px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 4px 12px rgba(79,100,91,.2)", fontFamily: "Manrope, sans-serif" }}
                             >
                                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>check_circle</span>
-                                Hoàn tất và Quay về danh sách
+                                {loading ? "Đang tạo phòng..." : "Hoàn tất tạo phòng"}
                             </button>
                         </div>
                     </div>

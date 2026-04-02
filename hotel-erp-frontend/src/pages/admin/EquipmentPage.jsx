@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createEquipment, getEquipments, toggleEquipmentActive, updateEquipment } from "../../api/equipmentsApi";
+import {
+  createEquipment,
+  getEquipments,
+  previewSyncEquipmentInUse,
+  syncEquipmentInUse,
+  toggleEquipmentActive,
+  updateEquipment,
+} from "../../api/equipmentsApi";
 
 const fmtCurrency = (value) =>
   value == null ? "—" : new Intl.NumberFormat("vi-VN").format(value) + "đ";
@@ -272,6 +279,100 @@ function EquipmentModal({ open, mode, form, setForm, loading, error, onClose, on
   );
 }
 
+function EquipmentSyncPreviewModal({ open, changes, loading, onClose, onConfirm }) {
+  if (!open) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.55)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 240,
+        padding: 16,
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ width: "100%", maxWidth: 980, background: "white", borderRadius: 20, boxShadow: "0 24px 64px rgba(0,0,0,.2)", overflow: "hidden" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f0ea", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#1c1917" }}>Đồng bộ vật tư toàn hệ thống</h3>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>Trước là `InUse` hiện tại trong kho, sau là tổng vật tư active từ tất cả các phòng.</p>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af" }}>
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div style={{ padding: "16px 24px", maxHeight: "55vh", overflowY: "auto" }}>
+          {changes.length === 0 ? (
+            <div style={{ padding: "28px 0", textAlign: "center", color: "#6b7280", fontSize: 14 }}>
+              Không có vật tư nào để đối soát.
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f9f8f3" }}>
+                  {["Mã VT", "Tên vật tư", "Trước", "Sau", "Chênh lệch"].map((title, idx) => (
+                    <th key={title} style={{ padding: "12px 14px", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", color: "#9ca3af", textAlign: idx >= 2 ? "right" : "left", borderBottom: "1px solid #f1f0ea" }}>
+                      {title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {changes.map((item) => (
+                  <tr key={item.equipmentId} style={{ borderBottom: "1px solid #f8fafc" }}>
+                    <td style={{ padding: "12px 14px", fontSize: 12, fontFamily: "monospace", fontWeight: 700, color: "#4f645b" }}>{item.itemCode}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600, color: "#1c1917" }}>{item.equipmentName}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, textAlign: "right", color: "#6b7280" }}>{item.oldInUseQuantity ?? 0}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, textAlign: "right", color: "#1c1917", fontWeight: 700 }}>{item.newInUseQuantity ?? 0}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, textAlign: "right", fontWeight: 700, color: item.delta > 0 ? "#16a34a" : item.delta < 0 ? "#dc2626" : "#6b7280" }}>
+                      {item.delta > 0 ? "+" : ""}
+                      {item.delta ?? 0}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div style={{ padding: "16px 24px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>Tổng equipment được kiểm tra: {changes.length}</span>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={onClose} style={{ padding: "10px 16px", borderRadius: 10, border: "1px solid #e2e8e1", background: "white", color: "#4b5563", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading || changes.length === 0}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 10,
+                border: "none",
+                background: "linear-gradient(135deg,#4f645b 0%,#43574f 100%)",
+                color: "#e7fef3",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                opacity: loading || changes.length === 0 ? 0.65 : 1,
+              }}
+            >
+              {loading ? "Đang đồng bộ..." : "Đồng bộ"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EquipmentPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -291,6 +392,10 @@ export default function EquipmentPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [togglingId, setTogglingId] = useState(null);
+  const [syncPreviewOpen, setSyncPreviewOpen] = useState(false);
+  const [syncPreviewLoading, setSyncPreviewLoading] = useState(false);
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncChanges, setSyncChanges] = useState([]);
   const [toast, setToast] = useState({ message: "", type: "success" });
 
   const showToast = useCallback((message, type = "success") => {
@@ -445,6 +550,34 @@ export default function EquipmentPage() {
     }
   };
 
+  const openSyncPreview = async () => {
+    setSyncPreviewLoading(true);
+    try {
+      const res = await previewSyncEquipmentInUse();
+      setSyncChanges(res?.data?.data || []);
+      setSyncPreviewOpen(true);
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Không thể tải preview đồng bộ vật tư.", "error");
+    } finally {
+      setSyncPreviewLoading(false);
+    }
+  };
+
+  const handleSyncInUse = async () => {
+    setSyncRunning(true);
+    try {
+      const res = await syncEquipmentInUse();
+      const changed = res?.data?.changedEquipments ?? 0;
+      showToast(`Đồng bộ vật tư thành công. Đã cập nhật ${changed} equipment.`, "success");
+      setSyncPreviewOpen(false);
+      await loadItems();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Không thể đồng bộ vật tư.", "error");
+    } finally {
+      setSyncRunning(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
@@ -460,6 +593,13 @@ export default function EquipmentPage() {
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmitModal}
       />
+      <EquipmentSyncPreviewModal
+        open={syncPreviewOpen}
+        changes={syncChanges}
+        loading={syncRunning}
+        onClose={() => setSyncPreviewOpen(false)}
+        onConfirm={handleSyncInUse}
+      />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, gap: 16 }}>
         <div>
@@ -471,6 +611,23 @@ export default function EquipmentPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={openSyncPreview}
+            disabled={syncPreviewLoading || syncRunning}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 12,
+              border: "1px solid #e2e8e1",
+              background: "white",
+              color: "#1c1917",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              opacity: syncPreviewLoading || syncRunning ? 0.65 : 1,
+            }}
+          >
+            {syncPreviewLoading ? "Đang tải..." : "Đồng bộ vật tư"}
+          </button>
           <button
             onClick={openCreateModal}
             style={{

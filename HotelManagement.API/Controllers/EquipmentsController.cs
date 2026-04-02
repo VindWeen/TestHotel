@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.Data.SqlClient;
+using System.Text.Json;
 
 namespace HotelManagement.API.Controllers;
 
@@ -16,11 +17,33 @@ public class EquipmentsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly Cloudinary _cloudinary;
+    private static readonly JsonSerializerOptions SnapshotJsonOptions = new(JsonSerializerDefaults.Web);
 
     public EquipmentsController(AppDbContext db, Cloudinary cloudinary)
     {
         _db = db;
         _cloudinary = cloudinary;
+    }
+
+    private sealed class RoomSnapshotItem
+    {
+        public int EquipmentId { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    private static string SerializeRoomSnapshot(Dictionary<int, int> quantities)
+    {
+        var items = quantities
+            .Where(x => x.Value > 0)
+            .OrderBy(x => x.Key)
+            .Select(x => new RoomSnapshotItem
+            {
+                EquipmentId = x.Key,
+                Quantity = x.Value
+            })
+            .ToList();
+
+        return JsonSerializer.Serialize(items, SnapshotJsonOptions);
     }
 
     [HttpGet]
@@ -198,6 +221,137 @@ public class EquipmentsController : ControllerBase
             message = equipment.IsActive ? "Đã bật vật tư." : "Đã tắt vật tư.",
             id = equipment.Id,
             isActive = equipment.IsActive
+        });
+    }
+
+    [HttpGet("preview-sync-inuse")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> PreviewSyncInUse()
+    {
+        var totalsByEquipment = await _db.RoomInventories
+            .AsNoTracking()
+            .Where(i => i.IsActive)
+            .GroupBy(i => i.EquipmentId)
+            .Select(g => new
+            {
+                EquipmentId = g.Key,
+                Quantity = g.Sum(x => x.Quantity ?? 0)
+            })
+            .ToDictionaryAsync(x => x.EquipmentId, x => x.Quantity);
+
+        var items = await _db.Equipments
+            .AsNoTracking()
+            .OrderBy(e => e.Name)
+            .Select(e => new
+            {
+                e.Id,
+                e.ItemCode,
+                e.Name,
+                e.InUseQuantity
+            })
+            .ToListAsync();
+
+        var preview = items
+            .Select(e =>
+            {
+                var newInUseQuantity = totalsByEquipment.GetValueOrDefault(e.Id);
+                return new
+                {
+                    equipmentId = e.Id,
+                    itemCode = e.ItemCode,
+                    equipmentName = e.Name,
+                    oldInUseQuantity = e.InUseQuantity,
+                    newInUseQuantity,
+                    delta = newInUseQuantity - e.InUseQuantity
+                };
+            })
+            .OrderByDescending(x => Math.Abs(x.delta))
+            .ThenBy(x => x.equipmentName)
+            .ToList();
+
+        return Ok(new { data = preview, total = preview.Count });
+    }
+
+    [HttpPost("sync-inuse")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> SyncInUse()
+    {
+        var totalsByEquipment = await _db.RoomInventories
+            .AsNoTracking()
+            .Where(i => i.IsActive)
+            .GroupBy(i => i.EquipmentId)
+            .Select(g => new
+            {
+                EquipmentId = g.Key,
+                Quantity = g.Sum(x => x.Quantity ?? 0)
+            })
+            .ToDictionaryAsync(x => x.EquipmentId, x => x.Quantity);
+
+        var totalsByRoom = await _db.RoomInventories
+            .AsNoTracking()
+            .Where(i => i.IsActive && i.RoomId.HasValue)
+            .GroupBy(i => new { RoomId = i.RoomId!.Value, i.EquipmentId })
+            .Select(g => new
+            {
+                g.Key.RoomId,
+                g.Key.EquipmentId,
+                Quantity = g.Sum(x => x.Quantity ?? 0)
+            })
+            .ToListAsync();
+
+        var equipments = await _db.Equipments.ToListAsync();
+        var rooms = await _db.Rooms.ToListAsync();
+        var now = DateTime.UtcNow;
+        var changed = 0;
+        var changes = new List<object>();
+
+        var roomSnapshotMap = totalsByRoom
+            .GroupBy(x => x.RoomId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToDictionary(x => x.EquipmentId, x => x.Quantity)
+            );
+
+        foreach (var room in rooms)
+        {
+            room.InventorySyncSnapshotJson = SerializeRoomSnapshot(
+                roomSnapshotMap.GetValueOrDefault(room.Id) ?? new Dictionary<int, int>());
+            room.InventoryLastSyncedAt = now;
+        }
+
+        foreach (var equipment in equipments)
+        {
+            var newInUseQuantity = totalsByEquipment.GetValueOrDefault(equipment.Id);
+            var oldInUseQuantity = equipment.InUseQuantity;
+            var delta = newInUseQuantity - oldInUseQuantity;
+
+            changes.Add(new
+            {
+                equipmentId = equipment.Id,
+                itemCode = equipment.ItemCode,
+                equipmentName = equipment.Name,
+                oldInUseQuantity,
+                newInUseQuantity,
+                delta
+            });
+
+            if (delta == 0) continue;
+
+            equipment.InUseQuantity = newInUseQuantity;
+            equipment.UpdatedAt = now;
+            changed++;
+        }
+
+        if (changed > 0)
+            await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = $"Da dong bo vat tu thanh cong. Da cap nhat snapshot tung phong va {changed} equipment.",
+            changedEquipments = changed,
+            totalEquipments = equipments.Count,
+            syncedRooms = rooms.Count,
+            changes
         });
     }
 

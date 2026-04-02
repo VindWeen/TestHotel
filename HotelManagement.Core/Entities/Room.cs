@@ -16,6 +16,9 @@ public class Room
     public string CleaningStatus { get; set; } = "Clean";     // Clean / Dirty
 
     public string? Notes { get; set; }
+    public string? InventorySyncSnapshotJson { get; set; }
+    public DateTime? InventoryLastSyncedAt { get; set; }
+    public int InventoryVersion { get; set; }
 
     // Navigation
     public RoomType? RoomType { get; set; }

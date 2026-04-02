@@ -42,15 +42,15 @@ export const deleteInventory = (id) =>
 /**
  * POST /api/RoomInventories/clone  [MANAGE_INVENTORY]
  * Copies only missing active items from sourceRoomId to targetRoomIds
- * Body: { sourceRoomId, targetRoomIds: [] }
+ * Body: { sourceRoomId, targetRoomIds: [], syncSnapshotAfterClone?: boolean }
  * Response: { message, sourceRoomId, itemsPerRoom, clonedItems, skippedExistingItems, clonedToRooms, invalidRoomIds }
  */
-export const cloneInventory = (sourceRoomId, targetRoomIds) =>
-    axiosClient.post('/RoomInventories/clone', { sourceRoomId, targetRoomIds });
+export const cloneInventory = (sourceRoomId, targetRoomIds, syncSnapshotAfterClone = false) =>
+    axiosClient.post('/RoomInventories/clone', { sourceRoomId, targetRoomIds, syncSnapshotAfterClone });
 
 /**
  * GET /api/RoomInventories/preview-sync-stock  [MANAGE_INVENTORY]
- * Response: { data: [{ equipmentId, itemCode, equipmentName, roomQuantity, oldInUseQuantity, globalCalculatedInUse, globalDelta, newInUseQuantity, delta }], total }
+ * Response: { roomId, inventoryVersion, lastSyncedAt, data: [{ equipmentId, itemCode, equipmentName, oldRoomQuantity, newRoomQuantity, delta }], total }
  */
 export const previewSyncInventoryStock = (roomId) =>
     axiosClient.get('/RoomInventories/preview-sync-stock', {
@@ -59,13 +59,14 @@ export const previewSyncInventoryStock = (roomId) =>
 
 /**
  * POST /api/RoomInventories/sync-stock  [MANAGE_INVENTORY]
- * Re-calculate Equipments.in_use_quantity from all active Room_Inventory rows
- * Response: { message, changedEquipments, totalEquipments }
+ * Body: { roomId, inventoryVersion }
+ * Response: { message, roomId, updatedEquipments, changes, syncedAt }
  */
-export const syncInventoryStock = (roomId) =>
-    axiosClient.post('/RoomInventories/sync-stock', null, {
-        params: roomId ? { roomId } : undefined,
-    });
+export const syncInventoryStock = (roomId, inventoryVersion) =>
+    axiosClient.post('/RoomInventories/sync-stock', { roomId, inventoryVersion });
+
+export const saveRoomInventorySnapshot = (roomId) =>
+    axiosClient.post('/RoomInventories/save-room-snapshot', { roomId });
 
 /**
  * PATCH /api/RoomInventories/{id}/toggle-active  [MANAGE_INVENTORY]

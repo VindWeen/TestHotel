@@ -859,7 +859,7 @@ export function SyncStockPreviewModal({ open, onClose, onConfirm, syncing, chang
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 980, boxShadow: "0 24px 64px rgba(0,0,0,.2)", overflow: "hidden" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f0ea", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: 0 }}>Đồng bộ vật tư phòng với kho (2 lớp)</h3>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: 0 }}>Đối soát vật tư của phòng với lần sync trước</h3>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, color: "#9ca3af", display: "flex" }}>
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
           </button>
@@ -868,13 +868,13 @@ export function SyncStockPreviewModal({ open, onClose, onConfirm, syncing, chang
         <div style={{ padding: "16px 24px", maxHeight: "55vh", overflowY: "auto" }}>
           {changes.length === 0 ? (
             <div style={{ padding: "28px 0", textAlign: "center", color: "#6b7280", fontSize: 14 }}>
-              Không có vật tư active trong phòng hoặc chưa có dữ liệu để so sánh.
+              Không có thay đổi vật tư nào của phòng so với lần sync trước.
             </div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "rgba(249,248,243,.5)" }}>
-                  {["Mã VT", "Tên vật tư", "SL trong phòng", "InUse trước", "InUse thực tế", "Chênh lệch"].map((h, i) => (
+                  {["Mã VT", "Tên vật tư", "Trước", "Sau", "Chênh lệch"].map((h, i) => (
                     <th key={h} style={{ padding: "12px 14px", fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#9ca3af", textAlign: i >= 2 ? "right" : "left", borderBottom: "1px solid #f1f0ea" }}>
                       {h}
                     </th>
@@ -883,15 +883,13 @@ export function SyncStockPreviewModal({ open, onClose, onConfirm, syncing, chang
               </thead>
               <tbody>
                 {changes.map((row) => {
-                  const delta = row.globalDelta ?? row.delta ?? 0;
-                  const globalInUse = row.globalCalculatedInUse ?? row.newInUseQuantity ?? 0;
+                  const delta = row.delta ?? 0;
                   return (
                     <tr key={row.equipmentId} style={{ borderBottom: "1px solid #fafaf8" }}>
                       <td style={{ padding: "12px 14px", fontSize: 12, fontFamily: "monospace", fontWeight: 700, color: "#4f645b" }}>{row.itemCode || `VT-${String(row.equipmentId).padStart(4, "0")}`}</td>
                       <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 500, color: "#1c1917" }}>{row.equipmentName}</td>
-                      <td style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, color: "#374151", fontWeight: 600 }}>{fmtNumber(row.roomQuantity ?? 0)}</td>
-                      <td style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, color: "#6b7280" }}>{fmtNumber(row.oldInUseQuantity)}</td>
-                      <td style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, color: "#1c1917", fontWeight: 700 }}>{fmtNumber(globalInUse)}</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, color: "#6b7280" }}>{fmtNumber(row.oldRoomQuantity ?? 0)}</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, color: "#1c1917", fontWeight: 700 }}>{fmtNumber(row.newRoomQuantity ?? 0)}</td>
                       <td style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, fontWeight: 700, color: delta > 0 ? "#16a34a" : delta < 0 ? "#dc2626" : "#6b7280" }}>
                         {delta > 0 ? "+" : ""}{fmtNumber(delta)}
                       </td>
@@ -904,7 +902,7 @@ export function SyncStockPreviewModal({ open, onClose, onConfirm, syncing, chang
         </div>
 
         <div style={{ padding: "16px 24px", borderTop: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Tổng vật tư trong phạm vi phòng: {changes.length}</span>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>Preview này chỉ đối soát vật tư của riêng phòng trước khi cập nhật số đang dùng trong kho.</span>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={onClose} style={{ padding: "10px 16px", borderRadius: 10, fontSize: 14, fontWeight: 600, background: "none", border: "1.5px solid #e2e8e1", color: "#4b5563", cursor: "pointer" }}>
               Đóng
@@ -942,6 +940,7 @@ export default function RoomDetailPage() {
     const [cloneModal, setCloneModal] = useState(false);
     const [syncModal, setSyncModal] = useState(false);
     const [syncChanges, setSyncChanges] = useState([]);
+    const [syncVersion, setSyncVersion] = useState(null);
     const [syncPreviewLoading, setSyncPreviewLoading] = useState(false);
     const [syncingStock, setSyncingStock] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
@@ -1107,6 +1106,7 @@ export default function RoomDetailPage() {
         try {
             const res = await previewSyncInventoryStock(Number(id));
             setSyncChanges(res?.data?.data || []);
+            setSyncVersion(res?.data?.inventoryVersion ?? null);
             setSyncModal(true);
         } catch (e) {
             showToast(e?.response?.data?.message || "Không thể tải preview đồng bộ kho.", "error");
@@ -1118,13 +1118,16 @@ export default function RoomDetailPage() {
     const handleSyncStock = async () => {
         setSyncingStock(true);
         try {
-            const res = await syncInventoryStock(Number(id));
-            const changed = res?.data?.changedEquipments ?? 0;
-            showToast(`Đồng bộ kho thành công. Đã cập nhật ${changed} vật tư.`, "success");
+            const res = await syncInventoryStock(Number(id), syncVersion ?? 0);
+            const changed = res?.data?.updatedEquipments ?? 0;
+            showToast(`Đồng bộ kho thành công. Đã cập nhật ${changed} vật tư liên quan của phòng.`, "success");
             setSyncModal(false);
+            setSyncVersion(null);
             await Promise.all([loadInventory(), loadEquipments()]);
         } catch (e) {
-            showToast(e?.response?.data?.message || "Không thể đồng bộ kho vật tư.", "error");
+            showToast(e?.response?.status === 409
+                ? (e?.response?.data?.message || "Dữ liệu phòng đã thay đổi, vui lòng xem lại preview.")
+                : (e?.response?.data?.message || "Không thể đồng bộ kho vật tư."), "error");
         } finally {
             setSyncingStock(false);
         }
@@ -1198,7 +1201,7 @@ export default function RoomDetailPage() {
             />
             <SyncStockPreviewModal
                 open={syncModal}
-                onClose={() => setSyncModal(false)}
+                onClose={() => { setSyncModal(false); setSyncVersion(null); }}
                 onConfirm={handleSyncStock}
                 syncing={syncingStock}
                 changes={syncChanges}
