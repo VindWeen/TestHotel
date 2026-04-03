@@ -8,6 +8,7 @@ public class Membership
     public int? MaxPoints { get; set; }
     public decimal? DiscountPercent { get; set; }
     public string? ColorHex { get; set; }
+    public bool IsActive { get; set; } = true;
 
     // Navigation
     public ICollection<User> Users { get; set; } = [];

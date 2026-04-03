@@ -6,6 +6,7 @@ import RequirePermission from "./RequirePermission";
 import PublicOnlyRoute from "./PublicOnlyRoute";
 import { useAdminAuthStore } from "../store/adminAuthStore";
 import { getDefaultAdminPath } from "./permissionRouting";
+import { SERVICE_VIEW_STORAGE_KEY } from "../pages/admin/ServiceAdminShared";
 
 const LoginPage = lazy(() => import("../pages/LoginPage"));
 const ForbiddenPage = lazy(() => import("../pages/ForbiddenPage"));
@@ -22,6 +23,10 @@ const BookingListPage = lazy(() => import("../pages/admin/BookingListPage"));
 const BookingDetailPage = lazy(() => import("../pages/admin/BookingDetailPage"));
 const InvoiceListPage = lazy(() => import("../pages/admin/InvoiceListPage"));
 const InvoiceDetailPage = lazy(() => import("../pages/admin/InvoiceDetailPage"));
+const ServiceItemsPage = lazy(() => import("../pages/admin/ServiceItemsPage"));
+const ServiceCategoryPage = lazy(() => import("../pages/admin/ServiceCategoryPage"));
+const OrderServicePage = lazy(() => import("../pages/admin/OrderServicePage"));
+const MembershipPage = lazy(() => import("../pages/admin/MembershipPage"));
 
 function RouteFallback() {
   return (
@@ -49,6 +54,19 @@ function AdminIndexRedirect() {
   const role = useAdminAuthStore((s) => s.user?.role);
   const permissions = useAdminAuthStore((s) => s.permissions);
   return <Navigate to={getDefaultAdminPath(role, permissions)} replace />;
+}
+
+function ServiceIndexRedirect() {
+  const lastView =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem(SERVICE_VIEW_STORAGE_KEY)
+      : null;
+  const target =
+    lastView === "categories"
+      ? "/admin/services/categories"
+      : "/admin/services/items";
+
+  return <Navigate to={target} replace />;
 }
 
 // Khai báo toàn bộ nested routes
@@ -165,12 +183,53 @@ export default function AdminRoutes() {
           }
         />
 
+        <Route
+          path="services"
+          element={
+            <RequirePermission permission="MANAGE_SERVICES">
+              <ServiceIndexRedirect />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="services/categories"
+          element={
+            <RequirePermission permission="MANAGE_SERVICES">
+              {withSuspense(<ServiceCategoryPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="services/items"
+          element={
+            <RequirePermission permission="MANAGE_SERVICES">
+              {withSuspense(<ServiceItemsPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="order-services"
+          element={
+            <RequirePermission permission="MANAGE_SERVICES">
+              {withSuspense(<OrderServicePage />)}
+            </RequirePermission>
+          }
+        />
+
         {/* Nhân sự */}
         <Route
           path="staff"
           element={
             <RequirePermission permission="MANAGE_USERS">
               {withSuspense(<UserListPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="memberships"
+          element={
+            <RequirePermission permission="MANAGE_USERS">
+              {withSuspense(<MembershipPage />)}
             </RequirePermission>
           }
         />

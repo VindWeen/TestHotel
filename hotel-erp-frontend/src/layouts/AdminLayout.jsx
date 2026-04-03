@@ -270,6 +270,46 @@ export default function AdminLayout() {
               </NavLink>
             )}
 
+            {hasPermission("MANAGE_SERVICES") && (
+              <NavLink to="/admin/services" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive
+                          ? "'FILL' 1"
+                          : "'FILL' 0",
+                      }}
+                    >
+                      room_service
+                    </span>
+                    <span>Dịch vụ</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_SERVICES") && (
+              <NavLink to="/admin/order-services" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive
+                          ? "'FILL' 1"
+                          : "'FILL' 0",
+                      }}
+                    >
+                      receipt
+                    </span>
+                    <span>Đơn dịch vụ</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
             {hasPermission("MANAGE_INVOICES") && (
               <NavLink to="/admin/invoices" style={navStyle}>
                 {({ isActive }) => (
@@ -285,6 +325,26 @@ export default function AdminLayout() {
                       receipt_long
                     </span>
                     <span>Hóa đơn</span>
+                  </>
+                )}
+              </NavLink>
+            )}
+
+            {hasPermission("MANAGE_USERS") && (
+              <NavLink to="/admin/memberships" style={navStyle}>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontVariationSettings: isActive
+                          ? "'FILL' 1"
+                          : "'FILL' 0",
+                      }}
+                    >
+                      workspace_premium
+                    </span>
+                    <span>Khách hàng thành viên</span>
                   </>
                 )}
               </NavLink>

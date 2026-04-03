@@ -44,6 +44,7 @@ CREATE TABLE [dbo].[Memberships](
     [max_points]       [int]           NULL,            -- giới hạn trên của dải điểm, NULL = không giới hạn
     [discount_percent] [decimal](5, 2) NULL,
     [color_hex]        [varchar](7)    NULL,            -- màu badge FE: #CD7F32 Bronze, #C0C0C0 Silver, #FFD700 Gold
+    [is_active]        [bit]           NOT NULL DEFAULT 1,
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY]
 GO
@@ -273,6 +274,7 @@ GO
 CREATE TABLE [dbo].[Service_Categories](
     [id]   [int]           IDENTITY(1,1) NOT NULL,
     [name] [nvarchar](255) NOT NULL,
+    [is_active] [bit]      NOT NULL DEFAULT 1,
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY]
 GO
@@ -298,6 +300,7 @@ CREATE TABLE [dbo].[Order_Services](
     [status]            [nvarchar](50)   NULL,          -- Pending / Delivered / Cancelled
     [note]              [nvarchar](500)  NULL,           -- ghi chú đặc biệt: "Dị ứng hải sản"
     [completed_at]      [datetime]       NULL,           -- thời gian hoàn thành
+    [is_active]         [bit]            NOT NULL DEFAULT 1,
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY]
 GO
@@ -704,16 +707,16 @@ GO
 
 -- 3. Memberships
 SET IDENTITY_INSERT [dbo].[Memberships] ON
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (1,  N'Khách Mới', 0,      499,    CAST(0.00  AS Decimal(5,2)), N'#9E9E9E')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (2,  N'Đồng',      500,    999,    CAST(2.00  AS Decimal(5,2)), N'#CD7F32')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (3,  N'Bạc',       1000,   2999,   CAST(5.00  AS Decimal(5,2)), N'#C0C0C0')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (4,  N'Vàng',      3000,   4999,   CAST(8.00  AS Decimal(5,2)), N'#FFD700')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (5,  N'Bạch Kim',  5000,   9999,   CAST(10.00 AS Decimal(5,2)), N'#E5E4E2')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (6,  N'Kim Cương', 10000,  19999,  CAST(15.00 AS Decimal(5,2)), N'#B9F2FF')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (7,  N'Elite',     20000,  49999,  CAST(20.00 AS Decimal(5,2)), N'#7B68EE')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (8,  N'VIP',       50000,  99999,  CAST(25.00 AS Decimal(5,2)), N'#FF8C00')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (9,  N'VVIP',      100000, 199999, CAST(30.00 AS Decimal(5,2)), N'#DC143C')
-INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex]) VALUES (10, N'Signature', 200000, NULL,   CAST(35.00 AS Decimal(5,2)), N'#2F4F4F')
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (1,  N'Khách Mới', 0,      499,    CAST(0.00  AS Decimal(5,2)), N'#9E9E9E', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (2,  N'Đồng',      500,    999,    CAST(2.00  AS Decimal(5,2)), N'#CD7F32', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (3,  N'Bạc',       1000,   2999,   CAST(5.00  AS Decimal(5,2)), N'#C0C0C0', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (4,  N'Vàng',      3000,   4999,   CAST(8.00  AS Decimal(5,2)), N'#FFD700', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (5,  N'Bạch Kim',  5000,   9999,   CAST(10.00 AS Decimal(5,2)), N'#E5E4E2', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (6,  N'Kim Cương', 10000,  19999,  CAST(15.00 AS Decimal(5,2)), N'#B9F2FF', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (7,  N'Elite',     20000,  49999,  CAST(20.00 AS Decimal(5,2)), N'#7B68EE', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (8,  N'VIP',       50000,  99999,  CAST(25.00 AS Decimal(5,2)), N'#FF8C00', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (9,  N'VVIP',      100000, 199999, CAST(30.00 AS Decimal(5,2)), N'#DC143C', 1)
+INSERT [dbo].[Memberships] ([id], [tier_name], [min_points], [max_points], [discount_percent], [color_hex], [is_active]) VALUES (10, N'Signature', 200000, NULL,   CAST(35.00 AS Decimal(5,2)), N'#2F4F4F', 1)
 SET IDENTITY_INSERT [dbo].[Memberships] OFF
 GO
 
@@ -1232,16 +1235,16 @@ GO
 
 -- 18 Service_Categories
 SET IDENTITY_INSERT [dbo].[Service_Categories] ON
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (1,  N'Nhà Hàng & Ẩm Thực')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (2,  N'Spa & Massage')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (3,  N'Di Chuyển & Đưa Đón')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (4,  N'Giặt Ủi')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (5,  N'Tour Du Lịch')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (6,  N'Phòng Gym & Yoga')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (7,  N'Hồ Bơi')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (8,  N'Tổ Chức Sự Kiện')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (9,  N'Khu Vui Chơi Trẻ Em')
-INSERT [dbo].[Service_Categories] ([id], [name]) VALUES (10, N'Cửa Hàng Lưu Niệm')
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (1,  N'Nhà Hàng & Ẩm Thực', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (2,  N'Spa & Massage', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (3,  N'Di Chuyển & Đưa Đón', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (4,  N'Giặt Ủi', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (5,  N'Tour Du Lịch', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (6,  N'Phòng Gym & Yoga', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (7,  N'Hồ Bơi', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (8,  N'Tổ Chức Sự Kiện', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (9,  N'Khu Vui Chơi Trẻ Em', 1)
+INSERT [dbo].[Service_Categories] ([id], [name], [is_active]) VALUES (10, N'Cửa Hàng Lưu Niệm', 1)
 SET IDENTITY_INSERT [dbo].[Service_Categories] OFF
 GO
 
@@ -1272,26 +1275,26 @@ GO
 
 -- 20. Order_Services
 SET IDENTITY_INSERT [dbo].[Order_Services] ON
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (1,  1,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Cancelled')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (2,  2,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(200000.00  AS Decimal(18,2)), N'Delivered')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (3,  3,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Pending')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (4,  4,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(500000.00  AS Decimal(18,2)), N'Delivered')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (5,  5,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Pending')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (6,  6,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(350000.00  AS Decimal(18,2)), N'Delivered')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (7,  7,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(800000.00  AS Decimal(18,2)), N'Delivered')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (8,  8,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Pending')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (9,  9,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(1000000.00 AS Decimal(18,2)), N'Delivered')
-INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status])
-VALUES (10, 10, CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(150000.00  AS Decimal(18,2)), N'Delivered')
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (1,  1,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Cancelled', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (2,  2,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(200000.00  AS Decimal(18,2)), N'Delivered', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (3,  3,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Pending', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (4,  4,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(500000.00  AS Decimal(18,2)), N'Delivered', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (5,  5,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Pending', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (6,  6,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(350000.00  AS Decimal(18,2)), N'Delivered', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (7,  7,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(800000.00  AS Decimal(18,2)), N'Delivered', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (8,  8,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(0.00       AS Decimal(18,2)), N'Pending', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (9,  9,  CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(1000000.00 AS Decimal(18,2)), N'Delivered', 1)
+INSERT [dbo].[Order_Services] ([id],[booking_detail_id],[order_date],[total_amount],[status],[is_active])
+VALUES (10, 10, CAST(N'2026-03-06T22:07:35.027' AS DateTime), CAST(150000.00  AS Decimal(18,2)), N'Delivered', 1)
 SET IDENTITY_INSERT [dbo].[Order_Services] OFF
 GO
 

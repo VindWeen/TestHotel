@@ -190,6 +190,13 @@ public class UserManagementController : ControllerBase
             return BadRequest(new { message = $"Vai trò #{request.RoleId} không tồn tại." });
         }
 
+        if (request.MembershipId.HasValue)
+        {
+            var membershipExists = await _db.Memberships.AnyAsync(m => m.Id == request.MembershipId.Value && m.IsActive);
+            if (!membershipExists)
+                return BadRequest(new { message = $"Hạng thành viên #{request.MembershipId} không tồn tại hoặc đang bị vô hiệu hóa." });
+        }
+
         var plainPassword = PasswordGenerator.GenerateRandomPassword(12);
         var user = new User
         {
@@ -202,6 +209,7 @@ public class UserManagementController : ControllerBase
             NationalId   = request.NationalId?.Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
             RoleId       = request.RoleId,
+            MembershipId = request.MembershipId,
             Status       = true,
             CreatedAt    = DateTime.UtcNow
         };
@@ -258,12 +266,20 @@ public class UserManagementController : ControllerBase
 
         var oldValues = $"{{\"fullName\": \"{user.FullName}\", \"phone\": \"{user.Phone}\"}}";
 
+        if (request.MembershipId.HasValue)
+        {
+            var membershipExists = await _db.Memberships.AnyAsync(m => m.Id == request.MembershipId.Value && m.IsActive);
+            if (!membershipExists)
+                return BadRequest(new { message = $"Hạng thành viên #{request.MembershipId} không tồn tại hoặc đang bị vô hiệu hóa." });
+        }
+
         user.FullName    = request.FullName?.Trim()   ?? user.FullName;
         user.Phone       = request.Phone?.Trim()      ?? user.Phone;
         user.DateOfBirth = request.DateOfBirth        ?? user.DateOfBirth;
         user.Gender      = request.Gender?.Trim()     ?? user.Gender;
         user.Address     = request.Address?.Trim()    ?? user.Address;
         user.NationalId  = request.NationalId?.Trim() ?? user.NationalId;
+        user.MembershipId = request.MembershipId ?? user.MembershipId;
         user.UpdatedAt   = DateTime.UtcNow;
 
         await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
@@ -484,7 +500,8 @@ public record CreateUserRequest(
     string?   Gender,
     string?   Address,
     string?   NationalId,
-    int?      RoleId
+    int?      RoleId,
+    int?      MembershipId = null
 );
 
 public record UpdateUserRequest(
@@ -493,7 +510,8 @@ public record UpdateUserRequest(
     DateOnly? DateOfBirth,
     string?   Gender,
     string?   Address,
-    string?   NationalId
+    string?   NationalId,
+    int?      MembershipId = null
 );
 
 public record ChangeRoleRequest(int NewRoleId);

@@ -9,6 +9,7 @@ public class OrderService
     public string? Status { get; set; } // Pending / Delivered / Cancelled
     public string? Note { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public bool IsActive { get; set; } = true;
 
     // Navigation
     public BookingDetail? BookingDetail { get; set; }

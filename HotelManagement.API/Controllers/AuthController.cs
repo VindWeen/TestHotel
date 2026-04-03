@@ -110,7 +110,7 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Mật khẩu xác nhận không khớp." });
 
         var guestRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Guest");
-        var defaultMembership = await _context.Memberships.FirstOrDefaultAsync(m => m.MinPoints == 0);
+        var defaultMembership = await _context.Memberships.FirstOrDefaultAsync(m => m.MinPoints == 0 && m.IsActive);
         var refreshToken = GenerateRefreshToken();
 
         var user = new HotelManagement.Core.Entities.User

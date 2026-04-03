@@ -217,7 +217,7 @@ public class InvoiceService : IInvoiceService
 
         var totalServiceAmount = booking.BookingDetails
             .SelectMany(d => d.OrderServices)
-            .Where(s => !string.Equals(s.Status, BookingStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
+            .Where(s => s.IsActive && !string.Equals(s.Status, BookingStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
             .Sum(s => s.TotalAmount ?? s.OrderServiceDetails.Sum(x => x.Quantity * x.UnitPrice));
 
         var totalDamageAmount = booking.BookingDetails

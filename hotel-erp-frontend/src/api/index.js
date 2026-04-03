@@ -21,3 +21,7 @@ export * from './articlesApi';
 export * from './attractionsApi';
 export * from './invoicesApi';
 export * from './paymentsApi';
+export * from './servicesApi';
+export * from './orderServicesApi';
+export * from './membershipsApi';
+export * from './loyaltyMembersApi';
