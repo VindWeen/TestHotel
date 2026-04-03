@@ -14,7 +14,7 @@ using HotelManagement.Core.DTOs;
 namespace HotelManagement.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
-[Route("api/Booking")]
+// [Route("api/Booking")]
 public class BookingsController : ControllerBase
 {
     private readonly AppDbContext _context;

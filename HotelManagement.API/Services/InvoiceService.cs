@@ -116,7 +116,7 @@ public class InvoiceService : IInvoiceService
                 totalItems,
                 unpaidItems = responseData.Count(i => string.Equals(i.Status, InvoiceStatuses.Unpaid, StringComparison.OrdinalIgnoreCase))
             },
-            Message = "Láº¥y danh sĂ¡ch hĂ³a Ä‘Æ¡n thĂ nh cĂ´ng."
+            Message = "Lấy danh sách hóa đơn thành công."
         };
     }
 
@@ -196,7 +196,7 @@ public class InvoiceService : IInvoiceService
             .FirstOrDefaultAsync(i => i.BookingId == bookingId, cancellationToken);
 
         if (existing != null)
-            return new { created = false, invoiceId = existing.Id, message = "HĂ³a Ä‘Æ¡n cho booking nĂ y Ä‘Ă£ tá»“n táº¡i." };
+            return new { created = false, invoiceId = existing.Id, message = "Hóa đơn cho booking này đã tồn tại." };
 
         var booking = await _db.Bookings
             .Include(b => b.BookingDetails)
@@ -207,7 +207,7 @@ public class InvoiceService : IInvoiceService
             .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken);
 
         if (booking == null)
-            throw new KeyNotFoundException($"KhĂ´ng tĂ¬m tháº¥y booking #{bookingId}.");
+            throw new KeyNotFoundException($"Không tìm thấy booking #{bookingId}.");
 
         var totalRoomAmount = booking.BookingDetails.Sum(d =>
         {
@@ -250,7 +250,7 @@ public class InvoiceService : IInvoiceService
         {
             created = true,
             invoiceId = invoice.Id,
-            message = "Táº¡o hĂ³a Ä‘Æ¡n tá»« booking thĂ nh cĂ´ng.",
+            message = "Tạo hóa đơn từ booking thành công.",
             summary = new
             {
                 totalRoomAmount,
