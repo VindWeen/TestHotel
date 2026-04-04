@@ -1,5 +1,5 @@
-﻿// src/pages/admin/DashboardPage.jsx
-// Dashboard thực tế — tích hợp API: Bookings, Rooms, Users, Reviews, Vouchers
+// src/pages/admin/DashboardPage.jsx
+// Dashboard thực tế — tích hợp API: Bookings, Rooms, Users, Reviews, Vouchers, LossAndDamages, Equipments
 import { useState, useEffect, useCallback } from "react";
 import { getBookings } from "../../api/bookingsApi";
 import { getRooms } from "../../api/roomsApi";
@@ -7,6 +7,8 @@ import { getUsers } from "../../api/userManagementApi";
 import { getReviews } from "../../api/reviewsApi";
 import { getVouchers } from "../../api/vouchersApi";
 import { getRoomTypes } from "../../api/roomTypesApi";
+import { getEquipments } from "../../api/equipmentsApi";
+import axiosClient from "../../api/axios";
 
 const DASHBOARD_PAGE_SIZE = 200;
 
@@ -78,18 +80,29 @@ const STATUS_CFG = {
 };
 
 // ─── Room Business Status Config ───────────────────────────────────────────────
+const getRoomStatusKey = (rm) => {
+  if (rm.businessStatus === "Disabled") return "Maintenance";
+  if (rm.businessStatus === "Occupied") return "Occupied";
+  if (rm.businessStatus === "Available" && rm.cleaningStatus === "Clean") return "Ready";
+  return "Cleaning";
+};
+
 const ROOM_BS_CFG = {
-  Available: {
-    bg: "#f0fdf4", border: "#bbf7d0", dot: "#16a34a", label: "Trống",
+  Ready: {
+    bg: "#f0fdf4", border: "#bbf7d0", dot: "#16a34a", label: "Sẵn sàng",
     badge_bg: "#dcfce7", badge_color: "#14532d",
   },
   Occupied: {
-    bg: "#fff7ed", border: "#fed7aa", dot: "#ea580c", label: "Có khách",
+    bg: "#fff7ed", border: "#fed7aa", dot: "#ea580c", label: "Đang có khách",
     badge_bg: "#ffedd5", badge_color: "#7c2d12",
   },
-  Disabled: {
-    bg: "#fff1f2", border: "#fecdd3", dot: "#dc2626", label: "Đang kiểm tra",
+  Cleaning: {
+    bg: "#fff1f2", border: "#fecdd3", dot: "#dc2626", label: "Cần dọn dẹp",
     badge_bg: "#fee2e2", badge_color: "#7f1d1d",
+  },
+  Maintenance: {
+    bg: "#f3f4f6", border: "#d1d5db", dot: "#6b7280", label: "Bảo trì",
+    badge_bg: "#e5e7eb", badge_color: "#374151",
   },
 };
 
@@ -166,6 +179,8 @@ export default function DashboardPage() {
   const [reviews, setReviews] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
+  const [lossAndDamages, setLossAndDamages] = useState([]);
+  const [equipments, setEquipments] = useState([]);
 
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -183,12 +198,16 @@ export default function DashboardPage() {
     revenueByDay: [],
     bookingsByStatus: {},
     roomTypeOccupancy: [],
+    totalLossValue: 0,
+    pendingLoss: 0,
+    confirmedLoss: 0,
+    totalEquipments: 0,
   });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [bkRes, rmRes, usRes, rvApprovedRes, rvPendingRes, vcRes, rtRes] = await Promise.allSettled([
+      const [bkRes, rmRes, usRes, rvApprovedRes, rvPendingRes, vcRes, rtRes, ldRes, eqRes] = await Promise.allSettled([
         fetchAllPages(getBookings),
         getRooms(),
         fetchAllPages(getUsers),
@@ -196,6 +215,8 @@ export default function DashboardPage() {
         fetchAllPages(getReviews, { status: "pending" }),
         fetchAllPages(getVouchers),
         getRoomTypes(),
+        axiosClient.get("/LossAndDamages?pageSize=500"),
+        getEquipments({ pageSize: 500 }),
       ]);
 
       const bkList = bkRes.status === "fulfilled" ? bkRes.value : [];
@@ -207,12 +228,18 @@ export default function DashboardPage() {
       const rtList = rtRes.status === "fulfilled"
         ? (Array.isArray(rtRes.value.data) ? rtRes.value.data : (rtRes.value.data?.data || []))
         : [];
+      const ldPayload = ldRes.status === "fulfilled" ? ldRes.value.data : null;
+      const ldList = Array.isArray(ldPayload) ? ldPayload : (ldPayload?.data || []);
+      const eqPayload = eqRes.status === "fulfilled" ? eqRes.value.data : null;
+      const eqList = Array.isArray(eqPayload) ? eqPayload : (eqPayload?.data || []);
 
       setBookings(bkList);
       setRooms(rmList);
       setReviews(approvedReviews);
       setVouchers(vcList);
       setRoomTypes(rtList);
+      setLossAndDamages(ldList);
+      setEquipments(eqList);
 
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -227,6 +254,7 @@ export default function DashboardPage() {
       const pendingBookings = bkList.filter(b => b.status === "Pending").length;
 
       const available = rmList.filter(r => r.businessStatus === "Available").length;
+      const ready = rmList.filter(r => r.businessStatus === "Available" && r.cleaningStatus === "Clean").length;
       const total = rmList.length || 1;
       const occupancyRate = Math.round(((total - available) / total) * 100);
 
@@ -261,12 +289,19 @@ export default function DashboardPage() {
         return { id: rt.id, name: rt.name, occupied, total: totalRt, rate: totalRt > 0 ? Math.round((occupied / totalRt) * 100) : 0 };
       }).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 
+      // Loss & Damage stats
+      const totalLossValue = ldList.reduce((s, l) => s + (l.penaltyAmount || 0), 0);
+      const pendingLoss = ldList.filter(l => l.status === "Pending").length;
+      const confirmedLoss = ldList.filter(l => l.status === "Confirmed").length;
+      const totalEquipments = eqList.length;
+
       setStats({
         totalRevenue, todayRevenue, activeBookings, pendingBookings,
-        occupancyRate, availableRooms: available,
+        occupancyRate, availableRooms: ready,
         totalUsers: usList.length, newUsersThisMonth,
         avgRating, pendingReviews, activeVouchers,
         revenueByDay, bookingsByStatus, roomTypeOccupancy, activeRoomTypes,
+        totalLossValue, pendingLoss, confirmedLoss, totalEquipments,
       });
     } catch (err) {
       console.error("Dashboard load error:", err);
@@ -278,7 +313,13 @@ export default function DashboardPage() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const recentBookings = [...bookings].sort((a, b) => b.id - a.id).slice(0, 8);
-  const roomPreview = rooms.slice(0, 12);
+  const STATUS_ORDER = { Occupied: 0, Cleaning: 1, Maintenance: 2, Ready: 3 };
+  const roomPreview = [...rooms].sort((a, b) => {
+    const ka = STATUS_ORDER[getRoomStatusKey(a)] ?? 99;
+    const kb = STATUS_ORDER[getRoomStatusKey(b)] ?? 99;
+    if (ka !== kb) return ka - kb;
+    return (a.roomNumber || "").localeCompare(b.roomNumber || "", "vi", { numeric: true });
+  });
   const statusEntries = Object.entries(stats.bookingsByStatus).sort((a, b) => b[1] - a[1]);
   const totalBk = bookings.length || 1;
 
@@ -292,14 +333,19 @@ export default function DashboardPage() {
 
   // ─── Đếm phòng theo từng trạng thái ───────────────────────────────────────
   const roomCountByStatus = {
-    Available: rooms.filter(r => r.businessStatus === "Available").length,
+    Ready: rooms.filter(r => r.businessStatus === "Available" && r.cleaningStatus === "Clean").length,
     Occupied: rooms.filter(r => r.businessStatus === "Occupied").length,
-    Disabled: rooms.filter(r => r.businessStatus === "Disabled").length,
+    Cleaning: rooms.filter(r => r.businessStatus === "Available" && r.cleaningStatus !== "Clean").length,
+    Maintenance: rooms.filter(r => r.businessStatus === "Disabled").length,
   };
 
   return (
     <>
-      <style>{`        @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+        .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align: middle; }
+        @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         @keyframes countUp { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
         .card-in { animation: fadeUp .35s ease forwards; }
@@ -343,8 +389,8 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* ── KPI Row ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 28 }}>
+        {/* ── KPI Row 1 ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 20 }}>
           {[
             {
               icon: "payments", bg: "#d1e8dd", iconBg: "rgba(47,67,60,.1)", iconColor: "#2f433c",
@@ -361,7 +407,7 @@ export default function DashboardPage() {
             {
               icon: "meeting_room", bg: "#ffdad9", iconBg: "rgba(109,72,73,.1)", iconColor: "#6d4849",
               label: "Tỷ lệ lấp đầy", value: loading ? null : `${stats.occupancyRate}%`,
-              sub: loading ? null : `${stats.availableRooms} phòng còn trống`,
+              sub: loading ? null : `${stats.availableRooms} phòng sẵn sàng`,
               subColor: "#16a34a", delay: 120,
             },
             {
@@ -400,6 +446,60 @@ export default function DashboardPage() {
               )}
             </div>
           ))}
+        </div>
+
+        {/* ── KPI Row 2: Thất thoát + Vật tư ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
+          {/* Thất thoát hư hỏng */}
+          <div className="card-in" style={{ background: "linear-gradient(135deg,#fff1f2 0%,#ffe4e6 100%)", borderRadius: 18, padding: 22, border: "1.5px solid #fecdd3", animationDelay: "220ms", animationFillMode: "both" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div style={{ padding: 9, background: "rgba(220,38,38,.1)", borderRadius: 12 }}>
+                <span className="material-symbols-outlined" style={{ color: "#dc2626", fontSize: 22, fontVariationSettings: "'FILL' 1" }}>report</span>
+              </div>
+              {!loading && stats.pendingLoss > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, background: "#fef3c7", color: "#92400e", padding: "3px 8px", borderRadius: 9999 }}>
+                  {stats.pendingLoss} chờ xử lý
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.5)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng thất thoát bị hỏng</p>
+            {loading ? <Skel h={28} w={140} style={{ marginBottom: 6 }} /> : (
+              <div className="kpi-val" style={{ animationFillMode: "both" }}>
+                <h3 style={{ fontSize: 24, fontWeight: 800, color: "#dc2626", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+                  {fmtCurrency(stats.totalLossValue)}
+                </h3>
+              </div>
+            )}
+            {loading ? <Skel h={12} w={160} /> : (
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#dc2626" }}>
+                  {lossAndDamages.length} biên bản · {stats.confirmedLoss} xác nhận
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Tổng quan vật tư */}
+          <div className="card-in" style={{ background: "linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%)", borderRadius: 18, padding: 22, border: "1.5px solid #bae6fd", animationDelay: "280ms", animationFillMode: "both" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div style={{ padding: 9, background: "rgba(2,132,199,.1)", borderRadius: 12 }}>
+                <span className="material-symbols-outlined" style={{ color: "#0284c7", fontSize: 22, fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
+              </div>
+            </div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.5)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng quan vật tư</p>
+            {loading ? <Skel h={28} w={80} style={{ marginBottom: 6 }} /> : (
+              <div className="kpi-val" style={{ animationFillMode: "both" }}>
+                <h3 style={{ fontSize: 24, fontWeight: 800, color: "#0284c7", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+                  {fmt(equipments.length)}
+                </h3>
+              </div>
+            )}
+            {loading ? <Skel h={12} w={160} /> : (
+              <p style={{ fontSize: 11, fontWeight: 600, color: "#0369a1", margin: 0 }}>
+                {fmt(equipments.length)} loại thiết bị · {fmt(rooms.length)} phòng quản lý
+              </p>
+            )}
+          </div>
         </div>
 
         {/* ── Row 2: Revenue + Room Type Occupancy ── */}
@@ -560,7 +660,7 @@ export default function DashboardPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {[
                   { icon: "local_offer", iconColor: "#1e40af", bg: "#dbeafe", label: "Voucher đang hoạt động", value: fmt(stats.activeVouchers), sub: `${fmt(vouchers.length)} tổng cộng` },
-                  { icon: "bed", iconColor: "#065f46", bg: "#d1fae5", label: "Phòng trống", value: fmt(stats.availableRooms), sub: `${fmt(rooms.length)} phòng tổng` },
+                  { icon: "bed", iconColor: "#065f46", bg: "#d1fae5", label: "Phòng sẵn sàng", value: fmt(stats.availableRooms), sub: `${fmt(rooms.length)} phòng tổng` },
                   { icon: "category", iconColor: "#9333ea", bg: "#f3e8ff", label: "Loại phòng", value: fmt(roomTypes.length), sub: "Loại phòng đang hoạt động" },
                   { icon: "people", iconColor: "#b45309", bg: "#fef3c7", label: "Nhân viên & Khách", value: fmt(stats.totalUsers), sub: `+${fmt(stats.newUsersThisMonth)} tháng này` },
                 ].map((item, i) => (
@@ -660,7 +760,7 @@ export default function DashboardPage() {
 
             {/* Legend badges */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(["Available", "Occupied", "Disabled"]).map(status => {
+              {(["Ready", "Occupied", "Cleaning", "Maintenance"]).map(status => {
                 const cfg = ROOM_BS_CFG[status];
                 const cnt = roomCountByStatus[status] || 0;
                 return (
@@ -689,71 +789,85 @@ export default function DashboardPage() {
             ) : rooms.length === 0 ? (
               <p style={{ color: "#9ca3af", fontSize: 13, textAlign: "center", padding: "16px 0" }}>Chưa có phòng nào</p>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 12 }}>
-                {roomPreview.map((rm) => {
-                  const bsCfg = ROOM_BS_CFG[rm.businessStatus] || ROOM_BS_CFG.Disabled;
-                  const cleanOk = rm.cleaningStatus === "Clean";
-
+              <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+                {(["Occupied", "Cleaning", "Maintenance", "Ready"]).map(statusKey => {
+                  const groupRooms = roomPreview.filter(r => getRoomStatusKey(r) === statusKey);
+                  if (groupRooms.length === 0) return null;
+                  const cfg = ROOM_BS_CFG[statusKey];
                   return (
-                    <div
-                      key={rm.id}
-                      className="room-card"
-                      style={{
-                        background: bsCfg.bg,
-                        border: `1.5px solid ${bsCfg.border}`,
-                        borderRadius: 14,
-                        padding: "14px 16px",
-                        cursor: "default",
-                      }}
-                    >
-                      {/* Room number + status dot */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", letterSpacing: "-0.02em" }}>
-                          {rm.roomNumber}
+                    <div key={statusKey}>
+                      {/* Section header */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.dot, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: cfg.badge_color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          {cfg.label}
                         </span>
-                        <span
-                          style={{
-                            width: 10, height: 10, borderRadius: "50%",
-                            background: bsCfg.dot, flexShrink: 0,
-                            boxShadow: `0 0 0 3px ${bsCfg.border}`,
-                          }}
-                        />
+                        <span style={{ fontSize: 11, fontWeight: 600, background: cfg.badge_bg, color: cfg.badge_color, padding: "2px 8px", borderRadius: 9999 }}>
+                          {groupRooms.length} phòng
+                        </span>
+                        <div style={{ flex: 1, height: 1, background: cfg.border }} />
                       </div>
 
-                      {/* Room type / floor */}
-                      <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(0,0,0,.38)", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.08em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {rm.roomTypeName || (rm.floor ? `Tầng ${rm.floor}` : "—")}
-                      </p>
+                      {/* Room cards grid */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 12 }}>
+                        {groupRooms.map((rm) => {
+                          const bsCfg = cfg;
+                          const cleanOk = rm.cleaningStatus === "Clean";
+                          return (
+                            <div
+                              key={rm.id}
+                              className="room-card"
+                              style={{
+                                background: bsCfg.bg,
+                                border: `1.5px solid ${bsCfg.border}`,
+                                borderRadius: 14,
+                                padding: "14px 16px",
+                                cursor: "default",
+                              }}
+                            >
+                              {/* Room number + status dot */}
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                <span style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", letterSpacing: "-0.02em" }}>
+                                  {rm.roomNumber}
+                                </span>
+                                <span
+                                  style={{
+                                    width: 10, height: 10, borderRadius: "50%",
+                                    background: bsCfg.dot, flexShrink: 0,
+                                    boxShadow: `0 0 0 3px ${bsCfg.border}`,
+                                  }}
+                                />
+                              </div>
 
-                      {/* Business status badge */}
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: bsCfg.badge_color }}>
-                          {bsCfg.label}
-                        </span>
+                              {/* Room type / floor */}
+                              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(0,0,0,.38)", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.08em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {rm.roomTypeName || (rm.floor ? `Tầng ${rm.floor}` : "—")}
+                              </p>
 
-                        {/* Cleaning status icon */}
-                        <span
-                          className="material-symbols-outlined"
-                          style={{
-                            fontSize: 15,
-                            color: cleanOk ? "#16a34a" : "#ea580c",
-                            fontVariationSettings: "'FILL' 1",
-                          }}
-                          title={cleanOk ? "Phòng sạch" : "Cần dọn phòng"}
-                        >
-                          {cleanOk ? "check_circle" : "warning"}
-                        </span>
+                              {/* Status badge + cleaning icon */}
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: bsCfg.badge_color }}>
+                                  {bsCfg.label}
+                                </span>
+                                <span
+                                  className="material-symbols-outlined"
+                                  style={{
+                                    fontSize: 15,
+                                    color: cleanOk ? "#16a34a" : "#ea580c",
+                                    fontVariationSettings: "'FILL' 1",
+                                  }}
+                                  title={cleanOk ? "Phòng sạch" : "Cần dọn phòng"}
+                                >
+                                  {cleanOk ? "check_circle" : "warning"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
                 })}
-
-                {rooms.length > 12 && (
-                  <div style={{ background: "#f9f8f3", border: "1.5px dashed #d1d5db", borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: 12, fontWeight: 600, gap: 4 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 22 }}>more_horiz</span>
-                    +{rooms.length - 12} phòng
-                  </div>
-                )}
               </div>
             )}
           </div>
