@@ -33,3 +33,9 @@ export const createInvoiceFromBooking = (bookingId) =>
   axiosClient.post(`/Invoices/from-booking/${bookingId}`);
 
 export const finalizeInvoice = (id) => axiosClient.post(`/Invoices/${id}/finalize`);
+
+export const addInvoiceAdjustment = (id, data) =>
+  axiosClient.post(`/Invoices/${id}/adjustments`, data);
+
+export const removeInvoiceAdjustment = (id, adjustmentId) =>
+  axiosClient.delete(`/Invoices/${id}/adjustments/${adjustmentId}`);

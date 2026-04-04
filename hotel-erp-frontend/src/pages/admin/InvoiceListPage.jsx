@@ -37,6 +37,7 @@ function Toast({ id, msg, type = "success", dur = 3500, onDismiss }) {
 const InvoiceStatusBadge = ({ status }) => {
   const map = {
     Draft: { bg: "#e0f2fe", text: "#0369a1", icon: "draft" },
+    Ready_To_Collect: { bg: "#ede9fe", text: "#6d28d9", icon: "point_of_sale" },
     Unpaid: { bg: "#fef2f2", text: "#dc2626", icon: "pending_actions" },
     Partially_Paid: { bg: "#fef3c7", text: "#d97706", icon: "hourglass_half" },
     Paid: { bg: "#ecfdf5", text: "#059669", icon: "check_circle" },
@@ -144,6 +145,7 @@ export default function InvoiceListPage() {
         >
           <option value="">Tất cả trạng thái</option>
           <option value="Draft">Draft (Hóa đơn nháp)</option>
+          <option value="Ready_To_Collect">Ready (Sẵn sàng thu tiền)</option>
           <option value="Unpaid">Unpaid (Chưa thanh toán)</option>
           <option value="Partially_Paid">Partially Paid (TT một phần)</option>
           <option value="Paid">Paid (Đã thanh toán)</option>

@@ -350,6 +350,18 @@ PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY]
 GO
 
+CREATE TABLE [dbo].[Invoice_Adjustments](
+    [id]                [int]            IDENTITY(1,1) NOT NULL,
+    [invoice_id]        [int]            NOT NULL,
+    [adjustment_type]   [nvarchar](30)   NOT NULL DEFAULT 'Surcharge', -- Surcharge / Discount
+    [amount]            [decimal](18, 2) NOT NULL,
+    [reason]            [nvarchar](255)  NOT NULL,
+    [note]              [nvarchar](500)  NULL,
+    [created_at]        [datetime]       NOT NULL DEFAULT GETDATE(),
+PRIMARY KEY CLUSTERED ([id] ASC)
+) ON [PRIMARY]
+GO
+
 CREATE TABLE [dbo].[Payments](
     [id]               [int]            IDENTITY(1,1) NOT NULL,
     [invoice_id]       [int]            NULL,
@@ -578,6 +590,7 @@ ALTER TABLE [dbo].[Services]            WITH CHECK ADD FOREIGN KEY([category_id]
 -- Cluster 5
 ALTER TABLE [dbo].[Articles]            WITH CHECK ADD FOREIGN KEY([author_id])             REFERENCES [dbo].[Users]             ([id])
 ALTER TABLE [dbo].[Articles]            WITH CHECK ADD FOREIGN KEY([category_id])           REFERENCES [dbo].[Article_Categories]([id])
+ALTER TABLE [dbo].[Invoice_Adjustments] WITH CHECK ADD FOREIGN KEY([invoice_id])            REFERENCES [dbo].[Invoices]          ([id])
 ALTER TABLE [dbo].[Payments]            WITH CHECK ADD FOREIGN KEY([invoice_id])            REFERENCES [dbo].[Invoices]          ([id])
 ALTER TABLE [dbo].[Reviews]             WITH CHECK ADD FOREIGN KEY([booking_id])            REFERENCES [dbo].[Bookings]          ([id])
 ALTER TABLE [dbo].[Reviews]             WITH CHECK ADD FOREIGN KEY([room_type_id])          REFERENCES [dbo].[Room_Types]        ([id])

@@ -110,3 +110,11 @@ public class BookingTimelineEventResponse
     public DateTime? At { get; set; }
     public string? Note { get; set; }
 }
+
+public class AddInvoiceAdjustmentRequest
+{
+    public string AdjustmentType { get; set; } = "Surcharge";
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = null!;
+    public string? Note { get; set; }
+}

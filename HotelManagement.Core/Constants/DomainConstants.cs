@@ -20,6 +20,7 @@ public static class PaymentStatuses
 public static class InvoiceStatuses
 {
     public const string Draft = "Draft";
+    public const string ReadyToCollect = "Ready_To_Collect";
     public const string Unpaid = "Unpaid";
     public const string PartiallyPaid = "Partially_Paid";
     public const string Paid = "Paid";

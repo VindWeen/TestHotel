@@ -1,4 +1,4 @@
-using HotelManagement.API.Services;
+﻿using HotelManagement.API.Services;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -77,5 +77,41 @@ public class InvoicesController : ControllerBase
             return NotFound(new { message = $"Không tìm thấy hóa đơn #{id}." });
 
         return Ok(new { message = "Chốt hóa đơn thành công.", data = result });
+    }
+
+    [RequirePermission(PermissionCodes.ManageInvoices)]
+    [HttpPost("{id:int}/adjustments")]
+    public async Task<IActionResult> AddAdjustment(int id, [FromBody] AddInvoiceAdjustmentRequest request)
+    {
+        try
+        {
+            var result = await _invoiceService.AddAdjustmentAsync(id, request);
+            if (result == null)
+                return NotFound(new { message = $"Không tìm thấy hóa đơn #{id}." });
+
+            return Ok(new { message = "Đã thêm điều chỉnh hóa đơn thành công.", data = result });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [RequirePermission(PermissionCodes.ManageInvoices)]
+    [HttpDelete("{id:int}/adjustments/{adjustmentId:int}")]
+    public async Task<IActionResult> RemoveAdjustment(int id, int adjustmentId)
+    {
+        try
+        {
+            var result = await _invoiceService.RemoveAdjustmentAsync(id, adjustmentId);
+            if (result == null)
+                return NotFound(new { message = $"Không tìm thấy hóa đơn #{id}." });
+
+            return Ok(new { message = "Đã xóa điều chỉnh hóa đơn thành công.", data = result });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 }

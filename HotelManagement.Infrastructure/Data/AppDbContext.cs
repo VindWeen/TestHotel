@@ -41,6 +41,7 @@ public class AppDbContext : DbContext
 
     // ── Cluster 5: Billing, Reviews & CMS ───────────────────────
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceAdjustment> InvoiceAdjustments => Set<InvoiceAdjustment>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<ArticleCategory> ArticleCategories => Set<ArticleCategory>();
@@ -69,6 +70,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderService>().ToTable("Order_Services");
         modelBuilder.Entity<OrderServiceDetail>().ToTable("Order_Service_Details");
         modelBuilder.Entity<LossAndDamage>().ToTable("Loss_And_Damages");
+        modelBuilder.Entity<InvoiceAdjustment>().ToTable("Invoice_Adjustments");
         modelBuilder.Entity<ArticleCategory>().ToTable("Article_Categories");
         modelBuilder.Entity<LoyaltyTransaction>().ToTable("Loyalty_Transactions");
         modelBuilder.Entity<VoucherUsage>().ToTable("Voucher_Usage");
