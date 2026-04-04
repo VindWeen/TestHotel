@@ -51,11 +51,8 @@ export default function AdminLayout() {
   const hasPermission = (code) =>
     permissions.some(
       (p) =>
-        (typeof p === "string" &&
-          (p === code || (code === "VIEW_ROLES" && p === "MANAGE_ROLES"))) ||
-        (typeof p === "object" &&
-          (p.permissionCode === code ||
-            (code === "VIEW_ROLES" && p.permissionCode === "MANAGE_ROLES"))),
+        (typeof p === "string" && p === code) ||
+        (typeof p === "object" && p.permissionCode === code),
     );
 
   const ch = (user?.fullName || "A")[0].toUpperCase();

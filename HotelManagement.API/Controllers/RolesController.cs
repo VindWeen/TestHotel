@@ -1,3 +1,4 @@
+﻿using HotelManagement.API.Services;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
@@ -5,7 +6,6 @@ using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HotelManagement.API.Services;
 
 namespace HotelManagement.API.Controllers;
 
@@ -23,10 +23,6 @@ public class RolesController : ControllerBase
         _activityLog = activityLog;
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // GET /api/Roles  [Authorize]
-    // Danh sách toàn bộ roles — FE dùng để populate dropdown chọn role.
-    // ──────────────────────────────────────────────────────────────
     [HttpGet]
     [RequirePermission(PermissionCodes.ViewRoles)]
     public async Task<IActionResult> GetAll()
@@ -45,10 +41,6 @@ public class RolesController : ControllerBase
         return Ok(new { data = roles, total = roles.Count });
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // GET /api/Roles/{id}  [MANAGE_ROLES]
-    // Chi tiết 1 role kèm danh sách permissions đang được gán.
-    // ──────────────────────────────────────────────────────────────
     [HttpGet("{id:int}")]
     [RequirePermission(PermissionCodes.ViewRoles)]
     public async Task<IActionResult> GetById(int id)
@@ -80,17 +72,16 @@ public class RolesController : ControllerBase
         return Ok(role);
     }
 
-    /// <summary>
-    /// Gán hoặc thu hồi permission cho một role.
-    /// Body: { roleId, permissionId, grant: true = gán / false = thu hồi }
-    /// </summary>
     [HttpPost("assign-permission")]
     [RequirePermission(PermissionCodes.EditRoles)]
     public async Task<IActionResult> AssignPermission([FromBody] AssignPermissionRequest request)
     {
-        var roleExists = await _db.Roles.AnyAsync(r => r.Id == request.RoleId);
-        if (!roleExists)
+        var role = await _db.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == request.RoleId);
+        if (role is null)
             return NotFound(new { message = $"Role #{request.RoleId} không tồn tại." });
+
+        if (IsSystemProtectedRole(role.Name))
+            return BadRequest(new { message = $"Không cho phép chỉnh phân quyền trực tiếp cho vai trò '{role.Name}'." });
 
         var permissionExists = await _db.Permissions.AnyAsync(p => p.Id == request.PermissionId);
         if (!permissionExists)
@@ -98,7 +89,7 @@ public class RolesController : ControllerBase
 
         var existing = await _db.RolePermissions
             .FirstOrDefaultAsync(rp =>
-                rp.RoleId       == request.RoleId &&
+                rp.RoleId == request.RoleId &&
                 rp.PermissionId == request.PermissionId);
 
         if (request.Grant)
@@ -107,34 +98,33 @@ public class RolesController : ControllerBase
             {
                 _db.RolePermissions.Add(new RolePermission
                 {
-                    RoleId       = request.RoleId,
+                    RoleId = request.RoleId,
                     PermissionId = request.PermissionId
                 });
 
                 var currentUserId = JwtHelper.GetUserId(User);
                 _db.AuditLogs.Add(new AuditLog
                 {
-                    UserId    = currentUserId,
-                    Action    = "GRANT_PERMISSION",
+                    UserId = currentUserId,
+                    Action = "GRANT_PERMISSION",
                     TableName = "Role_Permissions",
-                    RecordId  = request.RoleId,
-                    OldValue  = null,
-                    NewValue  = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
+                    RecordId = request.RoleId,
+                    OldValue = null,
+                    NewValue = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
                     UserAgent = Request.Headers["User-Agent"].ToString(),
                     CreatedAt = DateTime.UtcNow
                 });
 
                 await _db.SaveChangesAsync();
 
-                var roleName = (await _db.Roles.FindAsync(request.RoleId))?.Name ?? $"Role #{request.RoleId}";
                 var permissionName = (await _db.Permissions.FindAsync(request.PermissionId))?.Name ?? $"Permission #{request.PermissionId}";
                 await _activityLog.LogAsync(
                     actionCode: "GRANT_PERMISSION",
                     actionLabel: "Cấp quyền cho vai trò",
-                    message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cấp quyền '{permissionName}' cho vai trò '{roleName}'.",
+                    message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã cấp quyền '{permissionName}' cho vai trò '{role.Name}'.",
                     entityType: "Role",
                     entityId: request.RoleId,
-                    entityLabel: roleName,
+                    entityLabel: role.Name,
                     severity: "Warning",
                     userId: currentUserId,
                     roleName: User.FindFirst("role")?.Value
@@ -143,50 +133,43 @@ public class RolesController : ControllerBase
 
             return Ok(new { message = "Đã gán permission thành công." });
         }
-        else
+
+        if (existing is not null)
         {
-            if (existing is not null)
+            _db.RolePermissions.Remove(existing);
+
+            var currentUserId = JwtHelper.GetUserId(User);
+            _db.AuditLogs.Add(new AuditLog
             {
-                _db.RolePermissions.Remove(existing);
+                UserId = currentUserId,
+                Action = "REVOKE_PERMISSION",
+                TableName = "Role_Permissions",
+                RecordId = request.RoleId,
+                OldValue = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
+                NewValue = null,
+                UserAgent = Request.Headers["User-Agent"].ToString(),
+                CreatedAt = DateTime.UtcNow
+            });
 
-                var currentUserId = JwtHelper.GetUserId(User);
-                _db.AuditLogs.Add(new AuditLog
-                {
-                    UserId    = currentUserId,
-                    Action    = "REVOKE_PERMISSION",
-                    TableName = "Role_Permissions",
-                    RecordId  = request.RoleId,
-                    OldValue  = $"{{\"roleId\": {request.RoleId}, \"permissionId\": {request.PermissionId}}}",
-                    NewValue  = null,
-                    UserAgent = Request.Headers["User-Agent"].ToString(),
-                    CreatedAt = DateTime.UtcNow
-                });
+            await _db.SaveChangesAsync();
 
-                await _db.SaveChangesAsync();
-
-                var roleName2 = (await _db.Roles.FindAsync(request.RoleId))?.Name ?? $"Role #{request.RoleId}";
-                var permissionName2 = (await _db.Permissions.FindAsync(request.PermissionId))?.Name ?? $"Permission #{request.PermissionId}";
-                await _activityLog.LogAsync(
-                    actionCode: "REVOKE_PERMISSION",
-                    actionLabel: "Thu hồi quyền khỏi vai trò",
-                    message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thu hồi quyền '{permissionName2}' khỏi vai trò '{roleName2}'.",
-                    entityType: "Role",
-                    entityId: request.RoleId,
-                    entityLabel: roleName2,
-                    severity: "Warning",
-                    userId: currentUserId,
-                    roleName: User.FindFirst("role")?.Value
-                );
-            }
-
-            return Ok(new { message = "Đã thu hồi permission thành công." });
+            var permissionName = (await _db.Permissions.FindAsync(request.PermissionId))?.Name ?? $"Permission #{request.PermissionId}";
+            await _activityLog.LogAsync(
+                actionCode: "REVOKE_PERMISSION",
+                actionLabel: "Thu hồi quyền khỏi vai trò",
+                message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thu hồi quyền '{permissionName}' khỏi vai trò '{role.Name}'.",
+                entityType: "Role",
+                entityId: request.RoleId,
+                entityLabel: role.Name,
+                severity: "Warning",
+                userId: currentUserId,
+                roleName: User.FindFirst("role")?.Value
+            );
         }
+
+        return Ok(new { message = "Đã thu hồi permission thành công." });
     }
 
-    /// <summary>
-    /// Trả về danh sách permission_code của người dùng hiện tại.
-    /// FE dùng để ẩn/hiện menu sau khi đăng nhập.
-    /// </summary>
     [HttpGet("my-permissions")]
     public async Task<IActionResult> GetMyPermissions()
     {
@@ -204,7 +187,7 @@ public class RolesController : ControllerBase
             .Where(rp => rp.RoleId == user.RoleId)
             .Join(_db.Permissions,
                 rp => rp.PermissionId,
-                p  => p.Id,
+                p => p.Id,
                 (rp, p) => new
                 {
                     p.PermissionCode,
@@ -214,6 +197,12 @@ public class RolesController : ControllerBase
             .ToListAsync();
 
         return Ok(new { permissions });
+    }
+
+    private static bool IsSystemProtectedRole(string? roleName)
+    {
+        return string.Equals(roleName, "Guest", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(roleName, "Admin", StringComparison.OrdinalIgnoreCase);
     }
 }
 

@@ -1,4 +1,4 @@
-using HotelManagement.Core.Authorization;
+﻿using HotelManagement.Core.Authorization;
 using HotelManagement.Core.DTOs;
 using HotelManagement.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -74,15 +74,20 @@ public class LoyaltyMembersController : ControllerBase
             .FirstOrDefaultAsync();
 
         var tierBreakdown = await baseQuery
-            .GroupBy(u => u.Membership != null ? u.Membership.TierName : "Chưa có hạng")
+            .GroupBy(u => new
+            {
+                TierName = u.Membership != null ? u.Membership.TierName : "Chưa có hạng",
+                SortRank = u.Membership != null ? (u.Membership.MinPoints ?? -1) : -1
+            })
             .Select(g => new
             {
-                tierName = g.Key,
+                tierName = g.Key.TierName,
+                sortRank = g.Key.SortRank,
                 memberCount = g.Count(),
                 totalPoints = g.Sum(x => x.LoyaltyPoints),
                 totalUsablePoints = g.Sum(x => x.LoyaltyPointsUsable)
             })
-            .OrderByDescending(x => x.memberCount)
+            .OrderByDescending(x => x.sortRank)
             .ThenBy(x => x.tierName)
             .ToListAsync();
 
@@ -91,8 +96,8 @@ public class LoyaltyMembersController : ControllerBase
         {
             "fullname" => sortDirDesc ? baseQuery.OrderByDescending(u => u.FullName) : baseQuery.OrderBy(u => u.FullName),
             "tier" => sortDirDesc
-                ? baseQuery.OrderByDescending(u => u.Membership != null ? u.Membership.TierName : string.Empty).ThenByDescending(u => u.LoyaltyPoints)
-                : baseQuery.OrderBy(u => u.Membership != null ? u.Membership.TierName : string.Empty).ThenByDescending(u => u.LoyaltyPoints),
+                ? baseQuery.OrderByDescending(u => u.Membership != null ? (u.Membership.MinPoints ?? -1) : -1).ThenByDescending(u => u.LoyaltyPoints)
+                : baseQuery.OrderBy(u => u.Membership != null ? (u.Membership.MinPoints ?? -1) : -1).ThenByDescending(u => u.LoyaltyPoints),
             "usablepoints" => sortDirDesc ? baseQuery.OrderByDescending(u => u.LoyaltyPointsUsable) : baseQuery.OrderBy(u => u.LoyaltyPointsUsable),
             "createdat" => sortDirDesc ? baseQuery.OrderByDescending(u => u.CreatedAt) : baseQuery.OrderBy(u => u.CreatedAt),
             _ => sortDirDesc ? baseQuery.OrderByDescending(u => u.LoyaltyPoints).ThenByDescending(u => u.CreatedAt) : baseQuery.OrderBy(u => u.LoyaltyPoints).ThenBy(u => u.CreatedAt)

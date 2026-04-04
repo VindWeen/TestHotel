@@ -18,6 +18,11 @@ export const getOrderServicesByBookingDetail = (bookingDetailId, params = {}) =>
   );
 };
 
+export const getOrderServiceBookingOptions = (params = {}) => {
+  const query = buildQueryString(params);
+  return axiosClient.get(`/OrderServices/booking-detail-options${query ? `?${query}` : ""}`);
+};
+
 export const createOrderService = (data) =>
   axiosClient.post("/OrderServices", data);
 

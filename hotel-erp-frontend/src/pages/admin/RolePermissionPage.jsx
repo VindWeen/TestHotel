@@ -1,4 +1,4 @@
-// src/pages/admin/RolePermissionPage.jsx
+﻿// src/pages/admin/RolePermissionPage.jsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { getRoles, getRoleById, assignPermission } from "../../api/rolesApi";
 import { getPermissions } from "../../api/permissionsApi";
@@ -39,7 +39,7 @@ const getPermissionLabel = (permission) =>
   permission.name ||
   permission.permissionCode;
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TOAST_STYLES = {
   success: {
     bg: "#1e3a2f",
@@ -232,7 +232,7 @@ function PermissionCheckbox({
   );
 }
 
-// ─── Role color dots ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Role color dots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ROLE_COLORS = {
   Admin: "#7c3aed",
   Manager: "#059669",
@@ -250,7 +250,11 @@ function getRoleColor(name) {
   return ROLE_COLORS[name] || "#4f645b";
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function isProtectedRole(name) {
+  return name === "Admin" || name === "Guest";
+}
+
+// â”€â”€â”€ Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SkeletonRows() {
   return Array.from({ length: 5 }).map((_, i) => (
     <tr key={i}>
@@ -279,7 +283,7 @@ function SkeletonRows() {
   ));
 }
 
-// ─── Permission Modal ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Permission Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PermissionModal({
   role,
   initialPerms,
@@ -290,6 +294,7 @@ function PermissionModal({
   showToast,
 }) {
   const [currentPerms] = useState(initialPerms || []);
+  const canEditRole = canEdit && !isProtectedRole(role?.name);
   const [checked, setChecked] = useState(() => {
     const map = {};
     const hasManageRoles = (initialPerms || []).some(
@@ -486,7 +491,7 @@ function PermissionModal({
                 letterSpacing: "-0.02em",
               }}
             >
-              Cấu hình Quyền hạn
+              Cấu hình quyền hạn
             </h3>
             <p
               style={{
@@ -496,7 +501,7 @@ function PermissionModal({
                 fontWeight: 500,
               }}
             >
-              Vai trò:{" "}
+              Vai tro:{" "}
               <span style={{ color: getRoleColor(role.name), fontWeight: 700 }}>
                 {role.name}
               </span>
@@ -537,22 +542,39 @@ function PermissionModal({
               borderRadius: 12,
               border: "1.5px solid #d8e2dc",
               background: "#f5f8f6",
-              cursor: canEdit ? "pointer" : "not-allowed",
+              cursor: canEditRole ? "pointer" : "not-allowed",
               userSelect: "none",
             }}
           >
             <PermissionCheckbox
               checked={allChecked}
               indeterminate={partiallyChecked}
-              disabled={!canEdit}
+              disabled={!canEditRole}
               onChange={toggleAll}
               size={17}
             />
             <span style={{ fontSize: 13, fontWeight: 700, color: "#2f3d36" }}>
-              Tất cả quyền
+              Tat ca quyen
             </span>
           </label>
 
+          {isProtectedRole(role?.name) && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "10px 14px",
+                borderRadius: 12,
+                background: "#fff7ed",
+                border: "1px solid #fed7aa",
+                color: "#9a3412",
+                fontSize: 12,
+                lineHeight: 1.6,
+                fontWeight: 600,
+              }}
+            >
+              Vai trò hệ thống như Admin và Guest đang được khóa phân quyền trực tiếp để tránh lệch quyền nên.
+            </div>
+          )}
           {Object.entries(grouped).map(([module, perms]) => (
             <div key={module} style={{ marginBottom: 20 }}>
               <div
@@ -579,7 +601,7 @@ function PermissionModal({
                       0,
                     ) < perms.length
                   }
-                  disabled={!canEdit}
+                  disabled={!canEditRole}
                   onChange={() => toggleModule(perms)}
                   size={16}
                 />
@@ -616,14 +638,14 @@ function PermissionModal({
                         ? "rgba(79,100,91,.08)"
                         : "#f9f8f3",
                       border: `1.5px solid ${checked[p.id] ? "rgba(79,100,91,.3)" : "#e2e8e1"}`,
-                      cursor: canEdit ? "pointer" : "not-allowed",
+                      cursor: canEditRole ? "pointer" : "not-allowed",
                       transition: "all .15s",
                       userSelect: "none",
                     }}
                   >
                     <PermissionCheckbox
                       checked={!!checked[p.id]}
-                      disabled={!canEdit}
+                      disabled={!canEditRole}
                       onChange={() => toggle(p.id)}
                       size={17}
                     />
@@ -670,7 +692,7 @@ function PermissionModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !canEdit}
+            disabled={saving || !canEditRole}
             style={{
               padding: "10px 22px",
               borderRadius: 10,
@@ -679,11 +701,11 @@ function PermissionModal({
               background: "linear-gradient(135deg,#4f645b 0%,#43574f 100%)",
               color: "#e7fef3",
               border: "none",
-              cursor: canEdit ? "pointer" : "not-allowed",
+              cursor: canEditRole ? "pointer" : "not-allowed",
               display: "flex",
               alignItems: "center",
               gap: 8,
-              opacity: saving || !canEdit ? 0.6 : 1,
+              opacity: saving || !canEditRole ? 0.6 : 1,
             }}
           >
             {saving && (
@@ -706,7 +728,7 @@ function PermissionModal({
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function RolePermissionPage() {
   const { permissions } = useAdminAuthStore();
 
@@ -763,7 +785,7 @@ export default function RolePermissionPage() {
 
   const handleRefresh = () => loadRoles(true);
 
-  // Fetch trước khi mở modal — tránh flash skeleton
+  // Fetch trước khi mở modal để tránh flash skeleton
   const openPermission = async (role) => {
     try {
       const res = await getRoleById(role.id);
@@ -782,14 +804,8 @@ export default function RolePermissionPage() {
   const hasPermission = (code) =>
     permissions.some(
       (p) =>
-        (typeof p === "string" &&
-          (p === code ||
-            ((code === "VIEW_ROLES" || code === "EDIT_ROLES") &&
-              p === "MANAGE_ROLES"))) ||
-        (typeof p === "object" &&
-          (p.permissionCode === code ||
-            ((code === "VIEW_ROLES" || code === "EDIT_ROLES") &&
-              p.permissionCode === "MANAGE_ROLES"))),
+        (typeof p === "string" && p === code) ||
+        (typeof p === "object" && p.permissionCode === code),
     );
 
   return (
@@ -826,7 +842,7 @@ export default function RolePermissionPage() {
                 tr:hover td { background:rgba(249,248,243,.6) !important; }
             `}</style>
 
-      {/* Khu v?c thông báo */}
+      {/* Khu v?c thĂ´ng bĂ¡o */}
       <div
         style={{
           position: "fixed",
@@ -888,8 +904,7 @@ export default function RolePermissionPage() {
                 maxWidth: 520,
               }}
             >
-              Phân định vai trò và gán quyền hạn truy cập cho từng bộ phận trong
-              hệ thống Grand Horizon.
+              Phân định vai trò và gán quyền hạn truy cập cho từng bộ phận.
             </p>
           </div>
           <button
@@ -1068,7 +1083,7 @@ export default function RolePermissionPage() {
                             <span
                               style={{ color: "#d1d5db", fontStyle: "italic" }}
                             >
-                              Chưa có mô tả
+                              Chua co mo ta
                             </span>
                           )}
                         </td>
@@ -1079,6 +1094,18 @@ export default function RolePermissionPage() {
                             <button
                               className="perm-btn"
                               onClick={() => openPermission(role)}
+                              disabled={isProtectedRole(role.name)}
+                              title={
+                                isProtectedRole(role.name)
+                                  ? "Vai trò hệ thống đang bị khóa phân quyền trực tiếp."
+                                  : "Phân quyền"
+                              }
+                              style={{
+                                opacity: isProtectedRole(role.name) ? 0.55 : 1,
+                                cursor: isProtectedRole(role.name)
+                                  ? "not-allowed"
+                                  : "pointer",
+                              }}
                             >
                               <span
                                 className="material-symbols-outlined"
@@ -1086,7 +1113,7 @@ export default function RolePermissionPage() {
                               >
                                 shield_lock
                               </span>
-                              Phân quyền
+                              {isProtectedRole(role.name) ? "Đã khóa" : "Phân quyền"}
                             </button>
                           )}
                         </td>
@@ -1110,7 +1137,7 @@ export default function RolePermissionPage() {
               }}
             >
               <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-                {start}–{end} /{" "}
+                {start}-{end} /{" "}
                 <span style={{ fontWeight: 600, color: "#6b7280" }}>
                   {roles.length}
                 </span>{" "}
@@ -1199,3 +1226,5 @@ export default function RolePermissionPage() {
     </>
   );
 }
+
+

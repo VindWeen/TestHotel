@@ -178,6 +178,9 @@ public class UserManagementController : ControllerBase
     [RequirePermission(PermissionCodes.CreateUsers)]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
+        var actorRoleName = User.FindFirst("role")?.Value;
+        var actorLevel = GetRoleLevel(actorRoleName);
+
         var emailExists = await _db.Users
             .AnyAsync(u => u.Email == request.Email.Trim().ToLower());
         if (emailExists)
@@ -185,9 +188,15 @@ public class UserManagementController : ControllerBase
 
         if (request.RoleId.HasValue)
         {
-            var roleExists = await _db.Roles.AnyAsync(r => r.Id == request.RoleId.Value);
-            if (!roleExists)
-            return BadRequest(new { message = $"Vai trò #{request.RoleId} không tồn tại." });
+            var role = await _db.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == request.RoleId.Value);
+            if (role is null)
+                return BadRequest(new { message = $"Vai trò #{request.RoleId} không tồn tại." });
+
+            if (string.Equals(role.Name, "Guest", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Không tạo tài khoản quản trị với vai trò Guest." });
+
+            if (GetRoleLevel(role.Name) > actorLevel)
+                return StatusCode(403, new { message = "Bạn không thể tạo người dùng với vai trò cao hơn cấp bậc hiện tại của mình." });
         }
 
         if (request.MembershipId.HasValue)
@@ -360,6 +369,10 @@ public class UserManagementController : ControllerBase
     [RequirePermission(PermissionCodes.EditRoles)]
     public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeRoleRequest request)
     {
+        var actorId = JwtHelper.GetUserId(User);
+        var actorRoleName = User.FindFirst("role")?.Value;
+        var actorLevel = GetRoleLevel(actorRoleName);
+
         var user = await _db.Users.FindAsync(id);
         if (user is null)
             return NotFound(new { message = $"Không tìm thấy người dùng #{id}." });
@@ -367,6 +380,24 @@ public class UserManagementController : ControllerBase
         var role = await _db.Roles.FindAsync(request.NewRoleId);
         if (role is null)
             return BadRequest(new { message = $"Vai trò #{request.NewRoleId} không tồn tại." });
+
+        var currentRole = user.RoleId.HasValue
+            ? await _db.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == user.RoleId.Value)
+            : null;
+        var currentTargetLevel = GetRoleLevel(currentRole?.Name);
+        var newTargetLevel = GetRoleLevel(role.Name);
+
+        if (currentTargetLevel > actorLevel)
+            return StatusCode(403, new { message = "Bạn không thể chỉnh vai trò của người dùng có cấp bậc cao hơn mình." });
+
+        if (string.Equals(role.Name, "Guest", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Không thể đổi người dùng quản trị sang vai trò Guest tại màn này." });
+
+        if (newTargetLevel > actorLevel)
+            return StatusCode(403, new { message = "Bạn không thể gán vai trò cao hơn cấp bậc hiện tại của mình." });
+
+        if (actorId == id && newTargetLevel > actorLevel)
+            return StatusCode(403, new { message = "Bạn không thể tự nâng mình lên vai trò cao hơn." });
 
         var oldRoleId  = user.RoleId;
         user.RoleId    = request.NewRoleId;
@@ -488,6 +519,21 @@ public class UserManagementController : ControllerBase
 
         return Ok(new { message = "Đã reset mật khẩu và gửi email thành công.", notification });
     }
+
+    private static int GetRoleLevel(string? roleName) => roleName?.Trim().ToLowerInvariant() switch
+    {
+        "guest" => 0,
+        "housekeeping" => 20,
+        "receptionist" => 30,
+        "accountant" => 30,
+        "security" => 30,
+        "chef" => 30,
+        "waiter" => 30,
+        "it support" => 40,
+        "manager" => 80,
+        "admin" => 100,
+        _ => 10
+    };
 
 }
 

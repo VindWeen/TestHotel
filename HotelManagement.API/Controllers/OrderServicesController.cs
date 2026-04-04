@@ -217,6 +217,57 @@ public class OrderServicesController : ControllerBase
         return Ok(new { bookingDetailId, data, total = data.Count });
     }
 
+    [HttpGet("booking-detail-options")]
+    [RequirePermission(PermissionCodes.ManageServices)]
+    public async Task<IActionResult> GetBookingDetailOptions([FromQuery] string? keyword = null)
+    {
+        var query = _db.BookingDetails
+            .AsNoTracking()
+            .Include(x => x.Booking)
+            .Include(x => x.Room)
+            .Include(x => x.RoomType)
+            .Where(x =>
+                x.Booking != null &&
+                (x.Booking.Status == BookingStatuses.CheckedIn ||
+                 x.Booking.Status == BookingStatuses.CheckedOutPendingSettlement));
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var normalized = keyword.Trim().ToLower();
+            query = query.Where(x =>
+                (x.Booking!.BookingCode != null && x.Booking.BookingCode.ToLower().Contains(normalized)) ||
+                (x.Booking.GuestName != null && x.Booking.GuestName.ToLower().Contains(normalized)) ||
+                (x.Room != null && x.Room.RoomNumber.ToLower().Contains(normalized)));
+        }
+
+        var data = await query
+            .OrderByDescending(x => x.Booking!.Status == BookingStatuses.CheckedIn)
+            .ThenBy(x => x.Room != null ? x.Room.RoomNumber : string.Empty)
+            .ThenByDescending(x => x.Id)
+            .Take(100)
+            .Select(x => new
+            {
+                bookingDetailId = x.Id,
+                bookingId = x.BookingId,
+                bookingCode = x.Booking != null ? x.Booking.BookingCode : null,
+                guestName = x.Booking != null ? x.Booking.GuestName : null,
+                roomId = x.RoomId,
+                roomNumber = x.Room != null ? x.Room.RoomNumber : null,
+                roomTypeName = x.RoomType != null ? x.RoomType.Name : null,
+                bookingStatus = x.Booking != null ? x.Booking.Status : null,
+                checkInDate = x.CheckInDate,
+                checkOutDate = x.CheckOutDate
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            data,
+            total = data.Count,
+            message = "Lấy danh sách booking detail khả dụng cho đơn dịch vụ thành công."
+        });
+    }
+
     [HttpPost]
     [RequirePermission(PermissionCodes.ManageServices)]
     public async Task<IActionResult> Create([FromBody] CreateOrderServiceRequest request)
@@ -438,8 +489,7 @@ public class OrderServicesController : ControllerBase
         if (bookingDetail?.Booking is null)
             return null;
 
-        if (string.Equals(bookingDetail.Booking.Status, BookingStatuses.CheckedOutPendingSettlement, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(bookingDetail.Booking.Status, BookingStatuses.Completed, StringComparison.OrdinalIgnoreCase) ||
+        if (string.Equals(bookingDetail.Booking.Status, BookingStatuses.Completed, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(bookingDetail.Booking.Status, BookingStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
             return null;
 

@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using HotelManagement.API.Services;
 using HotelManagement.Core.Authorization;
 using HotelManagement.Core.DTOs;
@@ -41,7 +41,7 @@ public class MembershipsController : ControllerBase
             query = query.Where(x => x.TierName.ToLower().Contains(keyword));
         }
 
-        query = query.OrderBy(x => x.MinPoints ?? 0).ThenBy(x => x.Id);
+        query = query.OrderByDescending(x => x.MinPoints ?? 0).ThenBy(x => x.Id);
 
         var totalItems = await query.CountAsync();
         var data = await query
@@ -163,6 +163,7 @@ public class MembershipsController : ControllerBase
         membership.DiscountPercent = request.DiscountPercent;
         membership.ColorHex = request.ColorHex?.Trim();
 
+        await _db.SaveChangesAsync();
         await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
             ActionCode = "UPDATE_MEMBERSHIP",
@@ -194,9 +195,10 @@ public class MembershipsController : ControllerBase
 
         var hasUsers = await _db.Users.AnyAsync(x => x.MembershipId == id);
         if (hasUsers)
-            return Conflict(new { message = "Không thể xóa mềm hạng thành viên đang được gán cho người dùng." });
+            return Conflict(new { message = "Không thể xóa mềm hạng thành viên đang được gắn cho người dùng." });
 
         membership.IsActive = false;
+        await _db.SaveChangesAsync();
 
         await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {
@@ -226,6 +228,7 @@ public class MembershipsController : ControllerBase
 
         var oldValue = membership.IsActive;
         membership.IsActive = !membership.IsActive;
+        await _db.SaveChangesAsync();
 
         await _auditTrail.WriteAsync(_db, User, Request, new AuditTrailEntry
         {

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createOrderService,
   deleteOrderService,
   getOrderServiceById,
+  getOrderServiceBookingOptions,
   getOrderServices,
   toggleOrderService,
   updateOrderService,
@@ -74,6 +75,7 @@ const ORDER_STATUSES = ["Pending", "Delivered", "Cancelled"];
 export default function OrderServicePage() {
   const [rows, setRows] = useState([]);
   const [serviceOptions, setServiceOptions] = useState([]);
+  const [bookingDetailOptions, setBookingDetailOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [keyword, setKeyword] = useState("");
@@ -95,10 +97,18 @@ export default function OrderServicePage() {
     [serviceOptions],
   );
 
+  const selectedBookingDetail = useMemo(
+    () =>
+      bookingDetailOptions.find(
+        (item) => String(item.bookingDetailId) === String(form.bookingDetailId),
+      ) || null,
+    [bookingDetailOptions, form.bookingDetailId],
+  );
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [orderRes, serviceRes] = await Promise.all([
+      const [orderRes, serviceRes, bookingOptionRes] = await Promise.all([
         getOrderServices({
           page: 1,
           pageSize: 200,
@@ -107,9 +117,11 @@ export default function OrderServicePage() {
           includeInactive,
         }),
         getServices({ page: 1, pageSize: 200, includeInactive: false }),
+        getOrderServiceBookingOptions(),
       ]);
       setRows(orderRes.data?.data || []);
       setServiceOptions(serviceRes.data?.data || []);
+      setBookingDetailOptions(bookingOptionRes.data?.data || []);
     } catch (error) {
       setErrorMessage(error?.response?.data?.message || "Không thể tải đơn dịch vụ.");
     } finally {
@@ -244,7 +256,7 @@ export default function OrderServicePage() {
         >
           <div>
             <h2 style={{ margin: 0, fontSize: 24, color: "#1c1917", fontWeight: 700 }}>
-              Quản lý Đơn dịch vụ
+              Quản lý đơn dịch vụ
             </h2>
             <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>
               Theo dõi các đơn dịch vụ gắn với booking detail và thao tác ngay trong admin.
@@ -306,12 +318,12 @@ export default function OrderServicePage() {
                   rows.map((item) => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #f7f4ee" }}>
                       <td style={{ padding: "16px 18px" }}>
-                        <strong style={{ color: "#1c1917" }}>{item.bookingCode || `#${item.bookingId || "—"}`}</strong>
+                        <strong style={{ color: "#1c1917" }}>{item.bookingCode || `#${item.bookingId || "-"}`}</strong>
                         <div style={{ marginTop: 4, fontSize: 12, color: "#78716c" }}>Order #{item.id}</div>
                       </td>
                       <td style={{ padding: "16px 18px", color: "#57534e" }}>
-                        <div>{item.guestName || "—"}</div>
-                        <div style={{ fontSize: 12, color: "#78716c", marginTop: 4 }}>Phòng: {item.roomNumber || "—"}</div>
+                        <div>{item.guestName || "-"}</div>
+                        <div style={{ fontSize: 12, color: "#78716c", marginTop: 4 }}>Phòng: {item.roomNumber || "-"}</div>
                       </td>
                       <td style={{ padding: "16px 18px", color: "#57534e" }}>{formatDate(item.orderDate)}</td>
                       <td style={{ padding: "16px 18px", fontWeight: 700, color: "#1f2937" }}>{formatCurrency(item.totalAmount)}</td>
@@ -354,14 +366,35 @@ export default function OrderServicePage() {
           <form onSubmit={submitForm}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
-                <label style={labelStyle}>Booking Detail ID</label>
-                <input type="number" value={form.bookingDetailId} onChange={(e) => setForm((prev) => ({ ...prev, bookingDetailId: e.target.value }))} style={inputStyle} disabled={Boolean(editingItem)} />
+                <label style={labelStyle}>Booking / Phòng / Khách</label>
+                <select
+                  value={form.bookingDetailId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, bookingDetailId: e.target.value }))}
+                  style={inputStyle}
+                  disabled={Boolean(editingItem)}
+                >
+                  <option value="">Chọn booking detail khả dụng</option>
+                  {bookingDetailOptions.map((option) => (
+                    <option key={option.bookingDetailId} value={option.bookingDetailId}>
+                      {`${option.roomNumber || "—"} • ${option.guestName || "Khách"} • ${option.bookingCode || `#${option.bookingId}`}`}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Ghi chú</label>
                 <input value={form.note} onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))} style={inputStyle} placeholder="Ghi chú giao dịch vụ" />
               </div>
             </div>
+
+            {selectedBookingDetail ? (
+              <div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: "#f8fafc", border: "1px solid #e2e8f0", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+                <InfoChip label="Booking" value={selectedBookingDetail.bookingCode || `#${selectedBookingDetail.bookingId || "—"}`} />
+                <InfoChip label="Khách" value={selectedBookingDetail.guestName || "—"} />
+                <InfoChip label="Phòng" value={selectedBookingDetail.roomNumber || "—"} />
+                <InfoChip label="Trạng thái" value={selectedBookingDetail.bookingStatus || "—"} />
+              </div>
+            ) : null}
 
             <div style={{ marginTop: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -391,6 +424,11 @@ export default function OrderServicePage() {
                     <button type="button" onClick={() => removeLine(index)} disabled={form.items.length === 1} style={{ ...secondaryButtonStyle, opacity: form.items.length === 1 ? 0.5 : 1 }}>
                       Xóa dòng
                     </button>
+                    {item.serviceId ? (
+                      <div style={{ gridColumn: "1 / span 4", fontSize: 12, color: "#6b7280", marginTop: -2 }}>
+                        Đơn giá gốc: {formatCurrency(activeServiceOptions.find((service) => String(service.id) === String(item.serviceId))?.price || 0)}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -410,12 +448,12 @@ export default function OrderServicePage() {
       {detailOpen && detailItem ? (
         <Overlay onClose={() => setDetailOpen(false)} title={`Chi tiết Order #${detailItem.id}`}>
           <div style={{ display: "grid", gap: 12 }}>
-            <DetailGrid label="Booking" value={detailItem.bookingCode || `#${detailItem.bookingId || "—"}`} />
-            <DetailGrid label="Khách" value={detailItem.guestName || "—"} />
-            <DetailGrid label="Phòng" value={detailItem.roomNumber || "—"} />
-            <DetailGrid label="Loại phòng" value={detailItem.roomTypeName || "—"} />
+            <DetailGrid label="Booking" value={detailItem.bookingCode || `#${detailItem.bookingId || "?"}`} />
+            <DetailGrid label="Khách" value={detailItem.guestName || "?"} />
+            <DetailGrid label="Phòng" value={detailItem.roomNumber || "?"} />
+            <DetailGrid label="Loại phòng" value={detailItem.roomTypeName || "?"} />
             <DetailGrid label="Ngày tạo" value={formatDate(detailItem.orderDate)} />
-            <DetailGrid label="Trạng thái" value={detailItem.status || "—"} />
+            <DetailGrid label="Trạng thái" value={detailItem.status || "?"} />
             <DetailGrid label="Tổng tiền" value={formatCurrency(detailItem.totalAmount)} />
             <div style={{ marginTop: 8 }}>
               <strong style={{ color: "#1c1917" }}>Dòng dịch vụ</strong>
@@ -482,6 +520,15 @@ function Overlay({ onClose, title, children }) {
   );
 }
 
+function InfoChip({ label, value }) {
+  return (
+    <div style={{ padding: 12, borderRadius: 12, background: "white", border: "1px solid #e2e8f0" }}>
+      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", color: "#64748b" }}>{label}</div>
+      <div style={{ marginTop: 6, fontWeight: 700, color: "#0f172a" }}>{value}</div>
+    </div>
+  );
+}
+
 function DetailGrid({ label, value }) {
   return (
     <div style={{ padding: 14, borderRadius: 14, border: "1px solid #f1ede7", background: "#fffdfa" }}>
@@ -490,3 +537,4 @@ function DetailGrid({ label, value }) {
     </div>
   );
 }
+

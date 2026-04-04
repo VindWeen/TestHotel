@@ -12,9 +12,6 @@ const getPermissionSet = (permissions = []) => {
 };
 
 const hasPermission = (permissionSet, code) => {
-  if (code === "VIEW_ROLES") {
-    return permissionSet.has("VIEW_ROLES") || permissionSet.has("MANAGE_ROLES");
-  }
   return permissionSet.has(code);
 };
 
