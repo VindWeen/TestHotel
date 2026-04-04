@@ -13,7 +13,8 @@ public class BookingStatusFlowService : IBookingStatusFlowService
     {
         [BookingStatuses.Pending] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BookingStatuses.Confirmed, BookingStatuses.Cancelled },
         [BookingStatuses.Confirmed] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BookingStatuses.CheckedIn, BookingStatuses.Cancelled },
-        [BookingStatuses.CheckedIn] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BookingStatuses.Completed },
+        [BookingStatuses.CheckedIn] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BookingStatuses.CheckedOutPendingSettlement },
+        [BookingStatuses.CheckedOutPendingSettlement] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BookingStatuses.Completed },
         [BookingStatuses.Completed] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
         [BookingStatuses.Cancelled] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     };

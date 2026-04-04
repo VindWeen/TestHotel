@@ -244,7 +244,7 @@ CREATE TABLE [dbo].[Bookings](
     [check_in_time]          [datetime]       NULL,          -- thời điểm check-in thực tế
     [check_out_time]         [datetime]       NULL,          -- thời điểm check-out thực tế
     -- Trạng thái & nguồn
-    [status]                 [nvarchar](50)   NULL,          -- Pending / Confirmed / Checked_in / Completed / Cancelled
+    [status]                 [nvarchar](50)   NULL,          -- Pending / Confirmed / Checked_in / Checked_out_pending_settlement / Completed / Cancelled
     [source]                 [nvarchar](20)   NOT NULL DEFAULT 'online',  -- online / walk_in / phone
     -- Ghi chú & hủy
     [note]                   [nvarchar](500)  NULL,
@@ -343,7 +343,7 @@ CREATE TABLE [dbo].[Invoices](
     [discount_amount]      [decimal](18, 2) NULL,
     [tax_amount]           [decimal](18, 2) NULL,
     [final_total]          [decimal](18, 2) NULL,
-    [status]               [nvarchar](50)   NULL,       -- Unpaid / Partially_Paid / Paid / Refunded
+    [status]               [nvarchar](50)   NULL,       -- Draft / Unpaid / Partially_Paid / Paid / Refunded
     [created_at]           [datetime]       NOT NULL DEFAULT GETDATE(),
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY]
@@ -522,7 +522,7 @@ ALTER TABLE [dbo].[Invoices]           ADD DEFAULT ((0))          FOR [total_dam
 ALTER TABLE [dbo].[Invoices]           ADD DEFAULT ((0))          FOR [discount_amount]
 ALTER TABLE [dbo].[Invoices]           ADD DEFAULT ((0))          FOR [tax_amount]
 ALTER TABLE [dbo].[Invoices]           ADD DEFAULT ((0))          FOR [final_total]
-ALTER TABLE [dbo].[Invoices]           ADD DEFAULT ('Unpaid')     FOR [status]
+ALTER TABLE [dbo].[Invoices]           ADD DEFAULT ('Draft')      FOR [status]
 ALTER TABLE [dbo].[Loss_And_Damages]   ADD DEFAULT (getdate())    FOR [created_at]
 ALTER TABLE [dbo].[Memberships]        ADD DEFAULT ((0))          FOR [min_points]
 ALTER TABLE [dbo].[Memberships]        ADD DEFAULT ((0.00))       FOR [discount_percent]

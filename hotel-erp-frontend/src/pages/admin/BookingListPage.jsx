@@ -7,6 +7,7 @@ const ALLOWED_ACTIONS = {
   Pending: ["confirm", "cancel"],
   Confirmed: ["checkin", "cancel"],
   Checked_in: ["checkout"],
+  Checked_out_pending_settlement: [],
   Completed: [],
   Cancelled: [],
 };
@@ -85,6 +86,7 @@ const BookingStatusBadge = ({ status }) => {
     Pending: { bg: "#fef3c7", text: "#d97706", icon: "schedule" },
     Confirmed: { bg: "#e0e7ff", text: "#4338ca", icon: "verified" },
     Checked_in: { bg: "#ecfdf5", text: "#059669", icon: "login" },
+    Checked_out_pending_settlement: { bg: "#fff7ed", text: "#c2410c", icon: "payments" },
     Completed: { bg: "#f3f4f6", text: "#4b5563", icon: "done_all" },
     Cancelled: { bg: "#fef2f2", text: "#dc2626", icon: "block" }
   };
@@ -259,6 +261,7 @@ export default function BookingListPage() {
           <option value="Pending">Pending</option>
           <option value="Confirmed">Đã xác nhận</option>
           <option value="Checked_in">Checked_in</option>
+          <option value="Checked_out_pending_settlement">Chờ quyết toán</option>
           <option value="Completed">Completed</option>
           <option value="Cancelled">Đã hủy</option>
         </select>

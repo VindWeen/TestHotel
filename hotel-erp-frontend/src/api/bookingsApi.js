@@ -90,7 +90,7 @@ export const checkIn = (id) =>
 
 /**
  * PATCH /api/Bookings/{id}/check-out  [MANAGE_BOOKINGS]
- * Moves booking from Checked_in → Completed
+ * Moves booking from Checked_in → Checked_out_pending_settlement
  * Sets room: BusinessStatus = Available, CleaningStatus = Dirty
  * Response: booking object
  */

@@ -75,6 +75,7 @@ const STATUS_CFG = {
   Pending: { label: "Chờ xử lý", bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
   Confirmed: { label: "Đã xác nhận", bg: "#dbeafe", color: "#1e40af", dot: "#3b82f6" },
   Checked_in: { label: "Đang ở", bg: "#d1fae5", color: "#065f46", dot: "#10b981" },
+  Checked_out_pending_settlement: { label: "Chờ quyết toán", bg: "#ffedd5", color: "#9a3412", dot: "#f97316" },
   Completed: { label: "Hoàn thành", bg: "#f1f5f9", color: "#475569", dot: "#94a3b8" },
   Cancelled: { label: "Đã huỷ", bg: "#fee2e2", color: "#991b1b", dot: "#ef4444" },
 };
@@ -250,7 +251,7 @@ export default function DashboardPage() {
       const todayBookings = completedBookings.filter((b) => isSameDay(getBookingRevenueDate(b), now));
       const todayRevenue = todayBookings.reduce((s, b) => s + (b.totalEstimatedAmount || 0), 0);
 
-      const activeBookings = bkList.filter(b => ["Confirmed", "Checked_in", "Pending"].includes(b.status)).length;
+      const activeBookings = bkList.filter(b => ["Confirmed", "Checked_in", "Checked_out_pending_settlement", "Pending"].includes(b.status)).length;
       const pendingBookings = bkList.filter(b => b.status === "Pending").length;
 
       const available = rmList.filter(r => r.businessStatus === "Available").length;

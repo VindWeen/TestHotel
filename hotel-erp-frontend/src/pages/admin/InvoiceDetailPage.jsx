@@ -37,6 +37,7 @@ function Toast({ id, msg, type = "success", dur = 3500, onDismiss }) {
 // ─── Nhãn trạng thái ─────────────────────────────────────────────────────────────
 const InvoiceStatusBadge = ({ status }) => {
   const map = {
+    Draft: { bg: "#e0f2fe", text: "#0369a1", icon: "draft" },
     Unpaid: { bg: "#fef2f2", text: "#dc2626", icon: "pending_actions" },
     Partially_Paid: { bg: "#fef3c7", text: "#d97706", icon: "hourglass_half" },
     Paid: { bg: "#ecfdf5", text: "#059669", icon: "check_circle" },
@@ -171,6 +172,11 @@ export default function InvoiceDetailPage() {
             {invoice.status !== "Paid" && (
               <div style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,.06)" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1c1917", margin: "0 0 16px" }}>Ghi nhận thanh toán</h3>
+                {invoice.status === "Draft" && (
+                  <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid #bae6fd", background: "#f0f9ff", color: "#075985", fontSize: 13, fontWeight: 700 }}>
+                    Hóa đơn này đang ở trạng thái nháp. Bạn có thể chốt hóa đơn trước hoặc thu tiền trực tiếp để hệ thống tự cập nhật trạng thái.
+                  </div>
+                )}
                 <form onSubmit={submitPayment} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                     <div>

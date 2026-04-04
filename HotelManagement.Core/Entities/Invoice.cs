@@ -10,7 +10,7 @@ public class Invoice
     public decimal? DiscountAmount { get; set; }
     public decimal? TaxAmount { get; set; }
     public decimal? FinalTotal { get; set; }
-    public string? Status { get; set; } // Unpaid / Partially_Paid / Paid / Refunded
+    public string? Status { get; set; } // Draft / Unpaid / Partially_Paid / Paid / Refunded
     public DateTime CreatedAt { get; set; }
 
     // Navigation

@@ -119,7 +119,9 @@ public class BookingsController : ControllerBase
             events.Add(new BookingTimelineEventResponse
             {
                 Type = "CHECKED_OUT",
-                Label = "Khách đã check-out",
+                Label = string.Equals(booking.Status, BookingStatuses.Completed, StringComparison.OrdinalIgnoreCase)
+                    ? "Khách đã check-out và hoàn tất quyết toán"
+                    : "Khách đã check-out, chờ quyết toán",
                 At = booking.CheckOutTime
             });
         }
@@ -508,7 +510,7 @@ public class BookingsController : ControllerBase
         foreach (var d in b.BookingDetails)
         {
             var room = await _context.Rooms
-                .Where(r => r.RoomTypeId == d.RoomTypeId && r.BusinessStatus == "Available")
+                .Where(r => r.RoomTypeId == d.RoomTypeId && r.BusinessStatus == "Available" && r.CleaningStatus == "Clean")
                 .FirstOrDefaultAsync();
 
             if (room == null)
@@ -551,7 +553,7 @@ public class BookingsController : ControllerBase
         if (b == null)
             return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
 
-        if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.Completed, out var checkOutError))
+        if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.CheckedOutPendingSettlement, out var checkOutError))
             return BookingActionError(StatusCodes.Status400BadRequest, checkOutError);
 
         foreach (var d in b.BookingDetails)
@@ -563,14 +565,14 @@ public class BookingsController : ControllerBase
             }
         }
 
-        b.Status = BookingStatuses.Completed;
+        b.Status = BookingStatuses.CheckedOutPendingSettlement;
         b.CheckOutTime = DateTime.UtcNow;
 
         await _auditTrail.WriteAsync(_context, User, Request, new AuditTrailEntry
         {
             ActionCode = "CHECKOUT_BOOKING",
             ActionLabel = "Check-out khách",
-            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-out cho khách {b.GuestName} ({b.BookingCode}).",
+            Message = $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã thực hiện check-out cho khách {b.GuestName} ({b.BookingCode}) và chuyển booking sang trạng thái chờ quyết toán.",
             EntityType = "Booking",
             EntityId = id,
             EntityLabel = b.BookingCode,
@@ -578,13 +580,11 @@ public class BookingsController : ControllerBase
             TableName = "Bookings",
             RecordId = id,
             OldValue = null,
-            NewValue = $"{{\"status\": \"{BookingStatuses.Completed}\"}}"
+            NewValue = $"{{\"status\": \"{BookingStatuses.CheckedOutPendingSettlement}\"}}"
         });
 
         await _invoiceService.CreateFromBookingAsync(b.Id);
 
-        return BookingActionSuccess("Check-out booking thành công.", b);
+        return BookingActionSuccess("Check-out booking thành công. Booking đang chờ quyết toán hóa đơn.", b);
     }
 }
-
-

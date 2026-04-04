@@ -114,7 +114,9 @@ public class InvoiceService : IInvoiceService
             Summary = new
             {
                 totalItems,
-                unpaidItems = responseData.Count(i => string.Equals(i.Status, InvoiceStatuses.Unpaid, StringComparison.OrdinalIgnoreCase))
+                unpaidItems = responseData.Count(i =>
+                    string.Equals(i.Status, InvoiceStatuses.Draft, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(i.Status, InvoiceStatuses.Unpaid, StringComparison.OrdinalIgnoreCase))
             },
             Message = "Lấy danh sách hóa đơn thành công."
         };
@@ -239,7 +241,7 @@ public class InvoiceService : IInvoiceService
             DiscountAmount = discountAmount,
             TaxAmount = taxAmount,
             FinalTotal = finalTotal,
-            Status = InvoiceStatuses.Unpaid,
+            Status = InvoiceStatuses.Draft,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -250,7 +252,7 @@ public class InvoiceService : IInvoiceService
         {
             created = true,
             invoiceId = invoice.Id,
-            message = "Tạo hóa đơn từ booking thành công.",
+            message = "Tạo hóa đơn nháp từ booking thành công.",
             summary = new
             {
                 totalRoomAmount,
@@ -278,10 +280,28 @@ public class InvoiceService : IInvoiceService
         var total = invoice.FinalTotal ?? 0m;
         invoice.Status = paidAmount switch
         {
+            <= 0m when string.Equals(invoice.Status, InvoiceStatuses.Draft, StringComparison.OrdinalIgnoreCase)
+                => InvoiceStatuses.Unpaid,
             <= 0m => InvoiceStatuses.Unpaid,
             var v when v >= total => InvoiceStatuses.Paid,
             _ => InvoiceStatuses.PartiallyPaid
         };
+
+        if (invoice.BookingId.HasValue)
+        {
+            var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.Id == invoice.BookingId.Value, cancellationToken);
+            if (booking != null)
+            {
+                if (string.Equals(invoice.Status, InvoiceStatuses.Paid, StringComparison.OrdinalIgnoreCase))
+                {
+                    booking.Status = BookingStatuses.Completed;
+                }
+                else if (string.Equals(booking.Status, BookingStatuses.Completed, StringComparison.OrdinalIgnoreCase))
+                {
+                    booking.Status = BookingStatuses.CheckedOutPendingSettlement;
+                }
+            }
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -318,4 +338,3 @@ public class InvoiceService : IInvoiceService
         };
     }
 }
-

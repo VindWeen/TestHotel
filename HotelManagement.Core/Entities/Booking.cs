@@ -25,7 +25,7 @@ public class Booking
     public DateTime? CheckOutTime { get; set; }
 
     // Trạng thái & nguồn
-    public string? Status { get; set; } // Pending / Confirmed / Checked_in / Completed / Cancelled
+    public string? Status { get; set; } // Pending / Confirmed / Checked_in / Checked_out_pending_settlement / Completed / Cancelled
     public string Source { get; set; } = "online"; // online / walk_in / phone
 
     // Ghi chú & hủy

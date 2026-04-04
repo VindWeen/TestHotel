@@ -11,7 +11,8 @@ public class BookingStatusFlowRulesTests
     [Theory]
     [InlineData(BookingStatuses.Pending, BookingStatuses.Confirmed, true)]
     [InlineData(BookingStatuses.Confirmed, BookingStatuses.CheckedIn, true)]
-    [InlineData(BookingStatuses.CheckedIn, BookingStatuses.Completed, true)]
+    [InlineData(BookingStatuses.CheckedIn, BookingStatuses.CheckedOutPendingSettlement, true)]
+    [InlineData(BookingStatuses.CheckedOutPendingSettlement, BookingStatuses.Completed, true)]
     [InlineData(BookingStatuses.Completed, BookingStatuses.Confirmed, false)]
     [InlineData(BookingStatuses.Cancelled, BookingStatuses.Confirmed, false)]
     public void CanTransition_FollowsConfiguredRules(string from, string to, bool expected)

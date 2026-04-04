@@ -5,6 +5,7 @@ public static class BookingStatuses
     public const string Pending = "Pending";
     public const string Confirmed = "Confirmed";
     public const string CheckedIn = "Checked_in";
+    public const string CheckedOutPendingSettlement = "Checked_out_pending_settlement";
     public const string Completed = "Completed";
     public const string Cancelled = "Cancelled";
 }
@@ -18,6 +19,7 @@ public static class PaymentStatuses
 
 public static class InvoiceStatuses
 {
+    public const string Draft = "Draft";
     public const string Unpaid = "Unpaid";
     public const string PartiallyPaid = "Partially_Paid";
     public const string Paid = "Paid";

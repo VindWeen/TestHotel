@@ -284,7 +284,7 @@ public class RoomTypesController : ControllerBase
     // ──────────────────────────────────────────────────────────────
     // DELETE /api/RoomTypes/{id}  [MANAGE_ROOMS]
     // Soft Delete: is_active = 0.
-    // Không xóa khi đang có Booking active (Pending / Confirmed / Checked_in).
+    // Không xóa khi đang có Booking active (Pending / Confirmed / Checked_in / Checked_out_pending_settlement).
     // ──────────────────────────────────────────────────────────────
     [HttpDelete("{id:int}")]
     [RequirePermission(PermissionCodes.ManageRooms)]
@@ -298,7 +298,7 @@ public class RoomTypesController : ControllerBase
 
         // Kiểm tra có booking active không:
         // BookingDetail.RoomTypeId = id, Booking.Status thuộc nhóm chưa kết thúc
-        var activeStatuses = new[] { BookingStatuses.Pending, BookingStatuses.Confirmed, BookingStatuses.CheckedIn };
+        var activeStatuses = new[] { BookingStatuses.Pending, BookingStatuses.Confirmed, BookingStatuses.CheckedIn, BookingStatuses.CheckedOutPendingSettlement };
 
         var hasActiveBooking = await _context.BookingDetails // Changed _db.BookingDetails to _context.BookingDetails
             .AnyAsync(bd =>
@@ -540,7 +540,7 @@ public class RoomTypesController : ControllerBase
         // Không cho tắt khi đang có booking active
         if (roomType.IsActive)
         {
-            var activeStatuses = new[] { BookingStatuses.Pending, BookingStatuses.Confirmed, BookingStatuses.CheckedIn };
+            var activeStatuses = new[] { BookingStatuses.Pending, BookingStatuses.Confirmed, BookingStatuses.CheckedIn, BookingStatuses.CheckedOutPendingSettlement };
 
             var hasActiveBooking = await _context.BookingDetails // Changed _db.BookingDetails to _context.BookingDetails
                 .AnyAsync(bd =>

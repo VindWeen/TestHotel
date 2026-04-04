@@ -438,7 +438,8 @@ public class OrderServicesController : ControllerBase
         if (bookingDetail?.Booking is null)
             return null;
 
-        if (string.Equals(bookingDetail.Booking.Status, BookingStatuses.Completed, StringComparison.OrdinalIgnoreCase) ||
+        if (string.Equals(bookingDetail.Booking.Status, BookingStatuses.CheckedOutPendingSettlement, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(bookingDetail.Booking.Status, BookingStatuses.Completed, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(bookingDetail.Booking.Status, BookingStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
             return null;
 
