@@ -362,14 +362,14 @@ public class VouchersController : ControllerBase
         if (v == null || !v.IsActive)
             return BadRequest(new { valid = false, message = "Voucher không tồn tại hoặc đã bị vô hiệu hóa" });
 
-        if (!_voucherValidationService.ValidateUsage(v, request.BookingAmount, DateTime.UtcNow, out var voucherRuleError))
+        if (!_voucherValidationService.ValidateUsage(v, request.BookingAmount, DateTime.Now, out var voucherRuleError))
             return BadRequest(new { valid = false, message = voucherRuleError });
 
         // Kiểm tra thời hạn
-        if (v.ValidFrom.HasValue && DateTime.UtcNow < v.ValidFrom)
+        if (v.ValidFrom.HasValue && DateTime.Now < v.ValidFrom)
             return BadRequest(new { valid = false, message = "Voucher chưa đến ngày sử dụng" });
 
-        if (v.ValidTo.HasValue && DateTime.UtcNow > v.ValidTo)
+        if (v.ValidTo.HasValue && DateTime.Now > v.ValidTo)
             return BadRequest(new { valid = false, message = "Voucher đã hết hạn" });
 
         // Kiểm tra usage limit

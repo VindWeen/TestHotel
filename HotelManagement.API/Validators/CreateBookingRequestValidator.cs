@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using HotelManagement.Core.DTOs;
 
 namespace HotelManagement.API.Validators;
@@ -41,7 +41,7 @@ public class CreateBookingDetailRequestValidator : AbstractValidator<CreateBooki
             .GreaterThan(0).WithMessage("Loại phòng không hợp lệ.");
 
         RuleFor(x => x.CheckOutDate)
-            .GreaterThan(x => x.CheckInDate)
-            .WithMessage("Ngày check-out phải sau ngày check-in.");
+            .GreaterThanOrEqualTo(x => x.CheckInDate)
+            .WithMessage("Ngày check-out phải cùng ngày hoặc sau ngày check-in.");
     }
 }

@@ -93,7 +93,7 @@ public class LossAndDamagesController : ControllerBase
             TableName = "Equipments",
             RecordId = equipment.Id,
             OldValue = null,
-            NewValue = $"{{\"quantity\": {quantity}, \"reason\": \"Xac nhan bien ban mat/hong #{record.Id}\"}}",
+            NewValue = $"{{\"quantity\": {quantity}, \"reason\": \"Xác nhận biên bản mất/hỏng #{record.Id}\"}}",
             UserAgent = userAgent,
             CreatedAt = DateTime.UtcNow
         });
@@ -126,7 +126,7 @@ public class LossAndDamagesController : ControllerBase
             TableName = "Equipments",
             RecordId = equipment.Id,
             OldValue = null,
-            NewValue = $"{{\"quantity\": {quantity}, \"reason\": \"Hoan tac bien ban mat/hong #{record.Id}\"}}",
+            NewValue = $"{{\"quantity\": {quantity}, \"reason\": \"Hoàn tác biên bản mất/hỏng #{record.Id}\"}}",
             UserAgent = userAgent,
             CreatedAt = DateTime.UtcNow
         });
@@ -221,7 +221,7 @@ public class LossAndDamagesController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (record is null)
-            return NotFound(new { message = $"Khong tim thay bien ban #{id}." });
+            return NotFound(new { message = $"Không tìm thấy biên bản #{id}." });
 
         return Ok(new
         {
@@ -248,7 +248,7 @@ public class LossAndDamagesController : ControllerBase
     public async Task<IActionResult> Create([FromForm] CreateLossAndDamageRequest request)
     {
         if (request.Quantity < 1)
-            return BadRequest(new { message = "So luong phai it nhat la 1." });
+            return BadRequest(new { message = "Số lượng phải ít nhất là 1." });
 
         var userId = JwtHelper.GetUserId(User);
         var userAgent = Request.Headers["User-Agent"].ToString();
@@ -302,8 +302,8 @@ public class LossAndDamagesController : ControllerBase
 
         var notification = new Notification
         {
-            Title = "Bien ban moi da duoc lap",
-            Message = $"Mot bien ban boi thuong moi da duoc tao cho phong {roomNumber}.",
+            Title = "Biên bản mới đã được lập",
+            Message = $"Một biên bản bồi thường mới đã được tạo cho phòng {roomNumber}.",
             Type = NotificationType.Success,
             Action = NotificationAction.CreateLossReport
         };
@@ -313,8 +313,8 @@ public class LossAndDamagesController : ControllerBase
         return StatusCode(201, new
         {
             message = record.Status == "Confirmed"
-                ? "Tao bien ban thanh cong va da dong bo kho sau khi xac nhan."
-                : "Tao bien ban thanh cong. Kho se chi duoc dong bo khi bien ban duoc xac nhan.",
+                ? "Tạo biên bản thành công và đã đồng bộ kho sau khi xác nhận."
+                : "Tạo biên bản thành công. Kho sẽ chỉ được đồng bộ khi biên bản được xác nhận.",
             id = record.Id,
             isStockSynced = record.IsStockSynced,
             notification
@@ -327,11 +327,11 @@ public class LossAndDamagesController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromForm] UpdateLossAndDamageRequest request)
     {
         if (request.Quantity < 1)
-            return BadRequest(new { message = "So luong phai it nhat la 1." });
+            return BadRequest(new { message = "Số lượng phải ít nhất là 1." });
 
         var record = await _db.LossAndDamages.FirstOrDefaultAsync(l => l.Id == id);
         if (record is null)
-            return NotFound(new { message = $"Khong tim thay bien ban #{id}." });
+            return NotFound(new { message = $"Không tìm thấy biên bản #{id}." });
 
         var userId = JwtHelper.GetUserId(User);
         var userAgent = Request.Headers["User-Agent"].ToString();
@@ -388,8 +388,8 @@ public class LossAndDamagesController : ControllerBase
 
         var notification = new Notification
         {
-            Title = "Cap nhat bien ban thanh cong",
-            Message = $"Thong tin bien ban #{id} da duoc cap nhat.",
+            Title = "Cập nhật biên bản thành công",
+            Message = $"Thông tin biên bản #{id} đã được cập nhật.",
             Type = NotificationType.Success,
             Action = NotificationAction.UpdateLossReport
         };
@@ -397,8 +397,8 @@ public class LossAndDamagesController : ControllerBase
         return Ok(new
         {
             message = oldStatus != record.Status || oldQuantity != record.Quantity
-                ? "Cap nhat bien ban thanh cong va da doi chieu lai ton kho theo trang thai moi."
-                : "Cap nhat bien ban thanh cong.",
+                ? "Cập nhật biên bản thành công và đã đối chiếu lại tồn kho theo trạng thái mới."
+                : "Cập nhật biên bản thành công.",
             imgUrl = record.ImgUrl,
             isStockSynced = record.IsStockSynced,
             notification
@@ -411,7 +411,7 @@ public class LossAndDamagesController : ControllerBase
     {
         var record = await _db.LossAndDamages.FirstOrDefaultAsync(l => l.Id == id);
         if (record is null)
-            return NotFound(new { message = $"Khong tim thay bien ban #{id}." });
+            return NotFound(new { message = $"Không tìm thấy biên bản #{id}." });
 
         var userId = JwtHelper.GetUserId(User);
         var userAgent = Request.Headers["User-Agent"].ToString();
@@ -440,15 +440,15 @@ public class LossAndDamagesController : ControllerBase
 
         var notification = new Notification
         {
-            Title = "Da xoa bien ban",
-            Message = $"Bien ban boi thuong #{id} da duoc xoa thanh cong.",
+            Title = "Đã xóa biên bản",
+            Message = $"Biên bản bồi thường #{id} đã được xóa thành công.",
             Type = NotificationType.Success,
             Action = NotificationAction.DeleteLossReport
         };
 
         return Ok(new
         {
-            message = "Da xoa bien ban va hoan tac ton kho neu bien ban da tung duoc xac nhan.",
+            message = "Đã xóa biên bản và hoàn tác tồn kho nếu biên bản đã từng được xác nhận.",
             notification
         });
     }

@@ -147,7 +147,7 @@ public class RoomInventoriesController : ControllerBase
     {
         var roomExists = await _db.Rooms.AnyAsync(r => r.Id == roomId);
         if (!roomExists)
-            return NotFound(new { message = $"Khong tim thay phong #{roomId}." });
+            return NotFound(new { message = $"Không tìm thấy phòng #{roomId}." });
 
         var items = await _db.RoomInventories
             .AsNoTracking()
@@ -203,7 +203,7 @@ public class RoomInventoriesController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (item is null)
-            return NotFound(new { message = $"Khong tim thay vat tu #{id}." });
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
 
         return Ok(item);
     }
@@ -214,23 +214,23 @@ public class RoomInventoriesController : ControllerBase
     {
         var allowedTypes = new[] { "Asset", "Minibar" };
         if (!allowedTypes.Contains(request.ItemType))
-            return BadRequest(new { message = "item_type khong hop le. Chap nhan: Asset, Minibar." });
+            return BadRequest(new { message = "item_type không hợp lệ. Chấp nhận: Asset, Minibar." });
 
         var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Id == request.RoomId);
         if (room is null)
-            return NotFound(new { message = $"Khong tim thay phong #{request.RoomId}." });
+            return NotFound(new { message = $"Không tìm thấy phòng #{request.RoomId}." });
 
         var equipment = await _db.Equipments.FindAsync(request.EquipmentId);
         if (equipment is null)
-            return BadRequest(new { message = $"Equipment #{request.EquipmentId} khong ton tai." });
+            return BadRequest(new { message = $"Equipment #{request.EquipmentId} không tồn tại." });
         if (!equipment.IsActive)
-            return Conflict(new { message = $"Vat tu '{equipment.Name}' dang bi vo hieu hoa va khong the them vao phong." });
+            return Conflict(new { message = $"Vật tư '{equipment.Name}' đang bị vô hiệu hóa và không thể thêm vào phòng." });
 
         var requestedQuantity = request.Quantity ?? 0;
         if (requestedQuantity < 0)
-            return BadRequest(new { message = "So luong vat tu khong duoc am." });
+            return BadRequest(new { message = "Số lượng vật tư không được âm." });
         if (requestedQuantity > equipment.InStockQuantity)
-            return Conflict(new { message = $"Ton kho cua vat tu '{equipment.Name}' khong du de them {requestedQuantity} vao phong." });
+            return Conflict(new { message = $"Tồn kho của vật tư '{equipment.Name}' không đủ để thêm {requestedQuantity} vào phòng." });
 
         var existingItem = await _db.RoomInventories
             .Where(i => i.RoomId == request.RoomId && i.EquipmentId == request.EquipmentId)
@@ -269,8 +269,8 @@ public class RoomInventoriesController : ControllerBase
             return Ok(new
             {
                 message = wasActive
-                    ? "Vat tu da ton tai trong phong. He thong da cap nhat so luong thay vi tao dong moi."
-                    : "Vat tu da ton tai o trang thai ngung su dung. He thong da kich hoat lai va cap nhat so luong.",
+                    ? "Vật tư đã tồn tại trong phòng. Hệ thống đã cập nhật số lượng thay vì tạo dòng mới."
+                    : "Vật tư đã tồn tại ở trạng thái ngừng sử dụng. Hệ thống đã kích hoạt lại và cập nhật số lượng.",
                 id = existingItem.Id,
                 roomInventoryVersion = room.InventoryVersion
             });
@@ -304,7 +304,7 @@ public class RoomInventoriesController : ControllerBase
         });
         await _db.SaveChangesAsync();
 
-        return StatusCode(201, new { message = "Tao vat tu thanh cong.", id = item.Id, roomInventoryVersion = room.InventoryVersion });
+        return StatusCode(201, new { message = "Tạo vật tư thành công.", id = item.Id, roomInventoryVersion = room.InventoryVersion });
     }
 
     [HttpPut("{id:int}")]
@@ -313,34 +313,34 @@ public class RoomInventoriesController : ControllerBase
     {
         var allowedTypes = new[] { "Asset", "Minibar" };
         if (!allowedTypes.Contains(request.ItemType))
-            return BadRequest(new { message = "item_type khong hop le. Chap nhan: Asset, Minibar." });
+            return BadRequest(new { message = "item_type không hợp lệ. Chấp nhận: Asset, Minibar." });
 
         var item = await _db.RoomInventories
             .Include(i => i.Equipment)
             .Include(i => i.Room)
             .FirstOrDefaultAsync(i => i.Id == id && i.IsActive);
         if (item is null)
-            return NotFound(new { message = $"Khong tim thay vat tu #{id}." });
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
 
         if (item.Room is null)
-            return BadRequest(new { message = "Vat tu nay chua duoc gan voi phong hop le." });
+            return BadRequest(new { message = "Vật tư này chưa được gắn với phòng hợp lệ." });
 
         var equipment = await _db.Equipments.FindAsync(request.EquipmentId);
         if (equipment is null)
-            return BadRequest(new { message = $"Equipment #{request.EquipmentId} khong ton tai." });
+            return BadRequest(new { message = $"Equipment #{request.EquipmentId} không tồn tại." });
         if (!equipment.IsActive)
-            return Conflict(new { message = $"Vat tu '{equipment.Name}' dang bi vo hieu hoa va khong the gan vao phong." });
+            return Conflict(new { message = $"Vật tư '{equipment.Name}' đang bị vô hiệu hóa và không thể gắn vào phòng." });
 
         var requestedQuantity = request.Quantity ?? 0;
         if (requestedQuantity < 0)
-            return BadRequest(new { message = "So luong vat tu khong duoc am." });
+            return BadRequest(new { message = "Số lượng vật tư không được âm." });
 
         var currentQuantity = item.Quantity ?? 0;
         var delta = request.EquipmentId == item.EquipmentId
             ? requestedQuantity - currentQuantity
             : requestedQuantity;
         if (delta > 0 && delta > equipment.InStockQuantity)
-            return Conflict(new { message = $"Ton kho cua vat tu '{equipment.Name}' khong du de tang them {delta} vao phong." });
+            return Conflict(new { message = $"Tồn kho của vật tư '{equipment.Name}' không đủ để tăng thêm {delta} vào phòng." });
 
         item.EquipmentId = request.EquipmentId;
         item.ItemType = request.ItemType;
@@ -364,7 +364,7 @@ public class RoomInventoriesController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = "Cap nhat vat tu thanh cong.", roomInventoryVersion = item.Room.InventoryVersion });
+        return Ok(new { message = "Cập nhật vật tư thành công.", roomInventoryVersion = item.Room.InventoryVersion });
     }
 
     [HttpDelete("{id:int}")]
@@ -376,14 +376,14 @@ public class RoomInventoriesController : ControllerBase
             .Include(i => i.Room)
             .FirstOrDefaultAsync(i => i.Id == id && i.IsActive);
         if (item is null)
-            return NotFound(new { message = $"Khong tim thay vat tu #{id}." });
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
 
         var hasLossDamage = await _db.LossAndDamages.AnyAsync(l => l.RoomInventoryId == id);
         if (hasLossDamage)
         {
             return Conflict(new
             {
-                message = "Khong the xoa vat tu nay vi da co bien ban mat/hong tham chieu den no."
+                message = "Không thể xóa vật tư này vì đã có biên bản mất/hỏng tham chiếu đến nó."
             });
         }
 
@@ -406,7 +406,7 @@ public class RoomInventoriesController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = $"Da xoa vat tu #{id}.", roomInventoryVersion = item.Room?.InventoryVersion });
+        return Ok(new { message = $"Đã xóa vật tư #{id}.", roomInventoryVersion = item.Room?.InventoryVersion });
     }
 
     [HttpPost("clone")]
@@ -414,11 +414,11 @@ public class RoomInventoriesController : ControllerBase
     public async Task<IActionResult> Clone([FromBody] CloneInventoryRequest request)
     {
         if (request.TargetRoomIds is null || request.TargetRoomIds.Count == 0)
-            return BadRequest(new { message = "Danh sach phong dich khong duoc rong." });
+            return BadRequest(new { message = "Danh sách phòng đích không được rỗng." });
 
         var sourceExists = await _db.Rooms.AnyAsync(r => r.Id == request.SourceRoomId);
         if (!sourceExists)
-            return NotFound(new { message = $"Khong tim thay phong nguon #{request.SourceRoomId}." });
+            return NotFound(new { message = $"Không tìm thấy phòng nguồn #{request.SourceRoomId}." });
 
         var sourceItems = await _db.RoomInventories
             .AsNoTracking()
@@ -427,7 +427,7 @@ public class RoomInventoriesController : ControllerBase
             .ToListAsync();
 
         if (sourceItems.Count == 0)
-            return BadRequest(new { message = $"Phong nguon #{request.SourceRoomId} khong co vat tu nao." });
+            return BadRequest(new { message = $"Phòng nguồn #{request.SourceRoomId} không có vật tư nào." });
 
         var distinctTargets = request.TargetRoomIds.Distinct().ToList();
         var validTargetIds = await _db.Rooms
@@ -516,8 +516,8 @@ public class RoomInventoriesController : ControllerBase
                     Quantity = src.Quantity,
                     PriceIfLost = src.PriceIfLost,
                     Note = string.IsNullOrWhiteSpace(src.Note)
-                        ? $"Dong bo tu phong {request.SourceRoomId}"
-                        : $"{src.Note} | Dong bo tu phong {request.SourceRoomId}",
+                        ? $"Đồng bộ từ phòng {request.SourceRoomId}"
+                        : $"{src.Note} | Đồng bộ từ phòng {request.SourceRoomId}",
                     IsActive = src.IsActive
                 });
 
@@ -563,7 +563,7 @@ public class RoomInventoriesController : ControllerBase
 
         return StatusCode(201, new
         {
-            message = $"Da clone {totalClonedItems} vat tu con thieu vao {clonedTo.Count} phong.",
+            message = $"Đã clone {totalClonedItems} vật tư còn thiếu vào {clonedTo.Count} phòng.",
             sourceRoomId = request.SourceRoomId,
             sourceDistinctItems = sourceDistinctItems.Count,
             itemsPerRoom = sourceDistinctItems.Count,
@@ -584,10 +584,10 @@ public class RoomInventoriesController : ControllerBase
     {
         var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Id == request.RoomId);
         if (room is null)
-            return NotFound(new { message = $"Khong tim thay phong #{request.RoomId}." });
+            return NotFound(new { message = $"Không tìm thấy phòng #{request.RoomId}." });
 
         if (room.InventoryVersion != request.InventoryVersion)
-            return Conflict(new { message = "Du lieu vat tu cua phong da thay doi. Vui long xem lai preview truoc khi dong bo." });
+            return Conflict(new { message = "Dữ liệu vật tư của phòng đã thay đổi. Vui lòng xem lại preview trước khi đồng bộ." });
 
         var preview = await BuildRoomSyncPreviewAsync(room);
         var now = DateTime.UtcNow;
@@ -600,7 +600,7 @@ public class RoomInventoriesController : ControllerBase
 
             return Ok(new
             {
-                message = $"Phong #{room.Id} khong co thay doi vat tu de dong bo.",
+                message = $"Phòng #{room.Id} không có thay đổi vật tư để đồng bộ.",
                 roomId = room.Id,
                 updatedEquipments = 0,
                 changes = Array.Empty<object>(),
@@ -631,11 +631,11 @@ public class RoomInventoriesController : ControllerBase
             }
 
             if (change.Delta > 0 && change.Delta > equipment.InStockQuantity)
-                return Conflict(new { message = $"Khong the dong bo vi vat tu '{equipment.Name}' khong du ton kho.", skippedDisabledItems });
+                return Conflict(new { message = $"Không thể đồng bộ vì vật tư '{equipment.Name}' không đủ tồn kho.", skippedDisabledItems });
 
             var nextInUse = equipment.InUseQuantity + change.Delta;
             if (nextInUse < 0)
-                return Conflict(new { message = $"Khong the dong bo vi vat tu '{equipment.Name}' se co so luong dang dung am." });
+                return Conflict(new { message = $"Không thể đồng bộ vì vật tư '{equipment.Name}' sẽ có số lượng đang dùng âm." });
         }
 
         foreach (var change in preview)
@@ -656,7 +656,7 @@ public class RoomInventoriesController : ControllerBase
 
         return Ok(new
         {
-            message = $"Da dong bo kho vat tu cho phong #{room.Id}.",
+            message = $"Đã đồng bộ kho vật tư cho phòng #{room.Id}.",
             roomId = room.Id,
             updatedEquipments = preview.Count(x => x.IsEquipmentActive),
             skippedDisabledItems,
@@ -678,11 +678,11 @@ public class RoomInventoriesController : ControllerBase
     public async Task<IActionResult> PreviewSyncStock([FromQuery] int? roomId = null)
     {
         if (!roomId.HasValue)
-            return BadRequest(new { message = "roomId la bat buoc de xem preview dong bo phong." });
+            return BadRequest(new { message = "roomId là bắt buộc để xem preview đồng bộ phòng." });
 
         var room = await _db.Rooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roomId.Value);
         if (room is null)
-            return NotFound(new { message = $"Khong tim thay phong #{roomId.Value}." });
+            return NotFound(new { message = $"Không tìm thấy phòng #{roomId.Value}." });
 
         var preview = await BuildRoomSyncPreviewAsync(room);
         return Ok(new
@@ -716,7 +716,7 @@ public class RoomInventoriesController : ControllerBase
             .FirstOrDefaultAsync(i => i.Id == id);
 
         if (item is null)
-            return NotFound(new { message = $"Khong tim thay vat tu #{id}." });
+            return NotFound(new { message = $"Không tìm thấy vật tư #{id}." });
 
         var oldActive = item.IsActive;
         item.IsActive = !item.IsActive;
@@ -738,10 +738,10 @@ public class RoomInventoriesController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        var action = item.IsActive ? "kich hoat" : "vo hieu hoa";
+        var action = item.IsActive ? "kích hoạt" : "vô hiệu hóa";
         return Ok(new
         {
-            message = $"Da {action} vat tu '{item.Equipment.Name}'.",
+            message = $"Đã {action} vật tư '{item.Equipment.Name}'.",
             item.Id,
             item.EquipmentId,
             equipmentName = item.Equipment.Name,
@@ -756,7 +756,7 @@ public class RoomInventoriesController : ControllerBase
     {
         var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Id == request.RoomId);
         if (room is null)
-            return NotFound(new { message = $"Khong tim thay phong #{request.RoomId}." });
+            return NotFound(new { message = $"Không tìm thấy phòng #{request.RoomId}." });
 
         room.InventorySyncSnapshotJson = SerializeSnapshot(await GetActiveRoomQuantitiesAsync(room.Id));
         room.InventoryLastSyncedAt = DateTime.UtcNow;
@@ -765,7 +765,7 @@ public class RoomInventoriesController : ControllerBase
 
         return Ok(new
         {
-            message = $"Da luu snapshot vat tu hien tai cho phong #{room.Id}.",
+            message = $"Đã lưu snapshot vật tư hiện tại cho phòng #{room.Id}.",
             roomId = room.Id,
             lastSyncedAt = room.InventoryLastSyncedAt
         });

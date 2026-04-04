@@ -20,8 +20,50 @@ public class CreateBookingRequest
 public class CreateBookingDetailRequest
 {
     public int RoomTypeId { get; set; }
+    public int? RoomId { get; set; }
     public DateTime CheckInDate { get; set; }
     public DateTime CheckOutDate { get; set; }
+}
+
+public class AddBookingDetailRequest
+{
+    public int RoomTypeId { get; set; }
+    public DateTime CheckInDate { get; set; }
+    public DateTime CheckOutDate { get; set; }
+    public string? Note { get; set; }
+}
+
+public class CheckInBookingDetailRequest
+{
+    public int BookingDetailId { get; set; }
+    public int? RoomId { get; set; }
+}
+
+public class BulkCheckInBookingRequest
+{
+    public List<CheckInBookingDetailRequest> Details { get; set; } = new();
+}
+
+public class ExtendStayRequest
+{
+    public int BookingDetailId { get; set; }
+    public DateTime NewCheckOutDate { get; set; }
+    public int? TargetRoomId { get; set; }
+}
+
+public class EarlyCheckOutRequest
+{
+    public int BookingDetailId { get; set; }
+    public DateTime NewCheckOutDate { get; set; }
+}
+
+public class ReceptionDashboardResponse
+{
+    public DateTime Date { get; set; }
+    public List<BookingResponse> TodayArrivals { get; set; } = new();
+    public List<BookingResponse> StayingGuests { get; set; } = new();
+    public List<BookingResponse> PendingCheckouts { get; set; } = new();
+    public object Summary { get; set; } = new();
 }
 
 public class BookingDetailResponse

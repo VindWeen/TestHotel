@@ -96,3 +96,33 @@ export const checkIn = (id) =>
  */
 export const checkOut = (id) =>
     axiosClient.patch(`/Bookings/${id}/check-out`);
+
+export const getReceptionDashboard = (params = {}) => {
+    const query = buildQueryString(params);
+    return axiosClient.get(`/Bookings/receptionist/dashboard${query ? `?${query}` : ""}`);
+};
+
+export const getReceptionAvailability = (params = {}) => {
+    const query = buildQueryString(params);
+    return axiosClient.get(`/Bookings/receptionist/availability${query ? `?${query}` : ""}`);
+};
+
+export const getReceptionMemberSuggestions = (params = {}) => {
+    const query = buildQueryString(params);
+    return axiosClient.get(`/Bookings/receptionist/member-suggestions${query ? `?${query}` : ""}`);
+};
+
+export const addRoomToBooking = (id, data) =>
+    axiosClient.post(`/Bookings/${id}/details`, data);
+
+export const checkInRoom = (id, data) =>
+    axiosClient.patch(`/Bookings/${id}/check-in-room`, data);
+
+export const checkInBulk = (id, data = {}) =>
+    axiosClient.patch(`/Bookings/${id}/check-in-bulk`, data);
+
+export const extendStay = (id, data) =>
+    axiosClient.patch(`/Bookings/${id}/extend-stay`, data);
+
+export const earlyCheckOut = (id, data) =>
+    axiosClient.patch(`/Bookings/${id}/early-checkout`, data);

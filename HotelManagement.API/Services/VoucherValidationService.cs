@@ -31,37 +31,37 @@ public class VoucherValidationService : IVoucherValidationService
     {
         if (discountType != VoucherDiscountTypes.Percent && discountType != VoucherDiscountTypes.FixedAmount)
         {
-            errorMessage = "Loáº¡i giáº£m giĂ¡ pháº£i lĂ  PERCENT hoáº·c FIXED_AMOUNT.";
+            errorMessage = "Loại giảm giá phải là PERCENT hoặc FIXED_AMOUNT.";
             return false;
         }
 
         if (discountValue <= 0)
         {
-            errorMessage = "GiĂ¡ trá»‹ giáº£m pháº£i lá»›n hÆ¡n 0.";
+            errorMessage = "Giá trị giảm phải lớn hơn 0.";
             return false;
         }
 
         if (discountType == VoucherDiscountTypes.Percent && discountValue > 100)
         {
-            errorMessage = "Pháº§n trÄƒm giáº£m giĂ¡ khĂ´ng Ä‘Æ°á»£c vÆ°á»£t quĂ¡ 100%.";
+            errorMessage = "Phần trăm giảm giá không được vượt quá 100%.";
             return false;
         }
 
         if (validFrom.HasValue && validTo.HasValue && validFrom >= validTo)
         {
-            errorMessage = "ValidFrom pháº£i trÆ°á»›c ValidTo.";
+            errorMessage = "ValidFrom phải trước ValidTo.";
             return false;
         }
 
         if (usageLimit.HasValue && usageLimit.Value <= 0)
         {
-            errorMessage = "Giá»›i háº¡n sá»­ dá»¥ng pháº£i lá»›n hÆ¡n 0.";
+            errorMessage = "Giới hạn sử dụng phải lớn hơn 0.";
             return false;
         }
 
         if (maxUsesPerUser <= 0)
         {
-            errorMessage = "Sá»‘ lÆ°á»£t dĂ¹ng tá»‘i Ä‘a má»—i user pháº£i lá»›n hÆ¡n 0.";
+            errorMessage = "Số lượt dùng tối đa mỗi user phải lớn hơn 0.";
             return false;
         }
 
@@ -73,31 +73,31 @@ public class VoucherValidationService : IVoucherValidationService
     {
         if (!voucher.IsActive)
         {
-            errorMessage = "Voucher Ä‘Ă£ bá»‹ vĂ´ hiá»‡u hĂ³a.";
+            errorMessage = "Voucher đã bị vô hiệu hóa.";
             return false;
         }
 
         if (voucher.ValidFrom.HasValue && nowUtc < voucher.ValidFrom.Value)
         {
-            errorMessage = "Voucher chÆ°a Ä‘áº¿n ngĂ y sá»­ dá»¥ng.";
+            errorMessage = "Voucher chưa đến ngày sử dụng.";
             return false;
         }
 
         if (voucher.ValidTo.HasValue && nowUtc > voucher.ValidTo.Value)
         {
-            errorMessage = "Voucher Ä‘Ă£ háº¿t háº¡n.";
+            errorMessage = "Voucher đã hết hạn.";
             return false;
         }
 
         if (voucher.UsageLimit.HasValue && voucher.UsedCount >= voucher.UsageLimit.Value)
         {
-            errorMessage = "Voucher Ä‘Ă£ háº¿t lÆ°á»£t sá»­ dá»¥ng.";
+            errorMessage = "Voucher đã hết lượt sử dụng.";
             return false;
         }
 
         if (voucher.MinBookingValue.HasValue && bookingAmount < voucher.MinBookingValue.Value)
         {
-            errorMessage = $"ÄÆ¡n hĂ ng tá»‘i thiá»ƒu {voucher.MinBookingValue.Value:N0}Ä‘ Ä‘á»ƒ dĂ¹ng voucher nĂ y.";
+            errorMessage = $"Đơn hàng tối thiểu {voucher.MinBookingValue.Value:N0}đ để dùng voucher này.";
             return false;
         }
 

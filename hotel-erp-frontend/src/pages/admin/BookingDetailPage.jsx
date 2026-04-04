@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { cancelBooking, checkIn, checkOut, confirmBooking, getBookingDetail } from "../../api/bookingsApi";
+import { addRoomToBooking, cancelBooking, checkIn, checkInRoom, checkOut, confirmBooking, earlyCheckOut, extendStay, getBookingDetail } from "../../api/bookingsApi";
 import { formatCurrency, formatDate } from "../../utils";
 
 const ALLOWED_ACTIONS = {
@@ -99,6 +99,9 @@ const BookingStatusBadge = ({ status }) => {
   );
 };
 
+const isTransferExtensionDetail = (detail) =>
+  (detail?.note || "").toLowerCase().includes("chuyển phòng để ở thêm");
+
 export default function BookingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -106,6 +109,7 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [toasts, setToasts] = useState([]);
+  const [extendStayConflict, setExtendStayConflict] = useState(null);
   
   // Trạng thái hộp thoại tùy chỉnh
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -152,6 +156,89 @@ export default function BookingDetailPage() {
       await load();
     } catch (e) {
       showToast(e?.response?.data?.message || "Thao tác thất bại.", "error");
+    }
+  };
+
+  const handleCheckInDetail = async (detailId) => {
+    try {
+      await checkInRoom(id, { bookingDetailId: detailId });
+      showToast("Đã check-in phòng thành công.");
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Check-in từng phòng thất bại.", "error");
+    }
+  };
+
+  const handleExtendStay = async (detail) => {
+    const rawDate = window.prompt("Nhập ngày check-out mới (YYYY-MM-DD)", detail?.checkOutDate?.slice?.(0, 10) || "");
+    if (!rawDate) return;
+
+    try {
+      await extendStay(id, { bookingDetailId: detail.id, newCheckOutDate: rawDate });
+      showToast("Đã cập nhật ở thêm ngày.");
+      setExtendStayConflict(null);
+      await load();
+    } catch (e) {
+      const payload = e?.response?.data;
+      if (payload?.data?.suggestions?.length) {
+        setExtendStayConflict({
+          bookingDetailId: detail.id,
+          newCheckOutDate: payload.data.newCheckOutDate || rawDate,
+          currentRoomId: payload.data.currentRoomId,
+          currentRoomTypeId: payload.data.currentRoomTypeId,
+          suggestions: payload.data.suggestions || [],
+        });
+        showToast("Phòng hiện tại bị trùng lịch. Hãy chọn một phòng thay thế bên dưới.", "warning");
+      } else {
+        showToast(payload?.message || "Ở thêm ngày thất bại.", "error");
+      }
+    }
+  };
+
+  const handleChooseAlternativeRoom = async (roomId) => {
+    if (!extendStayConflict) return;
+
+    try {
+      await extendStay(id, {
+        bookingDetailId: extendStayConflict.bookingDetailId,
+        newCheckOutDate: extendStayConflict.newCheckOutDate,
+        targetRoomId: roomId,
+      });
+      showToast("Đã đổi phòng thay thế và cập nhật ở thêm ngày.");
+      setExtendStayConflict(null);
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Đổi sang phòng thay thế thất bại.", "error");
+    }
+  };
+
+  const handleEarlyCheckOut = async (detail) => {
+    const rawDate = window.prompt("Nhập ngày check-out thực tế (YYYY-MM-DD)", detail?.checkOutDate?.slice?.(0, 10) || "");
+    if (!rawDate) return;
+
+    try {
+      await earlyCheckOut(id, { bookingDetailId: detail.id, newCheckOutDate: rawDate });
+      showToast("Đã cập nhật out sớm và tính lại booking.");
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Out sớm thất bại.", "error");
+    }
+  };
+
+  const handleAddRoom = async () => {
+    const roomTypeId = window.prompt("Nhập RoomTypeId muốn thêm");
+    if (!roomTypeId) return;
+    const checkInDate = window.prompt("Nhập ngày check-in (YYYY-MM-DD)");
+    if (!checkInDate) return;
+    const checkOutDate = window.prompt("Nhập ngày check-out (YYYY-MM-DD)");
+    if (!checkOutDate) return;
+
+    try {
+      await addRoomToBooking(id, { roomTypeId: Number(roomTypeId), checkInDate, checkOutDate });
+      showToast("Đã thêm phòng vào booking.");
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Thêm phòng thất bại.", "error");
     }
   };
 
@@ -204,6 +291,64 @@ export default function BookingDetailPage() {
         onCancel={() => setCancelModalOpen(false)}
         loading={cancelLoading}
       />
+
+      {extendStayConflict && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2100, padding: 20 }}
+          onClick={(e) => e.target === e.currentTarget && setExtendStayConflict(null)}
+        >
+          <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 760, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.18)", padding: 28 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 18 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: "0 0 6px" }}>Gợi ý phòng thay thế để ở thêm</h3>
+                <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                  Phòng hiện tại đã bị trùng lịch trong phần ngày ở thêm. Bạn có thể chọn một phòng khác để chuyển sang ở tiếp.
+                </p>
+              </div>
+              <button onClick={() => setExtendStayConflict(null)} className="action-btn" style={{ padding: "8px 12px", fontSize: 12 }}>
+                Đóng
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gap: 12 }}>
+              {(extendStayConflict.suggestions || []).map((room) => (
+                <div
+                  key={room.id}
+                  style={{
+                    border: "1px solid #dbeafe",
+                    background: "#f8fbff",
+                    borderRadius: 16,
+                    padding: 16,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 16,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#1c1917", marginBottom: 4 }}>
+                      Phòng {room.roomNumber} • {room.roomTypeName}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                      Tầng {room.floor} • {room.sameRoomType ? "Cùng hạng phòng" : "Khác hạng phòng"}
+                    </div>
+                    <div style={{ fontSize: 12, color: room.sameRoomType ? "#166534" : "#1d4ed8", fontWeight: 700 }}>
+                      {room.sameRoomType ? "Ưu tiên cùng hạng" : "Có thể đổi sang hạng khác"} • {formatCurrency(room.basePrice)}/đêm
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleChooseAlternativeRoom(room.id)}
+                    className="action-btn primary"
+                    style={{ padding: "10px 16px", fontSize: 13, flexShrink: 0 }}
+                  >
+                    Chọn phòng này
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginBottom: 28 }}>
         <button
@@ -272,6 +417,7 @@ export default function BookingDetailPage() {
                     <th style={{ padding: "14px 24px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Phòng (N/A nếu chưa gán)</th>
                     <th style={{ padding: "14px 24px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Thời gian</th>
                     <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Giá/Đêm</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Nghiệp vụ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -279,18 +425,68 @@ export default function BookingDetailPage() {
                     <tr key={detail.id} className="table-row">
                       <td style={{ padding: "16px 24px" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "#1c1917" }}>{detail.roomTypeName || "-"}</div>
+                        {isTransferExtensionDetail(detail) && (
+                          <div style={{ marginTop: 8 }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "4px 10px",
+                                borderRadius: 999,
+                                background: "#eff6ff",
+                                color: "#1d4ed8",
+                                fontSize: 11,
+                                fontWeight: 800,
+                                border: "1px solid #bfdbfe",
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>swap_horiz</span>
+                              Chặng chuyển phòng
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "16px 24px" }}>
                         <div style={{ padding: "3px 10px", borderRadius: 8, background: "#f0faf5", color: "#1a3826", fontWeight: 800, fontSize: 14, display: "inline-block", border: "1.5px solid #a7f3d0" }}>
                           {detail.roomName || "-"}
                         </div>
+                        {isTransferExtensionDetail(detail) && (
+                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>
+                            Đây là phòng được thêm mới để nối tiếp thời gian ở sau khi đổi phòng.
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "16px 24px" }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#1c1917" }}>In: {formatDate(detail.checkInDate)}</div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>Out: {formatDate(detail.checkOutDate)}</div>
+                        {detail.note && (
+                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 8, lineHeight: 1.45 }}>
+                            {detail.note}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "16px 24px", textAlign: "right" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "#4f645b" }}>{formatCurrency(detail.pricePerNight)}</div>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+                          {!detail.roomId && (booking.status === "Confirmed" || booking.status === "Checked_in") && (
+                            <button className="action-btn" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => handleCheckInDetail(detail.id)}>
+                              Check-in phòng
+                            </button>
+                          )}
+                          {(booking.status === "Confirmed" || booking.status === "Checked_in") && (
+                            <>
+                              <button className="action-btn" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => handleExtendStay(detail)}>
+                                Ở thêm
+                              </button>
+                              <button className="action-btn" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => handleEarlyCheckOut(detail)}>
+                                Out sớm
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -313,6 +509,9 @@ export default function BookingDetailPage() {
                 </button>
                 <button className="action-btn" disabled={!canRun("checkout")} onClick={() => runAction("checkout")}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>logout</span> Khách Check-out
+                </button>
+                <button className="action-btn" disabled={!(booking?.status === "Pending" || booking?.status === "Confirmed" || booking?.status === "Checked_in")} onClick={handleAddRoom}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add_home</span> Thêm phòng vào booking
                 </button>
                 <button className="action-btn danger" disabled={!canRun("cancel")} onClick={() => runAction("cancel")}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>cancel</span> Hủy đặt phòng
