@@ -325,6 +325,7 @@ CREATE TABLE [dbo].[Loss_And_Damages](
     [description]       [nvarchar](max)  NULL,
     [img_url]           [nvarchar](max)  NULL,          -- ảnh minh chứng thiệt hại lưu Cloudinary
     [status]            [nvarchar](20)   NOT NULL DEFAULT 'Pending',  -- Pending / Confirmed / Waived
+    [is_stock_synced]   [bit]            NOT NULL DEFAULT 0,
     [created_at]        [datetime]       NULL,
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]

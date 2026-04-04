@@ -35,6 +35,9 @@ public class RoomInventoriesController : ControllerBase
         public string EquipmentName { get; set; } = string.Empty;
         public int OldRoomQuantity { get; set; }
         public int NewRoomQuantity { get; set; }
+        public bool IsEquipmentActive { get; set; }
+        public int AvailableStock { get; set; }
+        public bool HasInsufficientStock { get; set; }
         public int Delta => NewRoomQuantity - OldRoomQuantity;
     }
 
@@ -105,7 +108,9 @@ public class RoomInventoriesController : ControllerBase
             {
                 e.Id,
                 e.ItemCode,
-                e.Name
+                e.Name,
+                e.IsActive,
+                e.InStockQuantity
             })
             .ToDictionaryAsync(e => e.Id);
 
@@ -123,7 +128,10 @@ public class RoomInventoriesController : ControllerBase
                     ItemCode = equipment.ItemCode,
                     EquipmentName = equipment.Name,
                     OldRoomQuantity = oldQty,
-                    NewRoomQuantity = newQty
+                    NewRoomQuantity = newQty,
+                    IsEquipmentActive = equipment.IsActive,
+                    AvailableStock = equipment.InStockQuantity,
+                    HasInsufficientStock = newQty > oldQty && (newQty - oldQty) > equipment.InStockQuantity
                 };
             })
             .Where(x => x is not null)
@@ -215,6 +223,14 @@ public class RoomInventoriesController : ControllerBase
         var equipment = await _db.Equipments.FindAsync(request.EquipmentId);
         if (equipment is null)
             return BadRequest(new { message = $"Equipment #{request.EquipmentId} khong ton tai." });
+        if (!equipment.IsActive)
+            return Conflict(new { message = $"Vat tu '{equipment.Name}' dang bi vo hieu hoa va khong the them vao phong." });
+
+        var requestedQuantity = request.Quantity ?? 0;
+        if (requestedQuantity < 0)
+            return BadRequest(new { message = "So luong vat tu khong duoc am." });
+        if (requestedQuantity > equipment.InStockQuantity)
+            return Conflict(new { message = $"Ton kho cua vat tu '{equipment.Name}' khong du de them {requestedQuantity} vao phong." });
 
         var existingItem = await _db.RoomInventories
             .Where(i => i.RoomId == request.RoomId && i.EquipmentId == request.EquipmentId)
@@ -228,7 +244,7 @@ public class RoomInventoriesController : ControllerBase
             var oldSnapshot = $"{{\"isActive\": {existingItem.IsActive.ToString().ToLower()}, \"quantity\": {existingItem.Quantity ?? 0}, \"itemType\": \"{existingItem.ItemType}\", \"priceIfLost\": {(existingItem.PriceIfLost?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null")}}}";
 
             existingItem.ItemType = request.ItemType;
-            existingItem.Quantity = request.Quantity;
+            existingItem.Quantity = requestedQuantity;
             existingItem.PriceIfLost = request.PriceIfLost;
             existingItem.Note = request.Note?.Trim();
             existingItem.IsActive = true;
@@ -265,7 +281,7 @@ public class RoomInventoriesController : ControllerBase
             RoomId = request.RoomId,
             EquipmentId = request.EquipmentId,
             ItemType = request.ItemType,
-            Quantity = request.Quantity,
+            Quantity = requestedQuantity,
             PriceIfLost = request.PriceIfLost,
             Note = request.Note?.Trim(),
             IsActive = true
@@ -312,10 +328,23 @@ public class RoomInventoriesController : ControllerBase
         var equipment = await _db.Equipments.FindAsync(request.EquipmentId);
         if (equipment is null)
             return BadRequest(new { message = $"Equipment #{request.EquipmentId} khong ton tai." });
+        if (!equipment.IsActive)
+            return Conflict(new { message = $"Vat tu '{equipment.Name}' dang bi vo hieu hoa va khong the gan vao phong." });
+
+        var requestedQuantity = request.Quantity ?? 0;
+        if (requestedQuantity < 0)
+            return BadRequest(new { message = "So luong vat tu khong duoc am." });
+
+        var currentQuantity = item.Quantity ?? 0;
+        var delta = request.EquipmentId == item.EquipmentId
+            ? requestedQuantity - currentQuantity
+            : requestedQuantity;
+        if (delta > 0 && delta > equipment.InStockQuantity)
+            return Conflict(new { message = $"Ton kho cua vat tu '{equipment.Name}' khong du de tang them {delta} vao phong." });
 
         item.EquipmentId = request.EquipmentId;
         item.ItemType = request.ItemType;
-        item.Quantity = request.Quantity;
+        item.Quantity = requestedQuantity;
         item.PriceIfLost = request.PriceIfLost;
         item.Note = request.Note?.Trim();
         BumpRoomInventoryVersion(item.Room);
@@ -393,6 +422,7 @@ public class RoomInventoriesController : ControllerBase
 
         var sourceItems = await _db.RoomInventories
             .AsNoTracking()
+            .Include(i => i.Equipment)
             .Where(i => i.RoomId == request.SourceRoomId && i.IsActive)
             .ToListAsync();
 
@@ -410,6 +440,8 @@ public class RoomInventoriesController : ControllerBase
         var clonedTo = new List<int>();
         var newItems = new List<RoomInventory>();
         var changedRooms = new HashSet<int>();
+        var skippedDisabledItems = new List<object>();
+        var skippedInsufficientStockItems = new List<object>();
 
         // Chi clone vat tu ma phong dich chua co (theo EquipmentId dang active).
         var existingByRoom = await _db.RoomInventories
@@ -440,6 +472,36 @@ public class RoomInventoriesController : ControllerBase
             var clonedCountForRoom = 0;
             foreach (var src in sourceDistinctItems)
             {
+                if (src.Equipment?.IsActive == false)
+                {
+                    skippedDisabledItems.Add(new
+                    {
+                        roomId = targetId,
+                        equipmentId = src.EquipmentId,
+                        equipmentName = src.Equipment?.Name,
+                        reason = "EquipmentDisabled"
+                    });
+                    totalSkippedItems++;
+                    continue;
+                }
+
+                var sourceQuantity = src.Quantity ?? 0;
+                var availableStock = src.Equipment?.InStockQuantity ?? 0;
+                if (sourceQuantity > availableStock)
+                {
+                    skippedInsufficientStockItems.Add(new
+                    {
+                        roomId = targetId,
+                        equipmentId = src.EquipmentId,
+                        equipmentName = src.Equipment?.Name,
+                        requestedQuantity = sourceQuantity,
+                        availableStock,
+                        reason = "InsufficientStock"
+                    });
+                    totalSkippedItems++;
+                    continue;
+                }
+
                 if (existingEquipments.Contains(src.EquipmentId))
                 {
                     totalSkippedItems++;
@@ -453,7 +515,9 @@ public class RoomInventoriesController : ControllerBase
                     ItemType = src.ItemType,
                     Quantity = src.Quantity,
                     PriceIfLost = src.PriceIfLost,
-                    Note = src.Note,
+                    Note = string.IsNullOrWhiteSpace(src.Note)
+                        ? $"Dong bo tu phong {request.SourceRoomId}"
+                        : $"{src.Note} | Dong bo tu phong {request.SourceRoomId}",
                     IsActive = src.IsActive
                 });
 
@@ -505,6 +569,8 @@ public class RoomInventoriesController : ControllerBase
             itemsPerRoom = sourceDistinctItems.Count,
             clonedItems = totalClonedItems,
             skippedExistingItems = totalSkippedItems,
+            skippedDisabledItems,
+            skippedInsufficientStockItems,
             clonedToRooms = clonedTo,
             invalidRoomIds = invalidTargets,
             changedRoomIds = changedRooms,
@@ -546,11 +612,26 @@ public class RoomInventoriesController : ControllerBase
         var equipments = await _db.Equipments
             .Where(e => equipmentIds.Contains(e.Id))
             .ToDictionaryAsync(e => e.Id);
+        var skippedDisabledItems = new List<object>();
 
         foreach (var change in preview)
         {
             if (!equipments.TryGetValue(change.EquipmentId, out var equipment))
                 continue;
+
+            if (!equipment.IsActive)
+            {
+                skippedDisabledItems.Add(new
+                {
+                    equipmentId = equipment.Id,
+                    equipmentName = equipment.Name,
+                    reason = "EquipmentDisabled"
+                });
+                continue;
+            }
+
+            if (change.Delta > 0 && change.Delta > equipment.InStockQuantity)
+                return Conflict(new { message = $"Khong the dong bo vi vat tu '{equipment.Name}' khong du ton kho.", skippedDisabledItems });
 
             var nextInUse = equipment.InUseQuantity + change.Delta;
             if (nextInUse < 0)
@@ -560,6 +641,8 @@ public class RoomInventoriesController : ControllerBase
         foreach (var change in preview)
         {
             if (!equipments.TryGetValue(change.EquipmentId, out var equipment))
+                continue;
+            if (!equipment.IsActive)
                 continue;
 
             equipment.InUseQuantity += change.Delta;
@@ -575,7 +658,8 @@ public class RoomInventoriesController : ControllerBase
         {
             message = $"Da dong bo kho vat tu cho phong #{room.Id}.",
             roomId = room.Id,
-            updatedEquipments = preview.Count,
+            updatedEquipments = preview.Count(x => x.IsEquipmentActive),
+            skippedDisabledItems,
             changes = preview.Select(x => new
             {
                 equipmentId = x.EquipmentId,
@@ -613,7 +697,10 @@ public class RoomInventoriesController : ControllerBase
                 equipmentName = x.EquipmentName,
                 oldRoomQuantity = x.OldRoomQuantity,
                 newRoomQuantity = x.NewRoomQuantity,
-                delta = x.Delta
+                delta = x.Delta,
+                isEquipmentActive = x.IsEquipmentActive,
+                availableStock = x.AvailableStock,
+                hasInsufficientStock = x.HasInsufficientStock
             }),
             total = preview.Count
         });
