@@ -27,6 +27,13 @@ public static class InvoiceStatuses
     public const string Refunded = "Refunded";
 }
 
+public static class CleaningStatuses
+{
+    public const string Clean = "Clean";
+    public const string Dirty = "Dirty";
+    public const string PendingLoss = "PendingLoss";
+}
+
 public static class VoucherDiscountTypes
 {
     public const string Percent = "PERCENT";

@@ -49,7 +49,6 @@ public class RoomTypesController : ControllerBase
                 rt.CapacityChildren,
                 rt.AreaSqm,
                 rt.BedType,
-                rt.ViewType,
                 rt.Description,
                 PrimaryImage = rt.RoomImages
                     .Where(img => img.IsActive && img.IsPrimary == true)
@@ -93,7 +92,6 @@ public class RoomTypesController : ControllerBase
                 rt.CapacityChildren,
                 rt.AreaSqm,
                 rt.BedType,
-                rt.ViewType,
                 rt.Description,
                 rt.IsActive,
                 PrimaryImage = rt.RoomImages
@@ -142,7 +140,6 @@ public class RoomTypesController : ControllerBase
                 rt.CapacityChildren,
                 rt.AreaSqm,
                 rt.BedType,
-                rt.ViewType,
                 rt.Description,
                 Images = rt.RoomImages
                     .Where(img => img.IsActive)
@@ -190,7 +187,6 @@ public class RoomTypesController : ControllerBase
                 rt.CapacityChildren,
                 rt.AreaSqm,
                 rt.BedType,
-                rt.ViewType,
                 rt.Description,
                 rt.IsActive,
                 Images = rt.RoomImages
@@ -241,7 +237,6 @@ public class RoomTypesController : ControllerBase
             CapacityChildren = request.CapacityChildren,
             AreaSqm = request.AreaSqm,
             BedType = request.BedType?.Trim(),
-            ViewType = request.ViewType?.Trim(),
             Description = request.Description?.Trim(),
             IsActive = true
         };
@@ -273,7 +268,6 @@ public class RoomTypesController : ControllerBase
         roomType.CapacityChildren = request.CapacityChildren;
         roomType.AreaSqm = request.AreaSqm;
         roomType.BedType = request.BedType?.Trim();
-        roomType.ViewType = request.ViewType?.Trim();
         roomType.Description = request.Description?.Trim();
 
         await _context.SaveChangesAsync();
@@ -592,7 +586,6 @@ public record SaveRoomTypeRequest(
     int CapacityChildren,
     decimal? AreaSqm,
     string? BedType,
-    string? ViewType,
     string? Description
 );
 

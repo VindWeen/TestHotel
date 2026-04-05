@@ -25,13 +25,28 @@ public class ArticleCategoriesController : ControllerBase
     // GET /api/ArticleCategories
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false)
     {
-        var categories = await _db.ArticleCategories
+        var isAdmin = User.Identity?.IsAuthenticated == true
+                   && User.HasClaim("permission", PermissionCodes.ManageContent);
+
+        var query = _db.ArticleCategories
             .AsNoTracking()
-            .Where(c => c.IsActive)
+            .AsQueryable();
+
+        if (!(isAdmin && includeInactive))
+            query = query.Where(c => c.IsActive);
+
+        var categories = await query
             .OrderBy(c => c.Name)
-            .Select(c => new { c.Id, c.Name, c.Slug })
+            .Select(c => new
+            {
+                c.Id,
+                c.Name,
+                c.Slug,
+                c.IsActive,
+                ArticleCount = c.Articles.Count()
+            })
             .ToListAsync();
 
         return Ok(new { data = categories, total = categories.Count });

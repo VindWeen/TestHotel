@@ -1,4 +1,4 @@
-using HotelManagement.Core.Authorization;
+﻿using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Entities;
 using HotelManagement.Core.Helpers;
 using HotelManagement.Core.Models.Enums;
@@ -23,26 +23,32 @@ public class AttractionsController : ControllerBase
         _activityLog = activityLog;
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // GET /api/Attractions
-    // Public — is_active = 1.
-    // Kèm latitude, longitude, category để FE render Google Maps marker.
-    // Sắp xếp theo distance_km tăng dần.
-    // Filter tuỳ chọn theo category.
-    // ──────────────────────────────────────────────────────────────────────────
+    // Public â€” is_active = 1.
+    // KĂ¨m latitude, longitude, category Ä‘á»ƒ FE render Google Maps marker.
+    // Sáº¯p xáº¿p theo distance_km tÄƒng dáº§n.
+    // Filter tuá»³ chá»n theo category.
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetAll([FromQuery] string? category)
+    public async Task<IActionResult> GetAll([FromQuery] string? category, [FromQuery] bool includeInactive = false)
     {
+        var isAdmin = User.Identity?.IsAuthenticated == true
+                   && User.HasClaim("permission", PermissionCodes.ManageContent);
+
         var query = _db.Attractions
             .AsNoTracking()
-            .Where(a => a.IsActive);
+            .AsQueryable();
+
+        if (!(isAdmin && includeInactive))
+            query = query.Where(a => a.IsActive);
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(a => a.Category == category.Trim());
 
         var items = await query
-            .OrderBy(a => a.DistanceKm == null)   // null xuống cuối
+            .OrderBy(a => a.DistanceKm == null)   // null xuá»‘ng cuá»‘i
             .ThenBy(a => a.DistanceKm)
             .ThenBy(a => a.Name)
             .Select(a => new
@@ -54,19 +60,20 @@ public class AttractionsController : ControllerBase
                 a.Latitude,
                 a.Longitude,
                 a.DistanceKm,
-                a.ImageUrl
+                a.ImageUrl,
+                a.IsActive
             })
             .ToListAsync();
 
         return Ok(new { data = items, total = items.Count });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // GET /api/Attractions/{id}
-    // Public — chi tiết 1 địa điểm.
-    // Trả đầy đủ: tọa độ GPS, địa chỉ, mô tả, ảnh, map embed link.
-    // FE dùng khi click marker trên Google Maps.
-    // ──────────────────────────────────────────────────────────────────────────
+    // Public â€” chi tiáº¿t 1 Ä‘á»‹a Ä‘iá»ƒm.
+    // Tráº£ Ä‘áº§y Ä‘á»§: tá»a Ä‘á»™ GPS, Ä‘á»‹a chá»‰, mĂ´ táº£, áº£nh, map embed link.
+    // FE dĂ¹ng khi click marker trĂªn Google Maps.
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
@@ -92,42 +99,42 @@ public class AttractionsController : ControllerBase
         if (attraction is null)
             return NotFound(new { Notification = new Notification
             {
-                Title = "Không tìm thấy địa điểm",
-                Message = $"Không tìm thấy địa điểm #{id}.",
+                Title = "KhĂ´ng tĂ¬m tháº¥y Ä‘á»‹a Ä‘iá»ƒm",
+                Message = $"KhĂ´ng tĂ¬m tháº¥y Ä‘á»‹a Ä‘iá»ƒm #{id}.",
                 Type = NotificationType.Error,
-                Action = NotificationAction.CreateArticle // Action nào phù hợp tuỳ context
+                Action = NotificationAction.Other
             }});
 
         return Ok(attraction);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // POST /api/Attractions
     // [MANAGE_CONTENT]
     // Body: { name, category, address, latitude, longitude,
     //         distanceKm, description, imageUrl, mapEmbedLink }
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpPost]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> Create([FromBody] CreateAttractionRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new { message = "Tên địa điểm không được để trống." });
+            return BadRequest(new { message = "TĂªn Ä‘á»‹a Ä‘iá»ƒm khĂ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng." });
 
         if (!IsValidCategory(request.Category))
             return BadRequest(new
             {
-                message = "Category không hợp lệ. Dùng: Di tích | Ẩm thực | Giải trí | Thiên nhiên."
+                message = "Category khĂ´ng há»£p lá»‡. DĂ¹ng: Di tĂ­ch | áº¨m thá»±c | Giáº£i trĂ­ | ThiĂªn nhiĂªn."
             });
 
         if (request.Latitude is < -90 or > 90)
-            return BadRequest(new { message = "Latitude phải nằm trong khoảng -90 đến 90." });
+            return BadRequest(new { message = "Latitude pháº£i náº±m trong khoáº£ng -90 Ä‘áº¿n 90." });
 
         if (request.Longitude is < -180 or > 180)
-            return BadRequest(new { message = "Longitude phải nằm trong khoảng -180 đến 180." });
+            return BadRequest(new { message = "Longitude pháº£i náº±m trong khoáº£ng -180 Ä‘áº¿n 180." });
 
         if (request.DistanceKm is < 0)
-            return BadRequest(new { message = "DistanceKm không được âm." });
+            return BadRequest(new { message = "DistanceKm khĂ´ng Ä‘Æ°á»£c Ă¢m." });
 
         var attraction = new Attraction
         {
@@ -151,8 +158,8 @@ public class AttractionsController : ControllerBase
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "CREATE_ATTRACTION",
-            actionLabel: "Tạo địa điểm",
-            message: $"Đã thêm địa điểm tham quan mới: \"{attraction.Name}\" ({attraction.Category}).",
+            actionLabel: "Táº¡o Ä‘á»‹a Ä‘iá»ƒm",
+            message: $"ÄĂ£ thĂªm Ä‘á»‹a Ä‘iá»ƒm tham quan má»›i: \"{attraction.Name}\" ({attraction.Category}).",
             entityType: "Attraction",
             entityId: attraction.Id,
             entityLabel: attraction.Name,
@@ -161,7 +168,7 @@ public class AttractionsController : ControllerBase
             roleName: User.FindFirst("role")?.Value
         );
 
-        // Khôi phục AuditLog
+        // KhĂ´i phá»¥c AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = JwtHelper.GetUserId(User),
@@ -179,7 +186,7 @@ public class AttractionsController : ControllerBase
             new { id = attraction.Id },
             new
             {
-                message = "Tạo địa điểm thành công.",
+                message = "Táº¡o Ä‘á»‹a Ä‘iá»ƒm thĂ nh cĂ´ng.",
                 attraction.Id,
                 attraction.Name,
                 attraction.Category,
@@ -187,11 +194,11 @@ public class AttractionsController : ControllerBase
             });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // PUT /api/Attractions/{id}
     // [MANAGE_CONTENT]
-    // Patch-style: chỉ cập nhật field được gửi lên (không null).
-    // ──────────────────────────────────────────────────────────────────────────
+    // Patch-style: chá»‰ cáº­p nháº­t field Ä‘Æ°á»£c gá»­i lĂªn (khĂ´ng null).
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpPut("{id:int}")]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateAttractionRequest request)
@@ -200,25 +207,25 @@ public class AttractionsController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == id && a.IsActive);
 
         if (attraction is null)
-            return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
+            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y Ä‘á»‹a Ä‘iá»ƒm #{id}." });
 
-        // Validate trước khi cập nhật
+        // Validate trÆ°á»›c khi cáº­p nháº­t
         if (request.Category is not null && !IsValidCategory(request.Category))
             return BadRequest(new
             {
-                message = "Category không hợp lệ. Dùng: Di tích | Ẩm thực | Giải trí | Thiên nhiên."
+                message = "Category khĂ´ng há»£p lá»‡. DĂ¹ng: Di tĂ­ch | áº¨m thá»±c | Giáº£i trĂ­ | ThiĂªn nhiĂªn."
             });
 
         if (request.Latitude is < -90 or > 90)
-            return BadRequest(new { message = "Latitude phải nằm trong khoảng -90 đến 90." });
+            return BadRequest(new { message = "Latitude pháº£i náº±m trong khoáº£ng -90 Ä‘áº¿n 90." });
 
         if (request.Longitude is < -180 or > 180)
-            return BadRequest(new { message = "Longitude phải nằm trong khoảng -180 đến 180." });
+            return BadRequest(new { message = "Longitude pháº£i náº±m trong khoáº£ng -180 Ä‘áº¿n 180." });
 
         if (request.DistanceKm is < 0)
-            return BadRequest(new { message = "DistanceKm không được âm." });
+            return BadRequest(new { message = "DistanceKm khĂ´ng Ä‘Æ°á»£c Ă¢m." });
 
-        // Chỉ cập nhật field được gửi lên
+        // Chá»‰ cáº­p nháº­t field Ä‘Æ°á»£c gá»­i lĂªn
         if (!string.IsNullOrWhiteSpace(request.Name))
             attraction.Name = request.Name.Trim();
 
@@ -250,8 +257,8 @@ public class AttractionsController : ControllerBase
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "UPDATE_ATTRACTION",
-            actionLabel: "Cập nhật địa điểm",
-            message: $"Thông tin địa điểm \"{attraction.Name}\" đã được chỉnh sửa.",
+            actionLabel: "Cáº­p nháº­t Ä‘á»‹a Ä‘iá»ƒm",
+            message: $"ThĂ´ng tin Ä‘á»‹a Ä‘iá»ƒm \"{attraction.Name}\" Ä‘Ă£ Ä‘Æ°á»£c chá»‰nh sá»­a.",
             entityType: "Attraction",
             entityId: id,
             entityLabel: attraction.Name,
@@ -260,7 +267,7 @@ public class AttractionsController : ControllerBase
             roleName: User.FindFirst("role")?.Value
         );
 
-        // Khôi phục AuditLog
+        // KhĂ´i phá»¥c AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -279,7 +286,7 @@ public class AttractionsController : ControllerBase
 
         return Ok(new
         {
-            message = "Cập nhật địa điểm thành công.",
+            message = "Cáº­p nháº­t Ä‘á»‹a Ä‘iá»ƒm thĂ nh cĂ´ng.",
             attraction.Id,
             attraction.Name,
             attraction.Category,
@@ -287,11 +294,11 @@ public class AttractionsController : ControllerBase
         });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // DELETE /api/Attractions/{id}
     // [MANAGE_CONTENT]  Soft Delete: is_active = 0.
-    // Marker tự biến mất khỏi Google Maps vì GET chỉ trả is_active = 1.
-    // ──────────────────────────────────────────────────────────────────────────
+    // Marker tá»± biáº¿n máº¥t khá»i Google Maps vĂ¬ GET chá»‰ tráº£ is_active = 1.
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpDelete("{id:int}")]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> Delete(int id)
@@ -300,7 +307,7 @@ public class AttractionsController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == id && a.IsActive);
 
         if (attraction is null)
-            return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
+            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y Ä‘á»‹a Ä‘iá»ƒm #{id}." });
 
         attraction.IsActive = false;
 
@@ -308,8 +315,8 @@ public class AttractionsController : ControllerBase
         // Ghi Activity Log
         await _activityLog.LogAsync(
             actionCode: "DELETE_ATTRACTION",
-            actionLabel: "Xóa địa điểm",
-            message: $"{(User.FindFirst("full_name")?.Value ?? "Hệ thống")} đã xóa địa điểm \"{attraction.Name}\".",
+            actionLabel: "XĂ³a Ä‘á»‹a Ä‘iá»ƒm",
+            message: $"{(User.FindFirst("full_name")?.Value ?? "Há»‡ thá»‘ng")} Ä‘Ă£ xĂ³a Ä‘á»‹a Ä‘iá»ƒm \"{attraction.Name}\".",
             entityType: "Attraction",
             entityId: id,
             entityLabel: attraction.Name,
@@ -318,7 +325,7 @@ public class AttractionsController : ControllerBase
             roleName: User.FindFirst("role")?.Value
         );
 
-        // Khôi phục AuditLog
+        // KhĂ´i phá»¥c AuditLog
         _db.AuditLogs.Add(new AuditLog
         {
             UserId    = currentUserId,
@@ -335,13 +342,13 @@ public class AttractionsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { message = $"Đã xoá địa điểm '{attraction.Name}' thành công." });
+        return Ok(new { message = $"ÄĂ£ xoĂ¡ Ä‘á»‹a Ä‘iá»ƒm '{attraction.Name}' thĂ nh cĂ´ng." });
     }
 
-    // ──────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // PATCH /api/Attractions/{id}/toggle-active  [MANAGE_CONTENT]
-    // Bật/tắt địa điểm: is_active = 1 ↔ 0
-    // ──────────────────────────────────────────────────────────────
+    // Báº­t/táº¯t Ä‘á»‹a Ä‘iá»ƒm: is_active = 1 â†” 0
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpPatch("{id:int}/toggle-active")]
     [RequirePermission(PermissionCodes.ManageContent)]
     public async Task<IActionResult> ToggleActive(int id)
@@ -349,7 +356,7 @@ public class AttractionsController : ControllerBase
         var attraction = await _db.Attractions.FindAsync(id);
  
         if (attraction is null)
-            return NotFound(new { message = $"Không tìm thấy địa điểm #{id}." });
+            return NotFound(new { message = $"KhĂ´ng tĂ¬m tháº¥y Ä‘á»‹a Ä‘iá»ƒm #{id}." });
  
         var oldActive = attraction.IsActive;
         attraction.IsActive = !attraction.IsActive;
@@ -369,41 +376,41 @@ public class AttractionsController : ControllerBase
 
         await _db.SaveChangesAsync();
  
-        var action = attraction.IsActive ? "kích hoạt" : "vô hiệu hóa";
+        var action = attraction.IsActive ? "kĂ­ch hoáº¡t" : "vĂ´ hiá»‡u hĂ³a";
         return Ok(new
         {
-            message  = $"Đã {action} địa điểm '{attraction.Name}'.",
+            message  = $"ÄĂ£ {action} Ä‘á»‹a Ä‘iá»ƒm '{attraction.Name}'.",
             attraction.Id,
             attraction.Name,
             attraction.IsActive
         });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // PRIVATE HELPERS
-    // ──────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
-    /// Kiểm tra category hợp lệ theo 4 loại định nghĩa sẵn trong DB.
-    /// null / empty được phép (field nullable).
+    /// Kiá»ƒm tra category há»£p lá»‡ theo 4 loáº¡i Ä‘á»‹nh nghÄ©a sáºµn trong DB.
+    /// null / empty Ä‘Æ°á»£c phĂ©p (field nullable).
     /// </summary>
     private static bool IsValidCategory(string? category)
     {
         if (string.IsNullOrWhiteSpace(category)) return true;
 
-        var allowed = new[] { "Di tích", "Ẩm thực", "Giải trí", "Thiên nhiên" };
+        var allowed = new[] { "Di tĂ­ch", "áº¨m thá»±c", "Giáº£i trĂ­", "ThiĂªn nhiĂªn" };
         return allowed.Contains(category.Trim());
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // REQUEST RECORDS
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// <summary>Request body cho POST /api/Attractions</summary>
 public record CreateAttractionRequest(
     string   Name,
-    string?  Category,       // Di tích | Ẩm thực | Giải trí | Thiên nhiên
+    string?  Category,       // Di tĂ­ch | áº¨m thá»±c | Giáº£i trĂ­ | ThiĂªn nhiĂªn
     string?  Address,
     decimal? Latitude,
     decimal? Longitude,
@@ -415,7 +422,7 @@ public record CreateAttractionRequest(
 
 /// <summary>
 /// Request body cho PUT /api/Attractions/{id}.
-/// Tất cả field nullable — chỉ cập nhật field được gửi lên.
+/// Táº¥t cáº£ field nullable â€” chá»‰ cáº­p nháº­t field Ä‘Æ°á»£c gá»­i lĂªn.
 /// </summary>
 public record UpdateAttractionRequest(
     string?  Name,

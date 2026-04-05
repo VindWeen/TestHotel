@@ -85,6 +85,7 @@ const getRoomStatusKey = (rm) => {
   if (rm.businessStatus === "Disabled") return "Maintenance";
   if (rm.businessStatus === "Occupied") return "Occupied";
   if (rm.businessStatus === "Available" && rm.cleaningStatus === "Clean") return "Ready";
+  if (rm.businessStatus === "Available" && rm.cleaningStatus === "PendingLoss") return "PendingLoss";
   return "Cleaning";
 };
 
@@ -100,6 +101,10 @@ const ROOM_BS_CFG = {
   Cleaning: {
     bg: "#fff1f2", border: "#fecdd3", dot: "#dc2626", label: "Cần dọn dẹp",
     badge_bg: "#fee2e2", badge_color: "#7f1d1d",
+  },
+  PendingLoss: {
+    bg: "#fdf2f8", border: "#fbcfe8", dot: "#e11d48", label: "Chờ xử lý thất thoát",
+    badge_bg: "#fce7f3", badge_color: "#9d174d",
   },
   Maintenance: {
     bg: "#f3f4f6", border: "#d1d5db", dot: "#6b7280", label: "Bảo trì",
@@ -314,7 +319,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const recentBookings = [...bookings].sort((a, b) => b.id - a.id).slice(0, 8);
-  const STATUS_ORDER = { Occupied: 0, Cleaning: 1, Maintenance: 2, Ready: 3 };
+  const STATUS_ORDER = { Occupied: 0, Cleaning: 1, PendingLoss: 2, Maintenance: 3, Ready: 4 };
   const roomPreview = [...rooms].sort((a, b) => {
     const ka = STATUS_ORDER[getRoomStatusKey(a)] ?? 99;
     const kb = STATUS_ORDER[getRoomStatusKey(b)] ?? 99;
@@ -336,7 +341,8 @@ export default function DashboardPage() {
   const roomCountByStatus = {
     Ready: rooms.filter(r => r.businessStatus === "Available" && r.cleaningStatus === "Clean").length,
     Occupied: rooms.filter(r => r.businessStatus === "Occupied").length,
-    Cleaning: rooms.filter(r => r.businessStatus === "Available" && r.cleaningStatus !== "Clean").length,
+    Cleaning: rooms.filter(r => r.businessStatus === "Available" && r.cleaningStatus === "Dirty").length,
+    PendingLoss: rooms.filter(r => r.businessStatus === "Available" && r.cleaningStatus === "PendingLoss").length,
     Maintenance: rooms.filter(r => r.businessStatus === "Disabled").length,
   };
 
@@ -761,7 +767,7 @@ export default function DashboardPage() {
 
             {/* Legend badges */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(["Ready", "Occupied", "Cleaning", "Maintenance"]).map(status => {
+              {(["Ready", "Occupied", "Cleaning", "PendingLoss", "Maintenance"]).map(status => {
                 const cfg = ROOM_BS_CFG[status];
                 const cnt = roomCountByStatus[status] || 0;
                 return (
@@ -791,7 +797,7 @@ export default function DashboardPage() {
               <p style={{ color: "#9ca3af", fontSize: 13, textAlign: "center", padding: "16px 0" }}>Chưa có phòng nào</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-                {(["Occupied", "Cleaning", "Maintenance", "Ready"]).map(statusKey => {
+                {(["Occupied", "Cleaning", "PendingLoss", "Maintenance", "Ready"]).map(statusKey => {
                   const groupRooms = roomPreview.filter(r => getRoomStatusKey(r) === statusKey);
                   if (groupRooms.length === 0) return null;
                   const cfg = ROOM_BS_CFG[statusKey];

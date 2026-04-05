@@ -50,7 +50,6 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
         capacityChildren: "0",
         areaSqm: "",
         bedType: "",
-        viewType: "",
         description: "",
     });
 
@@ -97,7 +96,6 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
                 capacityChildren: Number(form.capacityChildren || 0),
                 areaSqm: form.areaSqm ? Number(form.areaSqm) : null,
                 bedType: form.bedType.trim() || null,
-                viewType: form.viewType.trim() || null,
                 description: form.description.trim() || null,
             });
 
@@ -137,7 +135,6 @@ function CreateRoomTypeModal({ onClose, onCreated, showToast }) {
                         ["Sức chứa trẻ em", "capacityChildren", "number", "Mặc định: 0"],
                         ["Diện tích (m²)", "areaSqm", "number", "Vd: 28"],
                         ["Loại giường", "bedType", "text", "Vd: King bed"],
-                        ["Hướng nhìn", "viewType", "text", "Ví dụ: City view"],
                     ].map(([label, key, type, placeholder]) => (
                         <label key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>{label}</span>
@@ -225,7 +222,6 @@ function EditRoomTypeModal({ roomType, onClose, onUpdated, showToast }) {
         capacityChildren: roomType?.capacityChildren ?? "0",
         areaSqm: roomType?.areaSqm ?? "",
         bedType: roomType?.bedType || "",
-        viewType: roomType?.viewType || "",
         description: roomType?.description || "",
     });
 
@@ -272,7 +268,6 @@ function EditRoomTypeModal({ roomType, onClose, onUpdated, showToast }) {
                 capacityChildren: Number(form.capacityChildren || 0),
                 areaSqm: form.areaSqm ? Number(form.areaSqm) : null,
                 bedType: form.bedType.trim() || null,
-                viewType: form.viewType.trim() || null,
                 description: form.description.trim() || null,
             });
 
@@ -311,7 +306,6 @@ function EditRoomTypeModal({ roomType, onClose, onUpdated, showToast }) {
                         ["Sức chứa trẻ em", "capacityChildren", "number", "Mặc định: 0"],
                         ["Diện tích (m²)", "areaSqm", "number", "Vd: 28"],
                         ["Loại giường", "bedType", "text", "Vd: King bed"],
-                        ["Hướng nhìn", "viewType", "text", "Vd: City view"],
                     ].map(([label, key, type, placeholder]) => (
                         <label key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             <span style={{ fontSize: 12, color: "#4b5563", fontWeight: 700 }}>{label}</span>
@@ -545,7 +539,6 @@ function RoomTypeDetailModal({ roomTypeId, onClose, onUpdated, showToast }) {
                                     ["Giá cơ bản", new Intl.NumberFormat("vi-VN").format(rt.basePrice) + "đ/đêm"],
                                     ["Loại giường", rt.bedType || "—"],
                                     ["Diện tích", rt.areaSqm ? `${rt.areaSqm} m²` : "—"],
-                                    ["Hướng nhìn", rt.viewType || "—"],
                                     ["Sức chứa người lớn", rt.capacityAdults || "—"],
                                     ["Sức chứa trẻ em", rt.capacityChildren != null ? rt.capacityChildren : "—"],
                                 ].map(([k, v]) => (
@@ -785,7 +778,7 @@ export default function RoomTypesPage() {
                                     <div style={{ padding: "14px 16px 16px" }}>
                                         <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1c1917", margin: "0 0 4px", fontFamily: "Manrope, sans-serif" }}>{rt.name}</h3>
                                         <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px" }}>
-                                            {rt.bedType} · {rt.areaSqm}m²{rt.viewType ? ` · ${rt.viewType}` : ""}
+                                            {rt.bedType} · {rt.areaSqm}m²
                                         </p>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                             <span style={{ fontSize: 15, fontWeight: 800, color: "#4f645b", fontFamily: "Manrope, sans-serif" }}>

@@ -599,7 +599,6 @@ public class BookingsController : ControllerBase
                 roomType.CapacityChildren,
                 roomType.BedType,
                 roomType.AreaSqm,
-                roomType.ViewType,
                 AvailableRooms = availableRooms,
                 SuggestedTotal = CalculateNights(normalizedCheckIn, normalizedCheckOut) * roomType.BasePrice,
                 Rooms = roomItems

@@ -172,6 +172,12 @@ public class AppDbContext : DbContext
             .HasForeignKey(l => l.ReportedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<Article>()
+            .HasOne(a => a.Attraction)
+            .WithMany(a => a.Articles)
+            .HasForeignKey(a => a.AttractionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<RoomInventory>()
             .HasOne(ri => ri.Equipment)
             .WithMany(e => e.RoomInventories)

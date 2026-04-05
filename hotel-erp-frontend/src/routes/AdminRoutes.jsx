@@ -10,6 +10,12 @@ import { SERVICE_VIEW_STORAGE_KEY } from "../pages/admin/ServiceAdminShared";
 
 const LoginPage = lazy(() => import("../pages/LoginPage"));
 const ForbiddenPage = lazy(() => import("../pages/ForbiddenPage"));
+const ArticlePreviewPage = lazy(() => import("../pages/ArticlePreviewPage"));
+const PublicArticlesPage = lazy(() => import("../pages/PublicArticlesPage"));
+const PublicArticlePage = lazy(() => import("../pages/PublicArticlePage"));
+const PublicAttractionsPage = lazy(() => import("../pages/PublicAttractionsPage"));
+const PublicAttractionDetailPage = lazy(() => import("../pages/PublicAttractionDetailPage"));
+const PublicReviewsPage = lazy(() => import("../pages/PublicReviewsPage"));
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
 const UserListPage = lazy(() => import("../pages/admin/UserListPage"));
 const RolePermissionPage = lazy(() => import("../pages/admin/RolePermissionPage"));
@@ -27,6 +33,9 @@ const ServiceItemsPage = lazy(() => import("../pages/admin/ServiceItemsPage"));
 const ServiceCategoryPage = lazy(() => import("../pages/admin/ServiceCategoryPage"));
 const OrderServicePage = lazy(() => import("../pages/admin/OrderServicePage"));
 const MembershipPage = lazy(() => import("../pages/admin/MembershipPage"));
+const ArticleAdminPage = lazy(() => import("../pages/admin/ArticleAdminPage"));
+const AttractionAdminPage = lazy(() => import("../pages/admin/AttractionAdminPage"));
+const ReviewAdminPage = lazy(() => import("../pages/admin/ReviewAdminPage"));
 
 function RouteFallback() {
   return (
@@ -73,6 +82,13 @@ function ServiceIndexRedirect() {
 export default function AdminRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/articles" replace />} />
+      <Route path="/articles" element={withSuspense(<PublicArticlesPage />)} />
+      <Route path="/articles/:slug" element={withSuspense(<PublicArticlePage />)} />
+      <Route path="/attractions" element={withSuspense(<PublicAttractionsPage />)} />
+      <Route path="/attractions/:id" element={withSuspense(<PublicAttractionDetailPage />)} />
+      <Route path="/reviews" element={withSuspense(<PublicReviewsPage />)} />
+
       {/* Route công khai - đã đăng nhập sẽ bị redirect theo role */}
       <Route
         path="/login"
@@ -82,6 +98,7 @@ export default function AdminRoutes() {
       />
 
       <Route path="/403" element={withSuspense(<ForbiddenPage />)} />
+      <Route path="/preview/article" element={withSuspense(<ArticlePreviewPage />)} />
 
       <Route
         path="/admin"
@@ -241,6 +258,36 @@ export default function AdminRoutes() {
             <RequirePermission permission="VIEW_ROLES">
               {withSuspense(<RolePermissionPage />)}
             </RequirePermission>
+          }
+        />
+        <Route
+          path="articles"
+          element={
+            <RequirePermission permission="MANAGE_CONTENT">
+              {withSuspense(<ArticleAdminPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="attractions"
+          element={
+            <RequirePermission permission="MANAGE_CONTENT">
+              {withSuspense(<AttractionAdminPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="reviews"
+          element={
+            <RequirePermission permission="MANAGE_CONTENT">
+              {withSuspense(<ReviewAdminPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="site-map"
+          element={
+            <Navigate to="/admin/attractions" replace />
           }
         />
         <Route

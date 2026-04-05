@@ -13,4 +13,6 @@ public class Attraction
     public string? ImageUrl { get; set; }
     public string? MapEmbedLink { get; set; }
     public bool IsActive { get; set; } = true;
+
+    public ICollection<Article> Articles { get; set; } = [];
 }

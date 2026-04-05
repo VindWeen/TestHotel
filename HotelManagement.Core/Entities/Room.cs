@@ -13,7 +13,7 @@ public class Room
 
     // Tách 2 trục trạng thái (Buoi4 slide 30)
     public string BusinessStatus { get; set; } = "Available"; // Available / Occupied / Disabled
-    public string CleaningStatus { get; set; } = "Clean";     // Clean / Dirty
+    public string CleaningStatus { get; set; } = "Clean";     // Clean / Dirty / PendingLoss
 
     public string? Notes { get; set; }
     public string? InventorySyncSnapshotJson { get; set; }

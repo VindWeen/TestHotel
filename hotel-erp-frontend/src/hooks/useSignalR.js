@@ -5,17 +5,21 @@ import { useNotificationStore } from '../store/notificationStore';
 import { getMyNotifications } from '../api/activityLogsApi';
 
 export const useSignalR = () => {
-    const { token } = useAdminAuthStore();
+    const { token, user } = useAdminAuthStore();
     const addNotification = useNotificationStore((state) => state.addNotification);
     const setNotifications = useNotificationStore((state) => state.setNotifications);
+    const clearNotifications = useNotificationStore((state) => state.clearNotifications);
     const connectionRef = useRef(null);
+    const role = user?.role || "";
+    const canUseNotificationCenter = role === "Admin" || role === "Manager";
 
     useEffect(() => {
-        if (!token) {
+        if (!token || !canUseNotificationCenter) {
             if (connectionRef.current) {
                 connectionRef.current.stop();
                 connectionRef.current = null;
             }
+            clearNotifications();
             return;
         }
 
@@ -72,7 +76,7 @@ export const useSignalR = () => {
                 connectionRef.current = null;
             }
         };
-    }, [token, addNotification, setNotifications]);
+    }, [token, canUseNotificationCenter, addNotification, setNotifications, clearNotifications]);
 
     return { connection: connectionRef.current };
 };

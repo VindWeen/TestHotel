@@ -27,7 +27,7 @@ public class ActivityLogsController : ControllerBase
     {
         var roleName = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
 
-        if (roleName != "Admin" && roleName != "Manager")
+        if (!NotificationPolicy.CanAccessNotificationCenter(roleName))
             return Ok(new List<object>());
 
         var userId = JwtHelper.GetUserId(User);
@@ -59,7 +59,7 @@ public class ActivityLogsController : ControllerBase
     public async Task<IActionResult> MarkAsRead(int id)
     {
         var roleName = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
-        if (roleName != "Admin" && roleName != "Manager") return Forbid();
+        if (!NotificationPolicy.CanAccessNotificationCenter(roleName)) return Forbid();
 
         var userId = JwtHelper.GetUserId(User);
 
@@ -86,7 +86,7 @@ public class ActivityLogsController : ControllerBase
     public async Task<IActionResult> MarkAllAsRead()
     {
         var roleName = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
-        if (roleName != "Admin" && roleName != "Manager") return Forbid();
+        if (!NotificationPolicy.CanAccessNotificationCenter(roleName)) return Forbid();
 
         var userId = JwtHelper.GetUserId(User);
         var blockedCodes = NotificationPolicy.GetBlockedActionCodesForRole(roleName!);

@@ -66,3 +66,16 @@ export const uploadArticleThumbnail = (id, file) => {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
 };
+
+/**
+ * POST /api/Articles/content-image  [MANAGE_CONTENT]
+ * Upload image used inside article content editor
+ * Response: { message, url, publicId }
+ */
+export const uploadArticleContentImage = (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return axiosClient.post('/Articles/content-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+};

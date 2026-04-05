@@ -6,8 +6,8 @@ import axiosClient from './axios';
  * Only active categories
  * Response: { data: [{ id, name, slug }], total }
  */
-export const getArticleCategories = () =>
-    axiosClient.get('/ArticleCategories');
+export const getArticleCategories = (options = {}) =>
+    axiosClient.get('/ArticleCategories', { params: options });
 
 /**
  * GET /api/ArticleCategories/{id}  [Public]

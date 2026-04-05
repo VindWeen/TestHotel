@@ -66,6 +66,73 @@ public class LossAndDamagesController : ControllerBase
             : "Pending";
     }
 
+    private static string ComputeRoomStatus(string businessStatus, string cleaningStatus)
+        => businessStatus switch
+        {
+            "Occupied" => "Occupied",
+            "Disabled" => "Maintenance",
+            "Available" when cleaningStatus is "Dirty" or "PendingLoss" => "Cleaning",
+            _ => "Available"
+        };
+
+    private async Task<int?> ResolveRoomIdAsync(LossAndDamage record)
+    {
+        if (record.RoomInventoryId.HasValue)
+        {
+            return await _db.RoomInventories
+                .Where(ri => ri.Id == record.RoomInventoryId.Value)
+                .Select(ri => (int?)ri.RoomId)
+                .FirstOrDefaultAsync();
+        }
+
+        if (record.BookingDetailId.HasValue)
+        {
+            return await _db.BookingDetails
+                .Where(bd => bd.Id == record.BookingDetailId.Value)
+                .Select(bd => bd.RoomId)
+                .FirstOrDefaultAsync();
+        }
+
+        return null;
+    }
+
+    private async Task SyncRoomCleaningStatusForLossAsync(LossAndDamage record)
+    {
+        var roomId = await ResolveRoomIdAsync(record);
+        if (!roomId.HasValue)
+            return;
+
+        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Id == roomId.Value);
+        if (room is null || room.BusinessStatus != "Available")
+            return;
+
+        var hasPendingLoss = await _db.LossAndDamages
+            .Where(l => l.Id != record.Id && l.Status == "Pending")
+            .AnyAsync(l =>
+                (l.RoomInventoryId.HasValue && l.RoomInventory != null && l.RoomInventory.RoomId == roomId.Value)
+                || (l.BookingDetailId.HasValue && l.BookingDetail != null && l.BookingDetail.RoomId == roomId.Value));
+
+        if (record.Status == "Pending")
+            hasPendingLoss = true;
+
+        if (hasPendingLoss)
+        {
+            if (room.CleaningStatus == "Clean" || room.CleaningStatus == "PendingLoss")
+            {
+                room.CleaningStatus = "PendingLoss";
+                room.Status = ComputeRoomStatus(room.BusinessStatus, room.CleaningStatus);
+            }
+
+            return;
+        }
+
+        if (room.CleaningStatus == "PendingLoss")
+        {
+            room.CleaningStatus = "Clean";
+            room.Status = ComputeRoomStatus(room.BusinessStatus, room.CleaningStatus);
+        }
+    }
+
     private async Task SyncEquipmentForLossRecordAsync(LossAndDamage record, int userId, string userAgent)
     {
         if (record.IsStockSynced || !record.RoomInventoryId.HasValue)
@@ -290,6 +357,8 @@ public class LossAndDamagesController : ControllerBase
             await SyncEquipmentForLossRecordAsync(record, userId, userAgent);
 
         await _db.SaveChangesAsync();
+        await SyncRoomCleaningStatusForLossAsync(record);
+        await _db.SaveChangesAsync();
 
         var roomNumber = "N/A";
         if (record.RoomInventoryId.HasValue)
@@ -385,6 +454,8 @@ public class LossAndDamagesController : ControllerBase
             await SyncEquipmentForLossRecordAsync(record, userId, userAgent);
 
         await _db.SaveChangesAsync();
+        await SyncRoomCleaningStatusForLossAsync(record);
+        await _db.SaveChangesAsync();
 
         var notification = new Notification
         {
@@ -436,6 +507,8 @@ public class LossAndDamagesController : ControllerBase
         }
 
         _db.LossAndDamages.Remove(record);
+        await _db.SaveChangesAsync();
+        await SyncRoomCleaningStatusForLossAsync(record);
         await _db.SaveChangesAsync();
 
         var notification = new Notification

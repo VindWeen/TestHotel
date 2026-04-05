@@ -7,9 +7,22 @@ import axiosClient from './axios';
  * Sorted by distanceKm ascending
  * Response: { data: [{ id, name, category, address, latitude, longitude, distanceKm, imageUrl }], total }
  */
-export const getAttractions = (category = null) => {
-    const params = category ? `?category=${encodeURIComponent(category)}` : '';
-    return axiosClient.get(`/Attractions${params}`);
+export const getAttractions = (categoryOrOptions = null) => {
+    const params = new URLSearchParams();
+
+    if (typeof categoryOrOptions === "string" && categoryOrOptions.trim()) {
+        params.set("category", categoryOrOptions.trim());
+    } else if (categoryOrOptions && typeof categoryOrOptions === "object") {
+        if (categoryOrOptions.category) {
+            params.set("category", categoryOrOptions.category);
+        }
+        if (categoryOrOptions.includeInactive) {
+            params.set("includeInactive", "true");
+        }
+    }
+
+    const query = params.toString();
+    return axiosClient.get(`/Attractions${query ? `?${query}` : ""}`);
 };
 
 /**

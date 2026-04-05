@@ -10,7 +10,6 @@ public class RoomType
     public int CapacityChildren { get; set; }
     public decimal? AreaSqm { get; set; }
     public string? BedType { get; set; }
-    public string? ViewType { get; set; }
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
 

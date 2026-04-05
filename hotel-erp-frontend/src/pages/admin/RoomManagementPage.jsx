@@ -64,6 +64,13 @@ const CLEANING_STATUS_CONFIG = {
         border: "#fed7aa",
         icon: "cleaning_services",
     },
+    PendingLoss: {
+        label: "Chờ xử lý thất thoát",
+        bg: "#fff1f2",
+        color: "#be123c",
+        border: "#fbcfe8",
+        icon: "inventory_2",
+    },
 };
 
 const VIEW_TYPES = ["Biển", "Thành phố", "Núi", "Vườn", "Hồ bơi"];
@@ -1031,8 +1038,9 @@ function RoomManagementFilters({
       key: "cleaningStatus",
       options: [
         { value: "", label: "Tất cả" },
-        { value: "Clean", label: "Sạch sẽ" },
-        { value: "Dirty", label: "Cần dọn" },
+                        { value: "Clean", label: "Sạch sẽ" },
+                        { value: "Dirty", label: "Cần dọn" },
+                        { value: "PendingLoss", label: "Chờ xử lý thất thoát" },
       ],
     },
     {
@@ -1224,7 +1232,7 @@ function RoomManagementTable({
                   </td>
                   <td style={{ padding: "16px 24px" }}>
                     <StatusDropdown
-                      options={["Clean", "Dirty"]}
+                      options={["Clean", "Dirty", "PendingLoss"]}
                       current={room.cleaningStatus}
                       onSelect={(value) => onCleaningStatusChange(room, value)}
                       configMap={cleaningStatusConfig}
@@ -1499,6 +1507,7 @@ export default function RoomManagementPage() {
         occupied: rooms.filter(r => (r.status || r.businessStatus) === "Occupied").length,
         disabled: rooms.filter(r => (r.status || r.businessStatus) === "Maintenance" || r.businessStatus === "Disabled").length,
         dirty: rooms.filter(r => r.cleaningStatus === "Dirty").length,
+        pendingLoss: rooms.filter(r => r.cleaningStatus === "PendingLoss").length,
     };
 
     // Pagination

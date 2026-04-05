@@ -1,7 +1,7 @@
 ﻿// src/pages/admin/HousekeepingPage.jsx
 import { useState, useEffect, useCallback } from "react";
 import axiosClient from "../../api/axios";
-import { getRooms } from "../../api/roomsApi";
+import { getRooms, updateCleaningStatus } from "../../api/roomsApi";
 import { getInventoryByRoom } from "../../api/roomInventoriesApi";
 
 // ─── Toast Component ──────────────────────────────────────────────────────────
@@ -58,9 +58,7 @@ export default function HousekeepingPage() {
   const loadDirtyRooms = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { cleaningStatus: "Dirty" };
-      if (floorFilter) params.floor = Number(floorFilter);
-      const res = await getRooms(params);
+      const res = await getRooms(floorFilter ? { floor: Number(floorFilter) } : {});
       let data = res.data?.data || [];
       data = data.filter((r) => r.cleaningStatus === "Dirty" || r.businessStatus === "Disabled");
       setRooms(data);
@@ -73,7 +71,7 @@ export default function HousekeepingPage() {
 
   const loadAvailableFloors = useCallback(async () => {
     try {
-      const res = await getRooms({ cleaningStatus: "Dirty" });
+      const res = await getRooms();
       let data = res.data?.data || [];
       data = data.filter((r) => r.cleaningStatus === "Dirty" || r.businessStatus === "Disabled");
       setAllFloors([...new Set(data.map((room) => room.floor).filter((floor) => floor != null))].sort((a, b) => a - b));
@@ -177,19 +175,28 @@ export default function HousekeepingPage() {
         }
       }
 
-      // 2. Không chuyển phòng sang Clean ở bước này.
-      // Phòng vẫn giữ cleaning_status = Dirty cho đến khi xử lý xong các thất thoát.
+      // 2. Nếu có thất thoát chờ xử lý thì chuyển sang PendingLoss.
+      // Nếu không có thất thoát thì trả phòng về Clean ngay.
+      const nextCleaningStatus = usedOrLost.length > 0 ? "PendingLoss" : "Clean";
+      await updateCleaningStatus(roomId, nextCleaningStatus);
 
       // 3. Tạo notification cho Admin, Manager, Lễ tân
       await axiosClient.post("/ActivityLogs/custom-notify", {
         actionCode: "HOUSEKEEPING_DONE_PENDING_LOSS",
-        message: `Nhân viên Buồng phòng đã dọn xong phòng ${roomNumber}. Đã ghi nhận ${usedOrLost.length} vật tư hao hụt/đã sử dụng. Phòng vẫn ở trạng thái Dirty cho đến khi xử lý xong thất thoát.`,
+        message: usedOrLost.length > 0
+          ? `Nhân viên Buồng phòng đã dọn xong phòng ${roomNumber}. Đã ghi nhận ${usedOrLost.length} vật tư hao hụt/đã sử dụng. Phòng chuyển sang PendingLoss để chờ xử lý thất thoát.`
+          : `Nhân viên Buồng phòng đã dọn xong phòng ${roomNumber}. Không có thất thoát nào, phòng đã sẵn sàng.`,
         targetRoleIds: [1, 2, 3],
         entityType: "Room",
         entityId: roomId
       }).catch(() => console.log("Bỏ qua lỗi custom-notify nếu chưa có BE endpoint"));
 
-      showToast(`Đã hoàn tất bước dọn phòng ${roomNumber}. Phòng vẫn đang Dirty để chờ xử lý thất thoát.`, "success");
+      showToast(
+        usedOrLost.length > 0
+          ? `Đã hoàn tất bước dọn phòng ${roomNumber}. Phòng chuyển sang PendingLoss để chờ xử lý thất thoát.`
+          : `Đã hoàn tất dọn phòng ${roomNumber}. Phòng đã về trạng thái Clean.`,
+        "success"
+      );
 
       setSelectedRoom(null);
       setInventories([]);
@@ -343,7 +350,7 @@ export default function HousekeepingPage() {
                   <div style={{ background: "#eff6ff", padding: "16px 20px", borderRadius: 12, marginBottom: 24, borderLeft: "4px solid #2563eb" }}>
                     <p style={{ margin: 0, fontSize: 14, color: "#1d4ed8", fontWeight: 600, lineHeight: 1.5 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 18, marginRight: 8, verticalAlign: "bottom" }}>info</span>
-                      Nếu khách đã sử dụng dịch vụ hoặc làm mất vật tư, <strong>hãy tick chọn vật tư đó ở cột Mất/Sử dụng</strong> để hệ thống lưu biên bản thất thoát ở trạng thái chờ xử lý. Sau khi hoàn tất bước này, phòng vẫn sẽ giữ <strong>cleaning_status = Dirty</strong> cho đến khi xử lý xong thất thoát.
+                      Nếu khách đã sử dụng dịch vụ hoặc làm mất vật tư, <strong>hãy tick chọn vật tư đó ở cột Mất/Sử dụng</strong> để hệ thống lưu biên bản thất thoát ở trạng thái chờ xử lý. Sau khi hoàn tất bước này, phòng sẽ chuyển sang <strong>cleaning_status = PendingLoss</strong> để chờ xử lý thất thoát. Nếu không có thất thoát, phòng sẽ về <strong>Clean</strong>.
                     </p>
                   </div>
 
@@ -440,7 +447,7 @@ export default function HousekeepingPage() {
                       style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "white", padding: "14px 28px", borderRadius: 12, fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 8px 20px rgba(5,150,105,.3)", opacity: isFinishing ? 0.7 : 1, fontFamily: "Manrope, sans-serif" }}
                     >
                       {isFinishing ? (
-                        <>Đang gửi thất thoát chờ xử lý...</>
+                        <>Đang hoàn tất nghiệp vụ buồng phòng...</>
                       ) : (
                         <>
                           <span className="material-symbols-outlined" style={{ fontSize: 22 }}>task_alt</span>

@@ -45,7 +45,7 @@ export const updateBusinessStatus = (id, businessStatus) =>
 
 /**
  * PATCH /api/Rooms/{id}/cleaning-status  [MANAGE_ROOMS]
- * Body: { cleaningStatus: "Clean" | "Dirty" }
+ * Body: { cleaningStatus: "Clean" | "Dirty" | "PendingLoss" }
  * Response: { message }
  */
 export const updateCleaningStatus = (id, cleaningStatus) =>

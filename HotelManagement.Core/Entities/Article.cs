@@ -5,6 +5,7 @@ public class Article
     public int Id { get; set; }
     public int? CategoryId { get; set; }
     public int? AuthorId { get; set; }
+    public int? AttractionId { get; set; }
 
     // Nội dung
     public string Title { get; set; } = null!;
@@ -27,4 +28,5 @@ public class Article
     // Navigation
     public ArticleCategory? Category { get; set; }
     public User? Author { get; set; }
+    public Attraction? Attraction { get; set; }
 }

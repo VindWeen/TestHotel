@@ -48,10 +48,11 @@ public class ArticlesController : ControllerBase
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .Where(a => a.IsActive);
+            .Include(a => a.Attraction)
+            .AsQueryable();
 
         if (!isAdmin)
-            query = query.Where(a => a.Status == "Published");
+            query = query.Where(a => a.IsActive && a.Status == "Published");
 
         if (categoryId.HasValue)
             query = query.Where(a => a.CategoryId == categoryId.Value);
@@ -71,9 +72,22 @@ public class ArticlesController : ControllerBase
                 a.ThumbnailUrl,
                 a.MetaDescription,
                 a.Status,
+                a.IsActive,
                 a.PublishedAt,
                 Category = a.Category == null ? null : new { a.Category.Id, a.Category.Name, a.Category.Slug },
-                Author   = a.Author   == null ? null : new { a.Author.Id,   a.Author.FullName, a.Author.AvatarUrl }
+                Author   = a.Author   == null ? null : new { a.Author.Id,   a.Author.FullName, a.Author.AvatarUrl },
+                Attraction = a.Attraction == null ? null : new
+                {
+                    a.Attraction.Id,
+                    a.Attraction.Name,
+                    a.Attraction.Category,
+                    a.Attraction.Address,
+                    a.Attraction.Latitude,
+                    a.Attraction.Longitude,
+                    a.Attraction.ImageUrl,
+                    a.Attraction.MapEmbedLink,
+                    a.Attraction.IsActive
+                }
             })
             .ToListAsync();
 
@@ -97,11 +111,15 @@ public class ArticlesController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetBySlug(string slug)
     {
+        var isAdmin = User.Identity?.IsAuthenticated == true
+                   && User.HasClaim("permission", PermissionCodes.ManageContent);
+
         var article = await _db.Articles
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .Where(a => a.Slug == slug && a.IsActive)
+            .Include(a => a.Attraction)
+            .Where(a => a.Slug == slug)
             .Select(a => new
             {
                 a.Id,
@@ -112,19 +130,29 @@ public class ArticlesController : ControllerBase
                 a.MetaTitle,
                 a.MetaDescription,
                 a.Status,
+                a.IsActive,
                 a.PublishedAt,
                 Category = a.Category == null ? null : new { a.Category.Id, a.Category.Name, a.Category.Slug },
-                Author   = a.Author   == null ? null : new { a.Author.Id,   a.Author.FullName, a.Author.AvatarUrl }
+                Author   = a.Author   == null ? null : new { a.Author.Id,   a.Author.FullName, a.Author.AvatarUrl },
+                Attraction = a.Attraction == null ? null : new
+                {
+                    a.Attraction.Id,
+                    a.Attraction.Name,
+                    a.Attraction.Category,
+                    a.Attraction.Address,
+                    a.Attraction.Latitude,
+                    a.Attraction.Longitude,
+                    a.Attraction.ImageUrl,
+                    a.Attraction.MapEmbedLink,
+                    a.Attraction.IsActive
+                }
             })
             .FirstOrDefaultAsync();
 
         if (article is null)
             return NotFound(new { message = $"Không tìm thấy bài viết với slug '{slug}'." });
 
-        var isAdmin = User.Identity?.IsAuthenticated == true
-                   && User.HasClaim("permission", PermissionCodes.ManageContent);
-
-        if (!isAdmin && article.Status != "Published")
+        if (!isAdmin && (!article.IsActive || article.Status != "Published"))
             return NotFound(new { message = $"Không tìm thấy bài viết với slug '{slug}'." });
 
         return Ok(article);
@@ -138,6 +166,13 @@ public class ArticlesController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Title))
             return BadRequest(new { message = "Tiêu đề bài viết không được để trống." });
 
+        if (request.AttractionId.HasValue)
+        {
+            var attractionExists = await _db.Attractions.AnyAsync(a => a.Id == request.AttractionId.Value);
+            if (!attractionExists)
+                return BadRequest(new { message = $"Địa điểm #{request.AttractionId.Value} không tồn tại." });
+        }
+
         var authorId = JwtHelper.GetUserId(User);
         var baseSlug = GenerateSlug(request.Title);
         var slug     = await EnsureUniqueSlug(baseSlug);
@@ -146,6 +181,7 @@ public class ArticlesController : ControllerBase
         {
             CategoryId      = request.CategoryId,
             AuthorId        = authorId,
+            AttractionId    = request.AttractionId,
             Title           = request.Title.Trim(),
             Slug            = slug,
             Content         = request.Content,
@@ -213,17 +249,6 @@ public class ArticlesController : ControllerBase
             if (!allowed.Contains(request.Status))
                 return BadRequest(new { message = "Status không hợp lệ. Dùng: Draft | Pending_Review | Published." });
 
-            var roleClaim = User.FindFirst("role")?.Value ?? string.Empty;
-            if (request.Status == "Published" &&
-                !string.Equals(roleClaim, "Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                return StatusCode(403, new
-                {
-                    error   = "Forbidden",
-                    message = "Chỉ Admin mới được xuất bản (Published) bài viết."
-                });
-            }
-
             article.Status = request.Status;
 
             if (request.Status == "Published" && article.PublishedAt is null)
@@ -239,6 +264,18 @@ public class ArticlesController : ControllerBase
 
         if (request.CategoryId.HasValue)
             article.CategoryId = request.CategoryId.Value;
+
+        if (request.AttractionId.HasValue)
+        {
+            var attractionExists = await _db.Attractions.AnyAsync(a => a.Id == request.AttractionId.Value);
+            if (!attractionExists)
+                return BadRequest(new { message = $"Địa điểm #{request.AttractionId.Value} không tồn tại." });
+
+            article.AttractionId = request.AttractionId.Value;
+        }
+
+        if (request.ClearAttraction == true)
+            article.AttractionId = null;
 
         if (request.Content is not null)
             article.Content = request.Content;
@@ -393,9 +430,7 @@ public class ArticlesController : ControllerBase
             Title   = $"Bài viết đã được {(article.IsActive ? "kích hoạt" : "vô hiệu hóa")}",
             Message = $"Bài viết '{article.Title}' đã {(article.IsActive ? "được kích hoạt" : "bị vô hiệu hóa")}.",
             Type    = NotificationType.Success,
-            Action  = article.IsActive
-                        ? NotificationAction.EnableCategory
-                        : NotificationAction.DisableCategory
+            Action  = NotificationAction.UpdateArticle
         };
 
         return Ok(new { notification, article.Id, article.Title, article.IsActive });
@@ -455,6 +490,40 @@ public class ArticlesController : ControllerBase
         return Ok(new { notification, thumbnailUrl = article.ThumbnailUrl });
     }
 
+    // POST /api/Articles/content-image
+    [HttpPost("content-image")]
+    [RequirePermission(PermissionCodes.ManageContent)]
+    public async Task<IActionResult> UploadContentImage(IFormFile? file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "Vui lòng chọn ảnh nội dung cần upload." });
+
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        if (!allowedTypes.Contains(file.ContentType.ToLower()))
+            return BadRequest(new { message = "Chỉ chấp nhận ảnh định dạng JPEG, PNG, WebP hoặc GIF." });
+
+        await using var stream = file.OpenReadStream();
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(file.FileName, stream),
+            Folder = "hotel/articles/content",
+            PublicId = $"article_content_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}",
+            Transformation = new Transformation().Quality("auto").FetchFormat("auto")
+        };
+
+        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+        if (uploadResult.Error is not null)
+            return StatusCode(502, new { message = $"Upload thất bại: {uploadResult.Error.Message}" });
+
+        return Ok(new
+        {
+            message = "Upload ảnh nội dung thành công.",
+            url = uploadResult.SecureUrl.ToString(),
+            publicId = uploadResult.PublicId
+        });
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────────
 
     private static string GenerateSlug(string title)
@@ -500,6 +569,7 @@ public class ArticlesController : ControllerBase
 public record CreateArticleRequest(
     string  Title,
     int?    CategoryId,
+    int?    AttractionId,
     string? Content,
     string? MetaTitle,
     string? MetaDescription
@@ -508,9 +578,13 @@ public record CreateArticleRequest(
 public record UpdateArticleRequest(
     string? Title,
     int?    CategoryId,
+    int?    AttractionId,
+    bool?   ClearAttraction,
     string? Content,
     string? MetaTitle,
     string? MetaDescription,
     string? Status
 );
+
+
 

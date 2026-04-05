@@ -264,7 +264,7 @@ public class RoomsController : ControllerBase
 
     // -----------------------------------------------------------------------------
     // PATCH /api/Rooms/{id}/cleaning-status  [MANAGE_ROOMS - Housekeeping]
-    // Chỉ đổi cleaning_status (Clean / Dirty).
+    // Chỉ đổi cleaning_status (Clean / Dirty / PendingLoss).
     // -----------------------------------------------------------------------------
     [HttpPatch("{id:int}/cleaning-status")]
     [RequirePermission(PermissionCodes.ManageRooms)]
@@ -272,9 +272,9 @@ public class RoomsController : ControllerBase
         int id,
         [FromBody] UpdateCleaningStatusRequest request)
     {
-        var allowed = new[] { "Clean", "Dirty" };
+        var allowed = new[] { "Clean", "Dirty", "PendingLoss" };
         if (!allowed.Contains(request.CleaningStatus))
-            return BadRequest(new { message = "cleaning_status không hợp lệ. Chấp nhận: Clean, Dirty." });
+            return BadRequest(new { message = "cleaning_status không hợp lệ. Chấp nhận: Clean, Dirty, PendingLoss." });
 
         var room = await _db.Rooms.FindAsync(id);
         if (room is null)
@@ -294,7 +294,7 @@ public class RoomsController : ControllerBase
             EntityType = "Room",
             EntityId = id,
             EntityLabel = room.RoomNumber,
-            Severity = request.CleaningStatus == "Dirty" ? "Warning" : "Success",
+            Severity = request.CleaningStatus is "Dirty" or "PendingLoss" ? "Warning" : "Success",
             TableName = "Rooms",
             RecordId = id,
             OldValue = $"{{\"cleaningStatus\": \"{oldCleaningStatus}\"}}",
@@ -411,8 +411,9 @@ public class RoomsController : ControllerBase
     }
     // -----------------------------------------------------------------------------
     // Helper: tính Status từ tổ hợp BusinessStatus + CleaningStatus
-    // Available + Clean  -> Available
-    // Available + Dirty  -> Cleaning
+    // Available + Clean        -> Available
+    // Available + Dirty        -> Cleaning
+    // Available + PendingLoss  -> Cleaning
     // Occupied  (any)    -> Occupied
     // Disabled  (any)    -> Maintenance
     // -----------------------------------------------------------------------------
@@ -421,7 +422,7 @@ public class RoomsController : ControllerBase
         {
             "Occupied" => "Occupied",
             "Disabled" => "Maintenance",
-            "Available" when cleaningStatus == "Dirty" => "Cleaning",
+            "Available" when cleaningStatus == "Dirty" || cleaningStatus == "PendingLoss" => "Cleaning",
             _ => "Available"
         };
 }

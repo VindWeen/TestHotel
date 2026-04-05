@@ -7,6 +7,8 @@ namespace HotelManagement.API.Policies;
 /// </summary>
 public static class NotificationPolicy
 {
+    private static readonly string[] NotificationCenterRoles = { "Admin", "Manager" };
+
     /// <summary>
     /// Ánh xạ ActionCode → danh sách Role nhận thông báo (realtime + history).
     /// </summary>
@@ -42,9 +44,18 @@ public static class NotificationPolicy
 
         // ── Tiện nghi / Địa điểm / Bài viết (Admin + Manager) ────────────────
         { "DELETE_AMENITY",             new[] { "Admin", "Manager" } },
+        { "CREATE_ATTRACTION",          new[] { "Admin", "Manager" } },
+        { "UPDATE_ATTRACTION",          new[] { "Admin", "Manager" } },
         { "DELETE_ATTRACTION",          new[] { "Admin", "Manager" } },
+        { "TOGGLE_ATTRACTION",          new[] { "Admin", "Manager" } },
         { "CREATE_ARTICLE",             new[] { "Admin", "Manager" } },
+        { "UPDATE_ARTICLE",             new[] { "Admin", "Manager" } },
         { "DELETE_ARTICLE",             new[] { "Admin", "Manager" } },
+        { "TOGGLE_ARTICLE_ACTIVE",      new[] { "Admin", "Manager" } },
+        { "CREATE_CATEGORY",            new[] { "Admin", "Manager" } },
+        { "UPDATE_CATEGORY",            new[] { "Admin", "Manager" } },
+        { "DELETE_CATEGORY",            new[] { "Admin", "Manager" } },
+        { "TOGGLE_ARTICLE_CATEGORY",    new[] { "Admin", "Manager" } },
     };
 
     /// <summary>
@@ -62,6 +73,10 @@ public static class NotificationPolicy
     /// </summary>
     public static bool CanRoleViewAction(string roleName, string actionCode)
         => GetRolesForAction(actionCode).Contains(roleName, StringComparer.OrdinalIgnoreCase);
+
+    public static bool CanAccessNotificationCenter(string? roleName)
+        => !string.IsNullOrWhiteSpace(roleName)
+        && NotificationCenterRoles.Contains(roleName, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Trả về HashSet ActionCode bị chặn với role này.

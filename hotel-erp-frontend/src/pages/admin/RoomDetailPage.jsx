@@ -347,6 +347,7 @@ export function RoomBasicTab({
               >
                 <option value="Clean">Đã dọn dẹp (Clean)</option>
                 <option value="Dirty">Phòng bẩn (Dirty)</option>
+                <option value="PendingLoss">Chờ xử lý thất thoát (PendingLoss)</option>
               </select>
             </div>
           </div>
@@ -1148,6 +1149,7 @@ export default function RoomDetailPage() {
     const STATUS_CS = {
         Clean: { label: "Đã dọn dẹp", dot: "#10b981", badge: "#d1fae5", badgeText: "#065f46" },
         Dirty: { label: "Phòng bẩn (Dirty)", dot: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e" },
+        PendingLoss: { label: "Chờ xử lý thất thoát", dot: "#e11d48", badge: "#fce7f3", badgeText: "#9d174d" },
     };
 
     const statusKey = room?.status || room?.businessStatus;
