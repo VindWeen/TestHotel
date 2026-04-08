@@ -125,7 +125,7 @@ CREATE TABLE [dbo].[Room_Types](
     [description]       [nvarchar](max)  NULL,
     [is_active]         [bit]            NOT NULL DEFAULT 1,  -- Soft Delete
 PRIMARY KEY CLUSTERED ([id] ASC)
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+) ON [PRIMARY]
 GO
 
 CREATE TABLE [dbo].[Rooms](
@@ -252,7 +252,7 @@ CREATE TABLE [dbo].[Bookings](
     [cancellation_reason]    [nvarchar](500)  NULL,
     [cancelled_at]           [datetime]       NULL,
 PRIMARY KEY CLUSTERED ([id] ASC)
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+) ON [PRIMARY]
 GO
 
 CREATE TABLE [dbo].[Booking_Details](
