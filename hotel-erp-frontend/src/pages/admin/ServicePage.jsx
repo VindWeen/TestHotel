@@ -289,7 +289,7 @@ export default function ServicePage() {
           <div style={{ display: "flex", gap: 12 }}>
             <button
               onClick={() => openCategoryModal()}
-              style={primaryButton(false)}
+              style={primaryButton(true)}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>category</span>
               Thêm nhóm

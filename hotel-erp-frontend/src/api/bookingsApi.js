@@ -64,14 +64,6 @@ export const createBooking = (data) =>
     axiosClient.post('/Bookings', data);
 
 /**
- * PATCH /api/Bookings/{id}/confirm  [MANAGE_BOOKINGS]
- * Moves booking from Pending → Confirmed
- * Response: booking object
- */
-export const confirmBooking = (id) =>
-    axiosClient.patch(`/Bookings/${id}/confirm`);
-
-/**
  * PATCH /api/Bookings/{id}/cancel  [Authorize]
  * Params: reason (query string)
  * Response: booking object
@@ -85,8 +77,8 @@ export const cancelBooking = (id, reason) =>
  * Moves booking from Confirmed → Checked_in
  * Response: booking object
  */
-export const checkIn = (id) =>
-    axiosClient.patch(`/Bookings/${id}/check-in`);
+export const checkIn = (id, data = null) =>
+    axiosClient.patch(`/Bookings/${id}/check-in`, data);
 
 /**
  * PATCH /api/Bookings/{id}/check-out  [MANAGE_BOOKINGS]
@@ -126,3 +118,4 @@ export const extendStay = (id, data) =>
 
 export const earlyCheckOut = (id, data) =>
     axiosClient.patch(`/Bookings/${id}/early-checkout`, data);
+

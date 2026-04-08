@@ -116,7 +116,7 @@ public class AuthController : ControllerBase
         var user = new HotelManagement.Core.Entities.User
         {
             FullName = request.FullName.Trim(),
-            Email = request.Email.Trim().ToLower(),
+            Email = request.Email!.Trim().ToLower(),
             Phone = request.Phone?.Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = guestRole?.Id,
@@ -132,12 +132,7 @@ public class AuthController : ControllerBase
         var roleName = guestRole?.Name ?? "Guest";
 
         // Gửi email thông tin tài khoản mới tạo (theo yêu cầu đồng bộ với UserManagementController)
-        _ = _email.SendNewStaffAccountAsync(
-            user.Email,
-            user.FullName,
-            request.Password,
-            roleName
-        );
+        _ = _email.SendGuestWelcomeAsync(user.Email, user.FullName);
 
         // Ghi Activity Log
         await _activityLog.LogAsync(
@@ -243,7 +238,7 @@ public class AuthController : ControllerBase
         if (user is null)
             return NotFound(new { message = "Email không tồn tại trong hệ thống." });
 
-        var newPassword = PasswordGenerator.GenerateRandomPassword(12);
+        var newPassword = PasswordGenerator.GenerateRandomPassword(10);
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         user.UpdatedAt = DateTime.UtcNow;
         user.RefreshToken = null;
@@ -262,7 +257,7 @@ public class AuthController : ControllerBase
         });
 
         await _context.SaveChangesAsync();
-        await _email.SendPasswordResetByAdminAsync(user.Email, user.FullName, newPassword);
+        await _email.SendForgotPasswordResetAsync(user.Email, user.FullName, newPassword);
 
         return Ok(new { message = "Mật khẩu mới đã được gửi về email của bạn." });
     }

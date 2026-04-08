@@ -143,17 +143,23 @@ export function ServiceAdminShell({
             gap: 6,
           }}
         >
-          <ServiceViewLink
-            to="/admin/services/categories"
-            active={view === "categories"}
-            icon="category"
-            label="Nhóm"
+                    <ServiceViewLink
+            to="/admin/services/order"
+            active={view === "order"}
+            icon="receipt"
+            label="Đơn dịch vụ"
           />
           <ServiceViewLink
             to="/admin/services/items"
             active={view === "items"}
             icon="room_service"
             label="Dịch vụ"
+          />
+          <ServiceViewLink
+            to="/admin/services/categories"
+            active={view === "categories"}
+            icon="category"
+            label="Nhóm dịch vụ"
           />
         </div>
       </div>

@@ -38,8 +38,10 @@ export default function HousekeepingPage() {
   const [allFloors, setAllFloors] = useState([]);
   const [floorFilter, setFloorFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bulkCleaning, setBulkCleaning] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomIds, setSelectedRoomIds] = useState([]);
 
   // States cho modal chia doi (phai qua buoc 1 moi sang buoc 2 - vat tu)
   const [wizardStep, setWizardStep] = useState(1);
@@ -81,6 +83,57 @@ export default function HousekeepingPage() {
 
   useEffect(() => { loadDirtyRooms(); }, [loadDirtyRooms]);
   useEffect(() => { loadAvailableFloors(); }, [loadAvailableFloors]);
+
+  const selectableRooms = rooms.filter((room) => room.cleaningStatus === "Dirty" && room.businessStatus !== "Disabled");
+  const allSelectableIds = selectableRooms.map((room) => room.id);
+  const selectedCount = selectedRoomIds.length;
+  const allSelected = allSelectableIds.length > 0 && selectedRoomIds.length === allSelectableIds.length;
+
+  const toggleRoomSelection = (roomId) => {
+    setSelectedRoomIds((prev) =>
+      prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedRoomIds((prev) =>
+      prev.length === allSelectableIds.length ? [] : allSelectableIds
+    );
+  };
+
+  const handleBulkClean = async () => {
+    if (selectedRoomIds.length === 0) {
+      showToast("Hãy chọn ít nhất một phòng bẩn để dọn hàng loạt.", "warning");
+      return;
+    }
+
+    setBulkCleaning(true);
+    try {
+      await Promise.all(selectedRoomIds.map((roomId) => updateCleaningStatus(roomId, "Clean")));
+
+      const cleanedRooms = rooms
+        .filter((room) => selectedRoomIds.includes(room.id))
+        .map((room) => room.roomNumber)
+        .join(", ");
+
+      await axiosClient.post("/ActivityLogs/custom-notify", {
+        actionCode: "HOUSEKEEPING_BULK_DONE",
+        message: `Nhân viên Buồng phòng đã dọn nhanh hàng loạt ${selectedRoomIds.length} phòng: ${cleanedRooms}.`,
+        targetRoleIds: [1, 2, 3],
+        entityType: "Room",
+        entityId: selectedRoomIds[0]
+      }).catch(() => console.log("Bỏ qua lỗi custom-notify nếu chưa có BE endpoint"));
+
+      showToast(`Đã dọn nhanh ${selectedRoomIds.length} phòng về trạng thái Clean.`, "success");
+      setSelectedRoomIds([]);
+      await loadDirtyRooms();
+      await loadAvailableFloors();
+    } catch {
+      showToast("Lỗi khi dọn hàng loạt. Vui lòng thử lại.", "error");
+    } finally {
+      setBulkCleaning(false);
+    }
+  };
 
   const loadInventoriesForRoom = async (roomId) => {
     setLoadingInv(true);
@@ -152,12 +205,13 @@ export default function HousekeepingPage() {
       for (const inv of usedOrLost) {
         const qtyMissing = parseInt(missingItems[inv.id].quantity, 10) || 1;
         const note = missingItems[inv.id].note || "Vật tư khách sử dụng / hao hụt lúc dọn phòng";
+        const penaltyAmount = Number(inv.priceIfLost || 0);
 
         try {
           const formData = new FormData();
           formData.append("RoomInventoryId", inv.id);
           formData.append("Quantity", qtyMissing);
-          formData.append("PenaltyAmount", 0);
+          formData.append("PenaltyAmount", String(penaltyAmount));
           formData.append("Description", note);
           formData.append("Status", "Pending");
 
@@ -202,7 +256,9 @@ export default function HousekeepingPage() {
       setInventories([]);
       setMissingItems({});
       setWizardStep(1);
+      setSelectedRoomIds((prev) => prev.filter((id) => id !== roomId));
       loadDirtyRooms();
+      loadAvailableFloors();
     } catch {
       showToast("Lỗi khi kết thúc dọn phòng.", "error");
     } finally {
@@ -238,7 +294,7 @@ export default function HousekeepingPage() {
               Nghiệp vụ Dọn Phòng
             </h2>
             <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-              Danh sách các phòng đang trong trạng thái cần dọn dẹp (Maintenance / Dirty).
+              Danh sách các phòng đang trong trạng thái cần dọn dẹp. Có thể dọn nhanh hàng loạt với các phòng bẩn, còn phòng bảo trì xử lý riêng theo từng phòng.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -259,8 +315,30 @@ export default function HousekeepingPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
               Làm mới
             </button>
+            <button
+              onClick={handleBulkClean}
+              disabled={selectedCount === 0 || bulkCleaning}
+              style={{ padding: "9px 20px", borderRadius: 12, fontSize: 13, fontWeight: 700, background: selectedCount === 0 || bulkCleaning ? "#e7e5e4" : "#166534", color: "white", border: "1.5px solid transparent", cursor: selectedCount === 0 || bulkCleaning ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 7, fontFamily: "Manrope, sans-serif", opacity: selectedCount === 0 || bulkCleaning ? 0.75 : 1 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>done_all</span>
+              {bulkCleaning ? "Đang dọn..." : `Dọn nhanh hàng loạt${selectedCount > 0 ? ` (${selectedCount})` : ""}`}
+            </button>
           </div>
         </div>
+
+        {selectableRooms.length > 0 && (
+          <div style={{ marginBottom: 18, background: "#fff", border: "1px solid #ece7de", borderRadius: 16, padding: "14px 18px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <label className="check-container" style={{ fontWeight: 700, color: "#1c1917" }}>
+              Chọn tất cả phòng bẩn có thể dọn nhanh
+              <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+              <span className="checkmark"></span>
+            </label>
+            <div style={{ fontSize: 13, color: "#6b7280" }}>
+              Đã chọn <strong style={{ color: "#1c1917" }}>{selectedCount}</strong> / {selectableRooms.length} phòng.
+              <span style={{ marginLeft: 8 }}>Dọn nhanh sẽ chuyển trực tiếp sang <strong>Clean</strong> và bỏ qua bước kiểm kê thất thoát.</span>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>Đang tải dữ liệu phòng...</div>
@@ -288,14 +366,45 @@ export default function HousekeepingPage() {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                  <span style={{ fontSize: 24, fontWeight: 800, color: "#b91c1c", fontFamily: "Manrope, sans-serif" }}>{room.roomNumber}</span>
-                  <span style={{ background: "#fee2e2", color: "#b91c1c", padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", display: "flex", alignItems: "center", gap: 4 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>cleaning_services</span> CẦN DỌN
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {room.cleaningStatus === "Dirty" && room.businessStatus !== "Disabled" ? (
+                      <label
+                        className="check-container"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ paddingLeft: 24 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedRoomIds.includes(room.id)}
+                          onChange={() => toggleRoomSelection(room.id)}
+                        />
+                        <span className="checkmark" style={{ top: 0 }}></span>
+                      </label>
+                    ) : (
+                      <span
+                        className="material-symbols-outlined"
+                        title="Phòng này cần xử lý riêng, không nằm trong dọn nhanh hàng loạt."
+                        style={{ fontSize: 18, color: "#94a3b8" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        block
+                      </span>
+                    )}
+                    <span style={{ fontSize: 24, fontWeight: 800, color: "#b91c1c", fontFamily: "Manrope, sans-serif" }}>{room.roomNumber}</span>
+                  </div>
+                  <span style={{ background: room.businessStatus === "Disabled" ? "#ede9fe" : "#fee2e2", color: room.businessStatus === "Disabled" ? "#6d28d9" : "#b91c1c", padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", display: "flex", alignItems: "center", gap: 4 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{room.businessStatus === "Disabled" ? "build" : "cleaning_services"}</span>
+                    {room.businessStatus === "Disabled" ? "BẢO TRÌ" : "CẦN DỌN"}
                   </span>
                 </div>
 
                 <p style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Tầng {room.floor} • {room.roomTypeName || "Hạng phòng chung"}
+                </p>
+                <p style={{ fontSize: 12, color: "#78716c", margin: 0, lineHeight: 1.5 }}>
+                  {room.cleaningStatus === "Dirty" && room.businessStatus !== "Disabled"
+                    ? "Có thể chọn để dọn nhanh hàng loạt hoặc bấm vào để kiểm kê chi tiết."
+                    : "Phòng này nên xử lý riêng theo từng phòng, không nên dọn nhanh hàng loạt."}
                 </p>
               </div>
             ))}

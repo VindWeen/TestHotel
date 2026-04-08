@@ -86,7 +86,6 @@ public class UserProfileController : ControllerBase
         user.UpdatedAt   = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        _ = _email.SendPasswordChangedAsync(user.Email, user.FullName);
 
         var notification = new Notification
         {

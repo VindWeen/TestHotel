@@ -46,4 +46,6 @@ public class User
     public ICollection<VoucherUsage> VoucherUsages { get; set; } = [];
     public ICollection<LossAndDamage> ReportedDamages { get; set; } = [];
     public ICollection<ActivityLog> ActivityLogs { get; set; } = [];
+    public ICollection<MaintenanceTicket> ReportedMaintenanceTickets { get; set; } = [];
+    public ICollection<MaintenanceTicket> AssignedMaintenanceTickets { get; set; } = [];
 }

@@ -1,16 +1,19 @@
 ﻿import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { cancelBooking, checkIn, checkOut, confirmBooking, createBooking, getBookings, getReceptionAvailability, getReceptionDashboard, getReceptionMemberSuggestions } from "../../api/bookingsApi";
+import { cancelBooking, checkIn, checkOut, createBooking, getBookings, getReceptionAvailability, getReceptionDashboard, getReceptionMemberSuggestions } from "../../api/bookingsApi";
+import { createInvoiceFromBooking, getInvoiceByBookingId } from "../../api/invoicesApi";
+import { recordPayment } from "../../api/paymentsApi";
 import { getVouchers } from "../../api/vouchersApi";
 import { formatDate, formatCurrency } from "../../utils";
+import { getBookingSourceLabel, getBookingStatusLabel } from "../../utils/statusLabels";
 
 const ALLOWED_ACTIONS = {
-  Pending: ["confirm", "cancel"],
-  Confirmed: ["checkin", "cancel"],
-  Checked_in: ["checkout"],
-  Checked_out_pending_settlement: [],
-  Completed: [],
-  Cancelled: [],
+  Pending: ["cancel", "collect_deposit"],
+  Confirmed: ["checkin", "cancel", "open_invoice"],
+  Checked_in: ["checkout", "open_invoice"],
+  Checked_out_pending_settlement: ["open_invoice"],
+  Completed: ["open_invoice"],
+  Cancelled: ["refund"],
 };
 
 // ─── Thông báo ────────────────────────────────────────────────────────────────────
@@ -95,7 +98,7 @@ const BookingStatusBadge = ({ status }) => {
   return (
     <span className="badge-p" style={{ background: s.bg, color: s.text }}>
       <span className="material-symbols-outlined" style={{ fontSize: 13, fontWeight: 700 }}>{s.icon}</span>
-      {status}
+      {getBookingStatusLabel(status)}
     </span>
   );
 };
@@ -255,6 +258,115 @@ function ReceptionDateRangePicker({ value, onChange }) {
   );
 }
 
+function CheckInModal({ open, booking, loading, onConfirm, onCancel }) {
+  const [form, setForm] = useState({ guestName: "", guestPhone: "", guestEmail: "", nationalId: "" });
+
+  useEffect(() => {
+    if (!open || !booking) return;
+    setForm({
+      guestName: booking.guestName || "",
+      guestPhone: booking.guestPhone || "",
+      guestEmail: booking.guestEmail || "",
+      nationalId: "",
+    });
+  }, [open, booking]);
+
+  if (!open || !booking) return null;
+
+  const canSubmit = form.guestName.trim() && form.guestPhone.trim() && form.guestEmail.trim() && form.nationalId.trim();
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 20 }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 520, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)", animation: "modalSlideUp .3s ease-out", padding: 32 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: "0 0 8px" }}>Xác nhận check-in</h3>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>
+          Booking này chưa gắn hồ sơ khách. Nhập thông tin lưu trú để hệ thống kiểm tra tài khoản theo email trước khi check-in.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <input value={form.guestName} onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))} placeholder="Họ tên khách" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <input value={form.guestPhone} onChange={(e) => setForm((prev) => ({ ...prev, guestPhone: e.target.value }))} placeholder="Số điện thoại" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <input value={form.guestEmail} onChange={(e) => setForm((prev) => ({ ...prev, guestEmail: e.target.value }))} placeholder="Email" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917", gridColumn: "span 2" }} />
+          <input value={form.nationalId} onChange={(e) => setForm((prev) => ({ ...prev, nationalId: e.target.value }))} placeholder="CCCD / Hộ chiếu" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917", gridColumn: "span 2" }} />
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "white", fontWeight: 700, color: "#6b7280", cursor: "pointer", fontSize: 14 }}>Đóng</button>
+          <button onClick={() => onConfirm(form)} disabled={loading || !canSubmit} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#4f645b", fontWeight: 700, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, opacity: (!canSubmit || loading) ? 0.6 : 1 }}>
+            {loading ? <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin .65s linear infinite" }} /> : <span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span>}
+            Xác nhận check-in
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookingPaymentModal({ open, booking, mode, loading, onConfirm, onCancel }) {
+  const [form, setForm] = useState({ amountPaid: "", paymentMethod: "Cash", transactionCode: "", note: "" });
+
+  useEffect(() => {
+    if (!open || !booking) return;
+    const summary = booking.paymentSummary || {};
+    const suggestedAmount = mode === "deposit"
+      ? summary.remainingToConfirm || 0
+      : mode === "checkin"
+        ? summary.remainingToCheckIn || 0
+        : booking.depositAmount || 0;
+
+    setForm({
+      amountPaid: suggestedAmount > 0 ? String(Math.ceil(suggestedAmount)) : "",
+      paymentMethod: "Cash",
+      transactionCode: "",
+      note: "",
+    });
+  }, [open, booking, mode]);
+
+  if (!open || !booking) return null;
+
+  const title = mode === "deposit"
+    ? "Thu cọc booking"
+    : mode === "checkin"
+      ? "Thu thêm để nhận phòng"
+      : "Hoàn tiền booking";
+
+  const helper = mode === "deposit"
+    ? `Cần tối thiểu ${formatCurrency(booking?.paymentSummary?.remainingToConfirm || 0)} để booking được xác nhận.`
+    : mode === "checkin"
+      ? `Cần thu thêm ${formatCurrency(booking?.paymentSummary?.remainingToCheckIn || 0)} để đủ điều kiện nhận phòng.`
+      : `Số tiền đã thu trước đó: ${formatCurrency(booking?.depositAmount || 0)}.`;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2050, padding: 20 }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 460, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)", padding: 32 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: "0 0 8px" }}>{title}</h3>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>{helper}</p>
+        <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+          <input type="number" min="0" step="1000" value={form.amountPaid} onChange={(e) => setForm((prev) => ({ ...prev, amountPaid: e.target.value }))} placeholder="Số tiền" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <select value={form.paymentMethod} onChange={(e) => setForm((prev) => ({ ...prev, paymentMethod: e.target.value }))} style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }}>
+            <option value="Cash">Tiền mặt</option>
+            <option value="Momo">Momo</option>
+            <option value="VNPay_Mock">VNPay</option>
+            <option value="Credit Card">Thẻ tín dụng</option>
+            <option value="Bank Transfer">Chuyển khoản</option>
+          </select>
+          <input value={form.transactionCode} onChange={(e) => setForm((prev) => ({ ...prev, transactionCode: e.target.value }))} placeholder="Mã giao dịch (nếu có)" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <textarea value={form.note} onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))} placeholder="Ghi chú" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917", minHeight: 80, resize: "none" }} />
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "white", fontWeight: 700, color: "#6b7280", cursor: "pointer", fontSize: 14 }}>Đóng</button>
+          <button
+            onClick={() => onConfirm({ ...form, amountPaid: Number(form.amountPaid) })}
+            disabled={loading || Number(form.amountPaid) <= 0}
+            style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#4f645b", fontWeight: 700, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, opacity: (Number(form.amountPaid) <= 0 || loading) ? 0.6 : 1 }}
+          >
+            {loading ? <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin .65s linear infinite" }} /> : <span className="material-symbols-outlined" style={{ fontSize: 18 }}>payments</span>}
+            Xác nhận
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingListPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -274,6 +386,13 @@ export default function BookingListPage() {
   // Trạng thái hộp thoại tùy chỉnh
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [checkInTarget, setCheckInTarget] = useState(null);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState(null);
+  const [paymentMode, setPaymentMode] = useState("deposit");
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const [filters, setFilters] = useState({
     bookingCode: "",
@@ -290,8 +409,8 @@ export default function BookingListPage() {
     guestName: "",
     guestPhone: "",
     guestEmail: "",
-    numAdults: 2,
-    numChildren: 0,
+    numAdults: "",
+    numChildren: "",
     checkInDate: "",
     checkOutDate: "",
     voucherId: "",
@@ -369,6 +488,17 @@ export default function BookingListPage() {
     });
   }, [rows, filters, activeTab, dashboard]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, filters.bookingCode, filters.guest, filters.status, filters.fromDate, filters.toDate]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const estimatedBookingAmount = useMemo(() => {
     const selectedRoomType = availableRoomTypes.find((item) => String(item.id) === String(bookingForm.selectedRoomTypeId));
     if (selectedRoomType?.suggestedTotal) {
@@ -399,22 +529,123 @@ export default function BookingListPage() {
     });
   }, [vouchers, estimatedBookingAmount, bookingForm.selectedRoomTypeId]);
 
-  const runAction = async (id, action) => {
-    // Nếu là cancel thì mở modal, không chạy trực tiếp
+  const runAction = async (item, action) => {
+    const id = item.id;
     if (action === "cancel") {
       setCancelTarget(id);
       return;
     }
 
+    if (action === "collect_deposit") {
+      setPaymentTarget(item);
+      setPaymentMode("deposit");
+      return;
+    }
+
+    if (action === "collect_checkin") {
+      setPaymentTarget(item);
+      setPaymentMode("checkin");
+      return;
+    }
+
+    if (action === "refund") {
+      setPaymentTarget(item);
+      setPaymentMode("refund");
+      return;
+    }
+
+    if (action === "open_invoice") {
+      try {
+        const res = await getInvoiceByBookingId(id);
+        const invoiceId = res?.data?.data?.id;
+        if (invoiceId) {
+          navigate(`/admin/invoices/${invoiceId}`);
+          return;
+        }
+      } catch (e) {
+        if (Number(item?.depositAmount || 0) > 0 || item.status === "Checked_out_pending_settlement") {
+          try {
+            const created = await createInvoiceFromBooking(id);
+            const invoiceId = created?.data?.invoiceId;
+            if (invoiceId) {
+              showToast("Đã tạo hóa đơn cho booking.");
+              navigate(`/admin/invoices/${invoiceId}`);
+              return;
+            }
+          } catch (createError) {
+            showToast(createError?.response?.data?.message || "Không thể tạo hóa đơn cho booking này.", "error");
+            return;
+          }
+        }
+
+        showToast(e?.response?.data?.message || "Không tìm thấy hóa đơn của booking này.", "error");
+        return;
+      }
+    }
+
+    if (action === "checkin" && !item.userId) {
+      setCheckInTarget(item);
+      return;
+    }
+
     setBusyId(id);
     try {
-      if (action === "confirm") { await confirmBooking(id); showToast("Đã xác nhận booking."); }
       if (action === "checkin") { await checkIn(id); showToast("Đã Check-in thành công."); }
       if (action === "checkout") { await checkOut(id); showToast("Đã Check-out thành công."); }
       await load();
     } catch (e) {
       showToast(e?.response?.data?.message || "Thao tác thất bại.", "error");
     } finally {
+      setBusyId(null);
+    }
+  };
+
+  const executeBookingPayment = async (payload) => {
+    if (!paymentTarget) return;
+
+    setPaymentLoading(true);
+    setBusyId(paymentTarget.id);
+    try {
+      const paymentType = paymentMode === "deposit"
+        ? "Booking_Deposit"
+        : paymentMode === "checkin"
+          ? "CheckIn_Collection"
+          : "Refund";
+
+      await recordPayment({
+        bookingId: paymentTarget.id,
+        paymentType,
+        paymentMethod: payload.paymentMethod,
+        amountPaid: Number(payload.amountPaid),
+        transactionCode: payload.transactionCode || null,
+        note: payload.note || null,
+      });
+
+      showToast(paymentMode === "refund" ? "Đã ghi nhận hoàn tiền booking." : "Đã ghi nhận thanh toán booking.");
+      setPaymentTarget(null);
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Không thể ghi nhận thanh toán booking.", "error");
+    } finally {
+      setPaymentLoading(false);
+      setBusyId(null);
+    }
+  };
+
+  const executeCheckIn = async (payload) => {
+    if (!checkInTarget) return;
+
+    setCheckInLoading(true);
+    setBusyId(checkInTarget.id);
+    try {
+      await checkIn(checkInTarget.id, payload);
+      showToast("Đã check-in và cập nhật hồ sơ khách thành công.");
+      setCheckInTarget(null);
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Check-in thất bại.", "error");
+    } finally {
+      setCheckInLoading(false);
       setBusyId(null);
     }
   };
@@ -436,7 +667,20 @@ export default function BookingListPage() {
     }
   };
 
-  const canRun = (status, action) => (ALLOWED_ACTIONS[status] || []).includes(action);
+  const canRun = (item, action) => {
+    const status = item?.status;
+    const summary = item?.paymentSummary || {};
+
+    if (action === "collect_deposit") return status === "Pending" && (summary.remainingToConfirm || 0) > 0;
+    if (action === "collect_checkin") return status === "Confirmed" && !summary.canCheckIn;
+    if (action === "checkin") return status === "Confirmed" && !!summary.canCheckIn;
+    if (action === "cancel") return status === "Pending" || status === "Confirmed";
+    if (action === "checkout") return status === "Checked_in";
+    if (action === "open_invoice") return Number(item?.depositAmount || 0) > 0 || status === "Checked_out_pending_settlement" || status === "Completed";
+    if (action === "refund") return status === "Cancelled" && Number(item?.depositAmount || 0) > 0;
+
+    return (ALLOWED_ACTIONS[status] || []).includes(action);
+  };
 
   const loadAvailability = useCallback(async () => {
     if (!bookingForm.checkInDate || !bookingForm.checkOutDate) {
@@ -562,8 +806,8 @@ export default function BookingListPage() {
         guestName: "",
         guestPhone: "",
         guestEmail: "",
-        numAdults: 2,
-        numChildren: 0,
+        numAdults: "",
+        numChildren: "",
         checkInDate: "",
         checkOutDate: "",
         voucherId: "",
@@ -620,6 +864,23 @@ export default function BookingListPage() {
         onConfirm={executeCancel}
         onCancel={() => setCancelTarget(null)}
         loading={cancelLoading}
+      />
+      <CheckInModal
+        key={checkInTarget?.id || "checkin-closed"}
+        open={!!checkInTarget}
+        booking={checkInTarget}
+        onConfirm={executeCheckIn}
+        onCancel={() => setCheckInTarget(null)}
+        loading={checkInLoading}
+      />
+      <BookingPaymentModal
+        key={paymentTarget?.id ? `${paymentMode}-${paymentTarget.id}` : "payment-closed"}
+        open={!!paymentTarget}
+        booking={paymentTarget}
+        mode={paymentMode}
+        onConfirm={executeBookingPayment}
+        onCancel={() => setPaymentTarget(null)}
+        loading={paymentLoading}
       />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
@@ -680,84 +941,100 @@ export default function BookingListPage() {
             </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 14 }}>
-            <select
-              value={bookingForm.customerType}
-              onChange={(e) => {
-                const nextType = e.target.value;
-                setBookingForm((prev) => ({
-                  ...prev,
-                  customerType: nextType,
-                  userId: nextType === "member" ? prev.userId : null,
-                  memberKeyword: nextType === "member" ? prev.memberKeyword : "",
-                  ...(nextType === "walk_in" ? { guestName: "", guestPhone: "", guestEmail: "" } : {}),
-                }));
-              }}
-              style={{ ...inputStyle, cursor: "pointer" }}
-            >
-              <option value="walk_in">Khách vãng lai</option>
-              <option value="member">Khách thành viên</option>
-            </select>
-            <div style={{ position: "relative" }}>
-              <input
-                placeholder={bookingForm.customerType === "member" ? "Nhập tên thành viên để gợi ý" : "Tên khách"}
-                value={bookingForm.customerType === "member" ? bookingForm.memberKeyword : bookingForm.guestName}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (bookingForm.customerType === "member") {
-                    setMemberSuggestOpen(true);
-                  }
-                  setBookingForm((prev) => bookingForm.customerType === "member"
-                    ? { ...prev, memberKeyword: value, userId: null, guestName: value }
-                    : { ...prev, guestName: value });
-                }}
-                onFocus={() => {
-                  if (bookingForm.customerType === "member") {
-                    setMemberSuggestOpen(true);
-                  }
-                }}
-                onBlur={() => {
-                  if (bookingForm.customerType === "member") {
-                    setTimeout(() => setMemberSuggestOpen(false), 120);
-                  }
-                }}
-                style={inputStyle}
-              />
-              {bookingForm.customerType === "member" && memberSuggestOpen && (bookingForm.memberKeyword || memberLoading || memberOptions.length > 0) && (
-                <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 30, background: "white", border: "1px solid #e5e7eb", borderRadius: 14, boxShadow: "0 16px 32px rgba(15,23,42,.12)", maxHeight: 220, overflowY: "auto" }}>
-                  {memberLoading ? (
-                    <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>Đang tìm khách thành viên...</div>
-                  ) : memberOptions.length === 0 ? (
-                    <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>Không có gợi ý phù hợp.</div>
-                  ) : memberOptions.map((member) => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => handleSelectMember(member)}
-                      style={{ width: "100%", textAlign: "left", border: "none", background: "white", padding: 12, cursor: "pointer", borderBottom: "1px solid #f3f4f6" }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#1c1917" }}>{member.fullName}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>{member.phone || "Chưa có SĐT"} • {member.email || "Chưa có email"}</div>
-                    </button>
-                  ))}
+          <div style={{ display: "grid", gap: 16, marginBottom: 16 }}>
+            <div style={{ padding: 16, borderRadius: 16, background: "#fcfbf8", border: "1px solid #f1f0ea" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>
+                Thông tin khách
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+                <select
+                  value={bookingForm.customerType}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    setBookingForm((prev) => ({
+                      ...prev,
+                      customerType: nextType,
+                      userId: nextType === "member" ? prev.userId : null,
+                      memberKeyword: nextType === "member" ? prev.memberKeyword : "",
+                      ...(nextType === "walk_in" ? { guestName: "", guestPhone: "", guestEmail: "" } : {}),
+                    }));
+                  }}
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                >
+                  <option value="walk_in">Khách vãng lai</option>
+                  <option value="member">Khách thành viên</option>
+                </select>
+                <div style={{ position: "relative" }}>
+                  <input
+                    placeholder={bookingForm.customerType === "member" ? "Nhập tên thành viên để gợi ý" : "Tên khách"}
+                    value={bookingForm.customerType === "member" ? bookingForm.memberKeyword : bookingForm.guestName}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (bookingForm.customerType === "member") {
+                        setMemberSuggestOpen(true);
+                      }
+                      setBookingForm((prev) => bookingForm.customerType === "member"
+                        ? { ...prev, memberKeyword: value, userId: null, guestName: value }
+                        : { ...prev, guestName: value });
+                    }}
+                    onFocus={() => {
+                      if (bookingForm.customerType === "member") {
+                        setMemberSuggestOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (bookingForm.customerType === "member") {
+                        setTimeout(() => setMemberSuggestOpen(false), 120);
+                      }
+                    }}
+                    style={inputStyle}
+                  />
+                  {bookingForm.customerType === "member" && memberSuggestOpen && (bookingForm.memberKeyword || memberLoading || memberOptions.length > 0) && (
+                    <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 30, background: "white", border: "1px solid #e5e7eb", borderRadius: 14, boxShadow: "0 16px 32px rgba(15,23,42,.12)", maxHeight: 220, overflowY: "auto" }}>
+                      {memberLoading ? (
+                        <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>Đang tìm khách thành viên...</div>
+                      ) : memberOptions.length === 0 ? (
+                        <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>Không có gợi ý phù hợp.</div>
+                      ) : memberOptions.map((member) => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectMember(member);
+                          }}
+                          style={{ width: "100%", textAlign: "left", border: "none", background: "white", padding: 12, cursor: "pointer", borderBottom: "1px solid #f3f4f6" }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "#1c1917" }}>{member.fullName}</div>
+                          <div style={{ fontSize: 12, color: "#6b7280" }}>{member.phone || "Chưa có SĐT"} • {member.email || "Chưa có email"}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+                <input placeholder="Số điện thoại" value={bookingForm.guestPhone} onChange={(e) => setBookingForm((prev) => ({ ...prev, guestPhone: e.target.value }))} style={inputStyle} />
+                <input placeholder="Email" value={bookingForm.guestEmail} onChange={(e) => setBookingForm((prev) => ({ ...prev, guestEmail: e.target.value }))} style={inputStyle} />
+              </div>
             </div>
-            <input placeholder="Số điện thoại" value={bookingForm.guestPhone} onChange={(e) => setBookingForm((prev) => ({ ...prev, guestPhone: e.target.value }))} style={inputStyle} />
-            <input placeholder="Email" value={bookingForm.guestEmail} onChange={(e) => setBookingForm((prev) => ({ ...prev, guestEmail: e.target.value }))} style={inputStyle} />
-            <select value={bookingForm.source} onChange={(e) => setBookingForm((prev) => ({ ...prev, source: e.target.value }))} style={{ ...inputStyle, cursor: "pointer" }}>
-              <option value="walk_in">Walk-in</option>
-              <option value="phone">Phone</option>
-              <option value="online">Online</option>
-            </select>
-            <div style={{ gridColumn: "span 2" }}>
-              <ReceptionDateRangePicker
-                value={{ checkInDate: bookingForm.checkInDate, checkOutDate: bookingForm.checkOutDate }}
-                onChange={({ checkInDate, checkOutDate }) => setBookingForm((prev) => ({ ...prev, checkInDate, checkOutDate }))}
-              />
+
+            <div style={{ padding: 16, borderRadius: 16, background: "#fcfbf8", border: "1px solid #f1f0ea" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>
+                Thông tin lưu trú
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 2fr 1fr 1fr", gap: 12 }}>
+                <select value={bookingForm.source} onChange={(e) => setBookingForm((prev) => ({ ...prev, source: e.target.value }))} style={{ ...inputStyle, cursor: "pointer" }}>
+                  <option value="walk_in">Tại quầy</option>
+                  <option value="phone">Điện thoại</option>
+                  <option value="online">Trực tuyến</option>
+                </select>
+                <ReceptionDateRangePicker
+                  value={{ checkInDate: bookingForm.checkInDate, checkOutDate: bookingForm.checkOutDate }}
+                  onChange={({ checkInDate, checkOutDate }) => setBookingForm((prev) => ({ ...prev, checkInDate, checkOutDate }))}
+                />
+                <input type="number" min="1" value={bookingForm.numAdults} onChange={(e) => setBookingForm((prev) => ({ ...prev, numAdults: e.target.value }))} style={inputStyle} placeholder="Người lớn" />
+                <input type="number" min="0" value={bookingForm.numChildren} onChange={(e) => setBookingForm((prev) => ({ ...prev, numChildren: e.target.value }))} style={inputStyle} placeholder="Trẻ em" />
+              </div>
             </div>
-            <input type="number" min="1" value={bookingForm.numAdults} onChange={(e) => setBookingForm((prev) => ({ ...prev, numAdults: e.target.value }))} style={inputStyle} placeholder="Người lớn" />
-            <input type="number" min="0" value={bookingForm.numChildren} onChange={(e) => setBookingForm((prev) => ({ ...prev, numChildren: e.target.value }))} style={inputStyle} placeholder="Trẻ em" />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, alignItems: "start", marginBottom: 16 }}>
@@ -883,11 +1160,11 @@ export default function BookingListPage() {
         <input placeholder="Tên / SĐT Khách" value={filters.guest} onChange={(e) => setFilters((f) => ({ ...f, guest: e.target.value }))} style={inputStyle} onFocus={(e) => e.target.style.borderColor = "#4f645b"} onBlur={(e) => e.target.style.borderColor = "#e2e8e1"} />
         <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} style={{ ...inputStyle, cursor: "pointer" }} onFocus={(e) => e.target.style.borderColor = "#4f645b"} onBlur={(e) => e.target.style.borderColor = "#e2e8e1"}>
           <option value="">Tất cả trạng thái</option>
-          <option value="Pending">Pending</option>
+          <option value="Pending">Chờ cọc</option>
           <option value="Confirmed">Đã xác nhận</option>
-          <option value="Checked_in">Checked_in</option>
+          <option value="Checked_in">Đang lưu trú</option>
           <option value="Checked_out_pending_settlement">Chờ quyết toán</option>
-          <option value="Completed">Completed</option>
+          <option value="Completed">Hoàn tất</option>
           <option value="Cancelled">Đã hủy</option>
         </select>
         <div style={{ position: "relative" }}>
@@ -937,7 +1214,7 @@ export default function BookingListPage() {
                 </td>
               </tr>
             )}
-            {filteredRows.map((item) => (
+            {paginatedRows.map((item) => (
               <tr key={item.id} className="table-row">
                 <td style={{ padding: "16px 24px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -961,12 +1238,25 @@ export default function BookingListPage() {
                 <td style={{ padding: "16px 24px" }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#1c1917" }}>{item.guestName || "-"}</div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>{item.guestPhone || "-"}</div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{getBookingSourceLabel(item.source)}</div>
                 </td>
                 <td style={{ padding: "16px 24px" }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#1c1917" }}>{formatDate(item.bookingDetails?.[0]?.checkInDate).split(' ')[0]}</div>
                 </td>
                 <td style={{ padding: "16px 24px" }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#16a34a" }}>{formatCurrency(item.totalEstimatedAmount)}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                    Đã thu trước lưu trú: {formatCurrency(item.depositAmount || 0)}
+                  </div>
+                  {item.paymentSummary && item.status !== "Completed" && item.status !== "Cancelled" && (
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}>
+                      {item.paymentSummary.canCheckIn
+                        ? "Đủ điều kiện nhận phòng"
+                        : item.status === "Pending"
+                          ? `Cần thêm ${formatCurrency(item.paymentSummary.remainingToConfirm || 0)} để xác nhận`
+                          : `Cần thêm ${formatCurrency(item.paymentSummary.remainingToCheckIn || 0)} để nhận phòng`}
+                    </div>
+                  )}
                 </td>
                 <td style={{ padding: "16px 24px" }}>
                   <BookingStatusBadge status={item.status} />
@@ -974,16 +1264,66 @@ export default function BookingListPage() {
                 <td style={{ padding: "16px 24px" }}>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button className="btn-icon-p" title="Chi tiết" onClick={() => navigate(`/admin/bookings/${item.id}`)}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>visibility</span></button>
-                    <button className="btn-icon-p" title="Xác nhận" disabled={!canRun(item.status, "confirm") || busyId === item.id} onClick={() => runAction(item.id, "confirm")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span></button>
-                    <button className="btn-icon-p" title="Check-in" disabled={!canRun(item.status, "checkin") || busyId === item.id} onClick={() => runAction(item.id, "checkin")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span></button>
-                    <button className="btn-icon-p" title="Check-out" disabled={!canRun(item.status, "checkout") || busyId === item.id} onClick={() => runAction(item.id, "checkout")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>logout</span></button>
-                    <button className="btn-icon-p" title="Hủy" disabled={!canRun(item.status, "cancel") || busyId === item.id} onClick={() => runAction(item.id, "cancel")} style={{ color: canRun(item.status, "cancel") ? "#dc2626" : "#cbd5e1", borderColor: canRun(item.status, "cancel") ? "#fecaca" : "#f1f0ea" }} onMouseEnter={(e) => { if (canRun(item.status, "cancel")) { e.currentTarget.style.background = "#fef2f2"; } }} onMouseLeave={(e) => { e.currentTarget.style.background = "white"; }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>cancel</span></button>
+                    <button className="btn-icon-p" title="Thu cọc" disabled={!canRun(item, "collect_deposit") || busyId === item.id} onClick={() => runAction(item, "collect_deposit")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>payments</span></button>
+                    <button className="btn-icon-p" title="Thu thêm để nhận phòng" disabled={!canRun(item, "collect_checkin") || busyId === item.id} onClick={() => runAction(item, "collect_checkin")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span></button>
+                    <button className="btn-icon-p" title="Check-in" disabled={!canRun(item, "checkin") || busyId === item.id} onClick={() => runAction(item, "checkin")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span></button>
+                    <button className="btn-icon-p" title="Check-out" disabled={!canRun(item, "checkout") || busyId === item.id} onClick={() => runAction(item, "checkout")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>logout</span></button>
+                    <button className="btn-icon-p" title="Mở hóa đơn" disabled={!canRun(item, "open_invoice") || busyId === item.id} onClick={() => runAction(item, "open_invoice")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>receipt_long</span></button>
+                    <button className="btn-icon-p" title="Hoàn tiền" disabled={!canRun(item, "refund") || busyId === item.id} onClick={() => runAction(item, "refund")}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>reply</span></button>
+                    <button className="btn-icon-p" title="Hủy" disabled={!canRun(item, "cancel") || busyId === item.id} onClick={() => runAction(item, "cancel")} style={{ color: canRun(item, "cancel") ? "#dc2626" : "#cbd5e1", borderColor: canRun(item, "cancel") ? "#fecaca" : "#f1f0ea" }} onMouseEnter={(e) => { if (canRun(item, "cancel")) { e.currentTarget.style.background = "#fef2f2"; } }} onMouseLeave={(e) => { e.currentTarget.style.background = "white"; }}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>cancel</span></button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 18, padding: "0 18px 18px", gap: 16, flexWrap: "wrap" }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+            Trang <strong style={{ color: "#1c1917" }}>{page}</strong> / {totalPages}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page === 1}
+              style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: "#6b7280", cursor: page === 1 ? "not-allowed" : "pointer", opacity: page === 1 ? 0.35 : 1 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_left</span>
+            </button>
+            {Array.from({ length: totalPages }).map((_, index) => {
+              const pageNumber = index + 1;
+              const active = pageNumber === page;
+              return (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "none",
+                    background: active ? "#4f645b" : "transparent",
+                    color: active ? "#e7fef3" : "#6b7280",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: active ? "default" : "pointer",
+                  }}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page === totalPages}
+              style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: "#6b7280", cursor: page === totalPages ? "not-allowed" : "pointer", opacity: page === totalPages ? 0.35 : 1 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_right</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

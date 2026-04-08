@@ -7,19 +7,32 @@ public class RecordPaymentRequestValidator : AbstractValidator<RecordPaymentRequ
 {
     public RecordPaymentRequestValidator()
     {
-        RuleFor(x => x.InvoiceId)
-            .GreaterThan(0).WithMessage("HÃ³a Ä‘Æ¡n khÃ´ng há»£p lá»‡.");
+        RuleFor(x => x)
+            .Must(x => x.BookingId.HasValue ^ x.InvoiceId.HasValue)
+            .WithMessage("Thanh toán ph?i g?n ðúng m?t trong hai ð?i tý?ng: booking ho?c hóa ðõn.");
+
+        When(x => x.BookingId.HasValue, () =>
+        {
+            RuleFor(x => x.BookingId)
+                .GreaterThan(0).WithMessage("Booking không h?p l?.");
+        });
+
+        When(x => x.InvoiceId.HasValue, () =>
+        {
+            RuleFor(x => x.InvoiceId)
+                .GreaterThan(0).WithMessage("Hóa ðõn không h?p l?.");
+        });
 
         RuleFor(x => x.AmountPaid)
-            .GreaterThan(0).WithMessage("Sá»‘ tiá»n thanh toÃ¡n pháº£i lá»›n hÆ¡n 0.");
+            .GreaterThan(0).WithMessage("S? ti?n thanh toán ph?i l?n hõn 0.");
 
         RuleFor(x => x.PaymentType)
-            .MaximumLength(50).WithMessage("Loáº¡i thanh toÃ¡n tá»‘i Ä‘a 50 kÃ½ tá»±.");
+            .MaximumLength(50).WithMessage("Lo?i thanh toán t?i ða 50 k? t?.");
 
         RuleFor(x => x.PaymentMethod)
-            .MaximumLength(50).WithMessage("PhÆ°Æ¡ng thá»©c thanh toÃ¡n tá»‘i Ä‘a 50 kÃ½ tá»±.");
+            .MaximumLength(50).WithMessage("Phýõng th?c thanh toán t?i ða 50 k? t?.");
 
         RuleFor(x => x.TransactionCode)
-            .MaximumLength(100).WithMessage("MÃ£ giao dá»‹ch tá»‘i Ä‘a 100 kÃ½ tá»±.");
+            .MaximumLength(100).WithMessage("M? giao d?ch t?i ða 100 k? t?.");
     }
 }

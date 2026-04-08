@@ -70,7 +70,11 @@ public class RoomsController : ControllerBase
                 r.BusinessStatus,
                 r.CleaningStatus,
                 r.RoomTypeId,
-                roomTypeName = r.RoomType != null ? r.RoomType.Name : null
+                roomTypeName = r.RoomType != null ? r.RoomType.Name : null,
+                activeMaintenanceCount = r.MaintenanceTickets.Count(t =>
+                    t.Status == "Open" ||
+                    t.Status == "InProgress" ||
+                    t.Status == "Resolved")
             })
             .ToListAsync();
 
@@ -109,6 +113,21 @@ public class RoomsController : ControllerBase
                 r.Notes,
                 r.RoomTypeId,
                 roomTypeName = r.RoomType != null ? r.RoomType.Name : null,
+                maintenanceHistory = r.MaintenanceTickets
+                    .OrderByDescending(t => t.OpenedAt)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.Title,
+                        t.Reason,
+                        t.Priority,
+                        t.BlocksRoom,
+                        t.Status,
+                        t.OpenedAt,
+                        t.ExpectedDoneAt,
+                        t.ResolvedAt,
+                        t.ClosedAt
+                    }),
                 inventory = r.RoomInventories.Select(i => new
                 {
                     i.Id,
@@ -160,6 +179,8 @@ public class RoomsController : ControllerBase
             OldValue = null,
             NewValue = $"{{\"floor\": {request.Floor?.ToString() ?? "null"}, \"viewType\": \"{request.ViewType}\"}}"
         });
+
+        await _db.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Cập nhật phòng thành công." });
     }
@@ -259,6 +280,8 @@ public class RoomsController : ControllerBase
             Metadata = $"{{\"oldStatus\": \"{oldValue}\", \"newStatus\": \"{request.BusinessStatus}\"}}"
         });
 
+        await _db.SaveChangesAsync();
+
         return Ok(new { success = true, message = $"Đã đổi trạng thái phòng #{id} thành '{request.BusinessStatus}'." });
     }
 
@@ -301,6 +324,8 @@ public class RoomsController : ControllerBase
             NewValue = $"{{\"cleaningStatus\": \"{request.CleaningStatus}\"}}",
             Metadata = $"{{\"oldStatus\": \"{oldCleaningStatus}\", \"newStatus\": \"{request.CleaningStatus}\"}}"
         });
+
+        await _db.SaveChangesAsync();
 
         return Ok(new { success = true, message = $"Đã cập nhật cleaning_status phòng #{id} thành '{request.CleaningStatus}'." });
     }

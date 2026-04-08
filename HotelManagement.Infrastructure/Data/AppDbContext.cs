@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<RoomImage> RoomImages => Set<RoomImage>();
     public DbSet<Equipment> Equipments => Set<Equipment>();
     public DbSet<RoomInventory> RoomInventories => Set<RoomInventory>();
+    public DbSet<MaintenanceTicket> MaintenanceTickets => Set<MaintenanceTicket>();
 
     // ── Cluster 3: Booking & Promotions ─────────────────────────
     public DbSet<Voucher> Vouchers => Set<Voucher>();
@@ -70,6 +71,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderService>().ToTable("Order_Services");
         modelBuilder.Entity<OrderServiceDetail>().ToTable("Order_Service_Details");
         modelBuilder.Entity<LossAndDamage>().ToTable("Loss_And_Damages");
+        modelBuilder.Entity<MaintenanceTicket>().ToTable("Maintenance_Tickets");
         modelBuilder.Entity<InvoiceAdjustment>().ToTable("Invoice_Adjustments");
         modelBuilder.Entity<ArticleCategory>().ToTable("Article_Categories");
         modelBuilder.Entity<LoyaltyTransaction>().ToTable("Loyalty_Transactions");
@@ -171,6 +173,39 @@ public class AppDbContext : DbContext
             .WithMany(u => u.ReportedDamages)
             .HasForeignKey(l => l.ReportedBy)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MaintenanceTicket>()
+            .HasOne(t => t.Room)
+            .WithMany(r => r.MaintenanceTickets)
+            .HasForeignKey(t => t.RoomId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MaintenanceTicket>()
+            .HasOne(t => t.ReportedByUser)
+            .WithMany(u => u.ReportedMaintenanceTickets)
+            .HasForeignKey(t => t.ReportedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MaintenanceTicket>()
+            .HasOne(t => t.AssignedToUser)
+            .WithMany(u => u.AssignedMaintenanceTickets)
+            .HasForeignKey(t => t.AssignedToUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Booking)
+            .WithMany(b => b.Payments)
+            .HasForeignKey(p => p.BookingId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Invoice)
+            .WithMany(i => i.Payments)
+            .HasForeignKey(p => p.InvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.BookingId);
 
         modelBuilder.Entity<Article>()
             .HasOne(a => a.Attraction)

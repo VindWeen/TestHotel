@@ -29,6 +29,8 @@ public class BookingService : IBookingService
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.RoomType)
+            .Include(b => b.Invoices)
+                .ThenInclude(i => i.Payments)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(queryRequest.Status))
@@ -85,6 +87,39 @@ public class BookingService : IBookingService
         };
     }
 
+    private static BookingPaymentSummaryResponse BuildPaymentSummary(Core.Entities.Booking booking)
+    {
+        var paidBeforeCheckout = Math.Max(0m, booking.DepositAmount ?? 0m);
+        var latestInvoice = booking.Invoices
+            .OrderByDescending(i => i.CreatedAt)
+            .FirstOrDefault();
+
+        decimal? remainingToCheckout = null;
+        if (latestInvoice != null)
+        {
+            var invoicePaid = latestInvoice.Payments
+                .Where(p => string.Equals(p.Status, HotelManagement.Core.Constants.PaymentStatuses.Success, StringComparison.OrdinalIgnoreCase))
+                .Sum(p => string.Equals(p.PaymentType, HotelManagement.Core.Constants.PaymentTypes.Refund, StringComparison.OrdinalIgnoreCase)
+                    ? -p.AmountPaid
+                    : p.AmountPaid);
+
+            remainingToCheckout = Math.Max(0m, (latestInvoice.FinalTotal ?? 0m) - paidBeforeCheckout - invoicePaid);
+        }
+
+        return new BookingPaymentSummaryResponse
+        {
+            EstimatedTotal = booking.TotalEstimatedAmount,
+            PaidBeforeCheckout = paidBeforeCheckout,
+            RequiredBookingDepositAmount = booking.RequiredBookingDepositAmount,
+            RequiredCheckInAmount = booking.RequiredCheckInAmount,
+            RemainingToConfirm = Math.Max(0m, booking.RequiredBookingDepositAmount - paidBeforeCheckout),
+            RemainingToCheckIn = Math.Max(0m, booking.RequiredCheckInAmount - paidBeforeCheckout),
+            RemainingToCheckout = remainingToCheckout,
+            CanConfirm = paidBeforeCheckout >= booking.RequiredBookingDepositAmount,
+            CanCheckIn = paidBeforeCheckout >= booking.RequiredCheckInAmount
+        };
+    }
+
     private static BookingResponse MapToResponse(Core.Entities.Booking b) => new()
     {
         Id = b.Id,
@@ -105,6 +140,7 @@ public class BookingService : IBookingService
         Note = b.Note,
         CancellationReason = b.CancellationReason,
         CancelledAt = b.CancelledAt,
+        PaymentSummary = BuildPaymentSummary(b),
         BookingDetails = b.BookingDetails.Select(d => new BookingDetailResponse
         {
             Id = d.Id,

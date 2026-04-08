@@ -182,7 +182,46 @@ public class LoyaltyMembersController : ControllerBase
                 LastTransactionAt = u.LoyaltyTransactions
                     .OrderByDescending(t => t.CreatedAt)
                     .Select(t => (DateTime?)t.CreatedAt)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                BookingCount = u.Bookings.Count(),
+                CompletedBookingCount = u.Bookings.Count(b => b.Status == "Completed"),
+                ReviewCount = u.Reviews.Count(),
+                VoucherUsageCount = u.VoucherUsages.Count(),
+                RecentBookings = u.Bookings
+                    .OrderByDescending(b => b.Id)
+                    .Take(5)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BookingCode,
+                        b.Status,
+                        b.TotalEstimatedAmount,
+                        CheckInDate = b.BookingDetails
+                            .OrderBy(d => d.CheckInDate)
+                            .Select(d => (DateTime?)d.CheckInDate)
+                            .FirstOrDefault()
+                    }),
+                RecentReviews = u.Reviews
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Take(5)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.Rating,
+                        r.Comment,
+                        r.CreatedAt,
+                        r.IsApproved
+                    }),
+                RecentVoucherUsage = u.VoucherUsages
+                    .OrderByDescending(v => v.UsedAt)
+                    .Take(5)
+                    .Select(v => new
+                    {
+                        v.Id,
+                        v.VoucherId,
+                        VoucherCode = v.Voucher != null ? v.Voucher.Code : null,
+                        v.UsedAt
+                    })
             })
             .FirstOrDefaultAsync();
 

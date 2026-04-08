@@ -67,7 +67,7 @@ public class OrderServicesController : ControllerBase
             query = query.Where(x =>
                 (x.Note != null && x.Note.ToLower().Contains(keyword)) ||
                 (x.BookingDetail != null && x.BookingDetail.Booking != null && x.BookingDetail.Booking.BookingCode.ToLower().Contains(keyword)) ||
-                (x.BookingDetail != null && x.BookingDetail.Booking != null && x.BookingDetail.Booking.GuestName.ToLower().Contains(keyword)) ||
+                (x.BookingDetail != null && x.BookingDetail.Booking != null && x.BookingDetail.Booking.GuestName != null && x.BookingDetail.Booking.GuestName.ToLower().Contains(keyword)) ||
                 (x.BookingDetail != null && x.BookingDetail.Room != null && x.BookingDetail.Room.RoomNumber.ToLower().Contains(keyword)));
         }
 

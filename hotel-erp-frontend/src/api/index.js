@@ -1,5 +1,5 @@
-// src/api/index.js
-// Barrel export — import bất kỳ API function nào từ một chỗ:
+﻿// src/api/index.js
+// Barrel export â€” import báº¥t ká»³ API function nĂ o tá»« má»™t chá»—:
 // import { login, logout } from '../api';
 // import { getBookings, createBooking } from '../api';
 
@@ -25,3 +25,7 @@ export * from './servicesApi';
 export * from './orderServicesApi';
 export * from './membershipsApi';
 export * from './loyaltyMembersApi';
+export * from './dashboardApi';
+export * from './shiftsApi';
+export * from './maintenanceApi';
+

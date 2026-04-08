@@ -1,64 +1,25 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createOrderService,
-  deleteOrderService,
   getOrderServiceById,
   getOrderServiceBookingOptions,
   getOrderServices,
-  toggleOrderService,
   updateOrderService,
   updateOrderServiceStatus,
 } from "../../api/orderServicesApi";
 import { getServices } from "../../api/servicesApi";
 import { formatCurrency, formatDate } from "../../utils";
-
-const cardStyle = {
-  background: "white",
-  borderRadius: 16,
-  border: "1px solid #f1f0ea",
-  boxShadow: "0 1px 3px rgba(0,0,0,.06)",
-};
-
-const inputStyle = {
-  width: "100%",
-  background: "#f9f8f3",
-  border: "1px solid #e2e8e1",
-  borderRadius: 12,
-  padding: "10px 14px",
-  fontSize: 14,
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const labelStyle = {
-  display: "block",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  color: "#6b7280",
-  marginBottom: 8,
-};
-
-const ghostButtonStyle = {
-  padding: "10px 16px",
-  borderRadius: 12,
-  border: "1px solid #e7e5e4",
-  background: "white",
-  color: "#57534e",
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const primaryButtonStyle = {
-  padding: "10px 18px",
-  borderRadius: 12,
-  border: "none",
-  background: "#4f645b",
-  color: "#e7fef3",
-  fontWeight: 700,
-  cursor: "pointer",
-};
+import {
+  FormFooter,
+  IconButton,
+  Modal as SharedModal,
+  SERVICE_VIEW_STORAGE_KEY,
+  ServiceAdminShell,
+  inputStyle,
+  labelStyle,
+  panelStyle,
+  primaryButton,
+} from "./ServiceAdminShared";
 
 const secondaryButtonStyle = {
   padding: "10px 14px",
@@ -80,7 +41,6 @@ export default function OrderServicePage() {
   const [submitting, setSubmitting] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
-  const [includeInactive, setIncludeInactive] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -105,6 +65,37 @@ export default function OrderServicePage() {
     [bookingDetailOptions, form.bookingDetailId],
   );
 
+  const stats = useMemo(() => {
+    const pendingCount = rows.filter((item) => item.status === "Pending").length;
+    const deliveredCount = rows.filter((item) => item.status === "Delivered").length;
+    const cancelledCount = rows.filter((item) => item.status === "Cancelled").length;
+
+    return [
+      {
+        label: "Đơn dịch vụ",
+        value: rows.length,
+        description: `${pendingCount} đơn đang chờ xử lý`,
+        icon: "receipt_long",
+      },
+      {
+        label: "Đã hoàn tất",
+        value: deliveredCount,
+        description: `${cancelledCount} đơn đã hủy`,
+        icon: "done_all",
+      },
+      {
+        label: "Dịch vụ khả dụng",
+        value: activeServiceOptions.length,
+        description: `${bookingDetailOptions.length} booking detail có thể gắn đơn`,
+        icon: "room_service",
+      },
+    ];
+  }, [activeServiceOptions.length, bookingDetailOptions.length, rows]);
+
+  useEffect(() => {
+    sessionStorage.setItem(SERVICE_VIEW_STORAGE_KEY, "order");
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -114,7 +105,6 @@ export default function OrderServicePage() {
           pageSize: 200,
           keyword,
           status,
-          includeInactive,
         }),
         getServices({ page: 1, pageSize: 200, includeInactive: false }),
         getOrderServiceBookingOptions(),
@@ -127,7 +117,7 @@ export default function OrderServicePage() {
     } finally {
       setLoading(false);
     }
-  }, [includeInactive, keyword, status]);
+  }, [keyword, status]);
 
   useEffect(() => {
     loadData();
@@ -232,49 +222,23 @@ export default function OrderServicePage() {
     }
   };
 
-  const handleAction = async (runner, id, confirmText) => {
-    if (confirmText && !window.confirm(confirmText)) return;
-    try {
-      await runner(id);
-      await loadData();
-    } catch (error) {
-      setErrorMessage(error?.response?.data?.message || "Không thể cập nhật đơn dịch vụ.");
-    }
-  };
-
   return (
     <>
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0, fontSize: 24, color: "#1c1917", fontWeight: 700 }}>
-              Quản lý đơn dịch vụ
-            </h2>
-            <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>
-              Theo dõi các đơn dịch vụ gắn với booking detail và thao tác ngay trong admin.
-            </p>
-          </div>
-          <button onClick={openCreateModal} style={primaryButtonStyle}>
+      <ServiceAdminShell
+        view="order"
+        title="Quản lý dịch vụ"
+        subtitle="Theo dõi đơn dịch vụ, danh mục dịch vụ và nhóm dịch vụ trong cùng một module."
+        stats={stats}
+        primaryAction={
+          <button onClick={openCreateModal} style={primaryButton(false)}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+              receipt_long
+            </span>
             Tạo đơn dịch vụ
           </button>
-        </div>
-
-        {errorMessage ? (
-          <div style={{ ...cardStyle, padding: 14, marginBottom: 20, color: "#b91c1c", background: "#fff7f7" }}>
-            {errorMessage}
-          </div>
-        ) : null}
-
-        <section style={{ ...cardStyle, padding: 24, marginBottom: 24 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr auto", gap: 16, alignItems: "end" }}>
+        }
+        filterContent={
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr", gap: 16, alignItems: "end" }}>
             <div>
               <label style={labelStyle}>Tìm booking / khách / phòng</label>
               <input value={keyword} onChange={(e) => setKeyword(e.target.value)} style={inputStyle} placeholder="Booking code, khách, số phòng..." />
@@ -286,14 +250,16 @@ export default function OrderServicePage() {
                 {ORDER_STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "#44403c", paddingBottom: 10 }}>
-              <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
-              Hiện cả đơn đã ẩn
-            </label>
           </div>
-        </section>
+        }
+      >
+        {errorMessage ? (
+          <div style={{ ...panelStyle, padding: 14, marginBottom: 20, color: "#b91c1c", background: "#fff7f7" }}>
+            {errorMessage}
+          </div>
+        ) : null}
 
-        <section style={{ ...cardStyle, overflow: "hidden" }}>
+        <section style={{ ...panelStyle, overflow: "hidden" }}>
           <div style={{ padding: "18px 20px", borderBottom: "1px solid #f1f0ea" }}>
             <strong style={{ color: "#1c1917" }}>Danh sách đơn dịch vụ</strong>
             <p style={{ margin: "4px 0 0", color: "#78716c", fontSize: 13 }}>Tổng cộng {rows.length} đơn.</p>
@@ -302,8 +268,8 @@ export default function OrderServicePage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#faf8f3", borderBottom: "1px solid #f1f0ea" }}>
-                  {["Booking", "Khách / Phòng", "Ngày tạo", "Tổng tiền", "Trạng thái", "Hiển thị", "Thao tác"].map((heading, idx) => (
-                    <th key={heading} style={{ padding: "16px 18px", textAlign: idx === 6 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", color: "#78716c" }}>
+                  {["Booking", "Khách / Phòng", "Ngày tạo", "Tổng tiền", "Trạng thái", "Thao tác"].map((heading, idx) => (
+                    <th key={heading} style={{ padding: "16px 18px", textAlign: idx === 5 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", color: "#78716c" }}>
                       {heading}
                     </th>
                   ))}
@@ -311,9 +277,9 @@ export default function OrderServicePage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} style={{ padding: 48, textAlign: "center", color: "#9ca3af" }}>Đang tải dữ liệu...</td></tr>
+                  <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#9ca3af" }}>Đang tải dữ liệu...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={7} style={{ padding: 48, textAlign: "center", color: "#9ca3af" }}>Chưa có đơn dịch vụ nào.</td></tr>
+                  <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#9ca3af" }}>Chưa có đơn dịch vụ nào.</td></tr>
                 ) : (
                   rows.map((item) => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #f7f4ee" }}>
@@ -339,17 +305,10 @@ export default function OrderServicePage() {
                           ))}
                         </select>
                       </td>
-                      <td style={{ padding: "16px 18px" }}>
-                        <span style={{ padding: "5px 10px", borderRadius: 999, background: item.isActive ? "#ecfdf5" : "#f5f5f4", color: item.isActive ? "#047857" : "#78716c", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
-                          {item.isActive ? "Đang dùng" : "Đã ẩn"}
-                        </span>
-                      </td>
                       <td style={{ padding: "16px 18px", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: 8 }}>
-                          <ActionButton icon="visibility" onClick={() => openDetail(item.id)} />
-                          <ActionButton icon="edit" onClick={() => openEditModal(item)} />
-                          <ActionButton icon={item.isActive ? "visibility_off" : "visibility"} onClick={() => handleAction(toggleOrderService, item.id)} />
-                          <ActionButton icon="delete" danger onClick={() => handleAction(deleteOrderService, item.id, `Xóa mềm đơn dịch vụ #${item.id}?`)} />
+                          <IconButton icon="visibility" title="Xem chi tiết" onClick={() => openDetail(item.id)} />
+                          <IconButton icon="edit" title="Chỉnh sửa" onClick={() => openEditModal(item)} />
                         </div>
                       </td>
                     </tr>
@@ -359,10 +318,10 @@ export default function OrderServicePage() {
             </table>
           </div>
         </section>
-      </div>
+      </ServiceAdminShell>
 
       {modalOpen ? (
-        <Overlay onClose={() => setModalOpen(false)} title={editingItem ? "Cập nhật đơn dịch vụ" : "Tạo đơn dịch vụ"}>
+        <SharedModal open={modalOpen} onClose={() => setModalOpen(false)} title={editingItem ? "Cập nhật đơn dịch vụ" : "Tạo đơn dịch vụ"}>
           <form onSubmit={submitForm}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
@@ -435,18 +394,13 @@ export default function OrderServicePage() {
             </div>
 
             {errorMessage ? <p style={{ color: "#b91c1c", marginTop: 12 }}>{errorMessage}</p> : null}
-            <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button type="button" onClick={() => setModalOpen(false)} style={ghostButtonStyle}>Đóng</button>
-              <button type="submit" disabled={submitting} style={{ ...primaryButtonStyle, opacity: submitting ? 0.7 : 1 }}>
-                {submitting ? "Đang lưu..." : "Lưu đơn"}
-              </button>
-            </div>
+            <FormFooter submitting={submitting} onClose={() => setModalOpen(false)} />
           </form>
-        </Overlay>
+        </SharedModal>
       ) : null}
 
       {detailOpen && detailItem ? (
-        <Overlay onClose={() => setDetailOpen(false)} title={`Chi tiết Order #${detailItem.id}`}>
+        <SharedModal open={detailOpen} onClose={() => setDetailOpen(false)} title={`Chi tiết Order #${detailItem.id}`}>
           <div style={{ display: "grid", gap: 12 }}>
             <DetailGrid label="Booking" value={detailItem.bookingCode || `#${detailItem.bookingId || "?"}`} />
             <DetailGrid label="Khách" value={detailItem.guestName || "?"} />
@@ -472,51 +426,9 @@ export default function OrderServicePage() {
               </div>
             </div>
           </div>
-        </Overlay>
+        </SharedModal>
       ) : null}
     </>
-  );
-}
-
-function ActionButton({ icon, onClick, danger = false }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        border: "1px solid #ece7de",
-        background: danger ? "#fff7f7" : "white",
-        color: danger ? "#dc2626" : "#57534e",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-      }}
-    >
-      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{icon}</span>
-    </button>
-  );
-}
-
-function Overlay({ onClose, title, children }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(28,25,23,.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 24 }} onClick={onClose}>
-      <div style={{ width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", background: "white", borderRadius: 24, border: "1px solid #ede7dd", boxShadow: "0 24px 60px rgba(28,25,23,.18)" }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ padding: "22px 24px 16px", borderBottom: "1px solid #f1f0ea", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 22, color: "#1c1917" }}>{title}</h3>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#78716c" }}>Thiết kế đồng bộ với nhóm trang admin hiện tại.</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}>
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-        <div style={{ padding: 24 }}>{children}</div>
-      </div>
-    </div>
   );
 }
 

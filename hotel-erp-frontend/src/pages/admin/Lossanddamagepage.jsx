@@ -1,5 +1,5 @@
 ﻿// src/pages/admin/LossAndDamagePage.jsx
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import axiosClient from "../../api/axios";
 const fmtCurrency = (n) =>
   n == null ? "0đ" : `${new Intl.NumberFormat("vi-VN").format(n)}đ`;
@@ -45,7 +45,40 @@ const parseImages = (value) => {
 const normalizeLossRecord = (item) => ({
   ...item,
   images: parseImages(item.images || item.imgUrl),
+  replenishedQuantity: Number(item.replenishedQuantity || 0),
+  remainingToReplenish: Math.max(
+    0,
+    Number(
+      item.remainingToReplenish ??
+        Number(item.quantity || 0) - Number(item.replenishedQuantity || 0),
+    ),
+  ),
 });
+
+const canReplenishRecord = (item) =>
+  item?.status === "Confirmed" &&
+  Number(item?.remainingToReplenish || 0) > 0 &&
+  Number(item?.availableStock || 0) > 0;
+
+const getReplenishGroupKey = (item) => {
+  if (item?.bookingDetailId) return `booking-detail-${item.bookingDetailId}`;
+  if (item?.roomNumber) return `room-${item.roomNumber}`;
+  return `loss-${item?.id ?? "unknown"}`;
+};
+
+const getBulkReplenishCandidates = (records, seedItem) => {
+  if (!seedItem) return [];
+  const groupKey = getReplenishGroupKey(seedItem);
+  return records
+    .filter((item) => getReplenishGroupKey(item) === groupKey)
+    .filter((item) => item.status === "Confirmed" && Number(item.remainingToReplenish || 0) > 0)
+    .sort((a, b) => {
+      if ((a.roomNumber || "") !== (b.roomNumber || "")) {
+        return String(a.roomNumber || "").localeCompare(String(b.roomNumber || ""));
+      }
+      return String(a.itemName || "").localeCompare(String(b.itemName || ""));
+    });
+};
 
 const STATUS_CFG = {
   Pending: {
@@ -582,6 +615,38 @@ function DetailModal({ open, item, onClose }) {
                     </p>
                   </div>
                 </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      background: "#eff6ff",
+                      padding: "14px 18px",
+                      borderRadius: 16,
+                    }}
+                  >
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", margin: "0 0 4px" }}>
+                      ĐÃ BỔ SUNG
+                    </p>
+                    <p style={{ fontSize: 18, fontWeight: 800, color: "#1d4ed8", margin: 0 }}>
+                      {item.replenishedQuantity || 0}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      background: "#fff7ed",
+                      padding: "14px 18px",
+                      borderRadius: 16,
+                    }}
+                  >
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#c2410c", margin: "0 0 4px" }}>
+                      CÒN THIẾU
+                    </p>
+                    <p style={{ fontSize: 18, fontWeight: 800, color: "#c2410c", margin: 0 }}>
+                      {item.remainingToReplenish || 0}
+                    </p>
+                  </div>
+                </div>
                 <div
                   style={{
                     background: st.bg,
@@ -1074,6 +1139,447 @@ function EditModal({ open, item, onClose, onSaved, showToast }) {
   );
 }
 
+function ReplenishModal({ open, item, onClose, onSaved, showToast }) {
+  const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!item) return;
+    const maxSuggested = Math.max(
+      1,
+      Math.min(
+        Number(item.remainingToReplenish || 0),
+        Number(item.availableStock || 0),
+      ),
+    );
+    setQuantity(maxSuggested);
+    setNote("");
+  }, [item]);
+
+  if (!open || !item) return null;
+
+  const canSubmit =
+    item.status === "Confirmed" &&
+    Number(item.remainingToReplenish || 0) > 0 &&
+    Number(item.availableStock || 0) > 0;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    try {
+      const res = await axiosClient.post(`/LossAndDamages/${item.id}/replenish`, {
+        quantity: Number(quantity),
+        note: note.trim() || null,
+      });
+      showToast(res.data?.message || "Đã bổ sung vật tư thành công.");
+      onSaved();
+      onClose();
+    } catch (error) {
+      showToast(
+        error?.response?.data?.message || "Bổ sung vật tư thất bại.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={modalOverlayStyle}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ ...modalContentStyle, width: "100%", maxWidth: 520 }}>
+        <div
+          style={{
+            padding: "24px 32px",
+            borderBottom: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+              Bổ sung vật tư #{item.id}
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "4px 0 0" }}>
+              {item.itemName} · Phòng {item.roomNumber}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div style={{ padding: 32, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 12,
+            }}
+          >
+            <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 4 }}>THIẾU CẦN BÙ</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>{item.remainingToReplenish}</div>
+            </div>
+            <div style={{ background: "#ecfdf5", borderRadius: 16, padding: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#15803d", marginBottom: 4 }}>TỒN KHẢ DỤNG</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#166534" }}>{item.availableStock ?? 0}</div>
+            </div>
+            <div style={{ background: "#eff6ff", borderRadius: 16, padding: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", marginBottom: 4 }}>ĐÃ BỔ SUNG</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#1d4ed8" }}>{item.replenishedQuantity || 0}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+              Số lượng bổ sung lần này
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={Math.max(1, Math.min(item.remainingToReplenish || 1, item.availableStock || 1))}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+              Ghi chú bổ sung
+            </label>
+            <textarea
+              rows={4}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              style={{ ...inputStyle, resize: "vertical" }}
+              placeholder="Ví dụ: thay bàn mới từ kho tầng 1, bổ sung thêm 1 chai do kho chỉ còn ít..."
+            />
+          </div>
+
+          {!canSubmit ? (
+            <div style={{ background: "#fff7ed", color: "#c2410c", borderRadius: 14, padding: "12px 14px", fontSize: 13, fontWeight: 600 }}>
+              {item.status !== "Confirmed"
+                ? "Chỉ bổ sung được khi biên bản đã ở trạng thái Đã xác nhận."
+                : "Kho hiện chưa có tồn khả dụng hoặc biên bản đã được bổ sung đủ."}
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          style={{
+            padding: "20px 32px",
+            borderTop: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 12,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 12,
+              border: "1px solid #e2e8f0",
+              background: "white",
+              fontWeight: 700,
+              color: "#64748b",
+              cursor: "pointer",
+            }}
+          >
+            Đóng
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || !canSubmit}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 12,
+              border: "none",
+              background: saving || !canSubmit ? "#cbd5e1" : "#166534",
+              color: "white",
+              fontWeight: 800,
+              cursor: saving || !canSubmit ? "not-allowed" : "pointer",
+            }}
+          >
+            {saving ? "Đang bổ sung..." : "Xác nhận bổ sung"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BatchReplenishModal({ open, seedItem, records, onClose, onSaved, showToast }) {
+  const candidates = useMemo(
+    () => getBulkReplenishCandidates(records, seedItem),
+    [records, seedItem],
+  );
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [quantities, setQuantities] = useState({});
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open || candidates.length === 0) {
+      setSelectedIds([]);
+      setQuantities({});
+      setNote("");
+      return;
+    }
+
+    const initialQuantities = {};
+    const initialIds = [];
+    candidates.forEach((item) => {
+      const suggested = Math.max(
+        1,
+        Math.min(
+          Number(item.remainingToReplenish || 0),
+          Number(item.availableStock || 0),
+        ),
+      );
+      initialQuantities[item.id] = suggested;
+      if (Number(item.availableStock || 0) > 0) {
+        initialIds.push(item.id);
+      }
+    });
+    setQuantities(initialQuantities);
+    setSelectedIds(initialIds);
+    setNote("");
+  }, [open, candidates]);
+
+  if (!open || !seedItem) return null;
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id],
+    );
+  };
+
+  const updateQuantity = (id, value, max) => {
+    const parsed = Number.parseInt(value, 10);
+    const safeValue = Number.isFinite(parsed)
+      ? Math.max(1, Math.min(max, parsed))
+      : 1;
+    setQuantities((prev) => ({ ...prev, [id]: safeValue }));
+  };
+
+  const selectedCandidates = candidates.filter((item) => selectedIds.includes(item.id));
+  const canSubmit = selectedCandidates.length > 0 && !saving;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    try {
+      for (const item of selectedCandidates) {
+        const max = Math.max(
+          1,
+          Math.min(
+            Number(item.remainingToReplenish || 0),
+            Number(item.availableStock || 0),
+          ),
+        );
+        await axiosClient.post(`/LossAndDamages/${item.id}/replenish`, {
+          quantity: Math.max(1, Math.min(max, Number(quantities[item.id] || 1))),
+          note: note.trim() || null,
+        });
+      }
+      showToast(
+        selectedCandidates.length === 1
+          ? "Đã bổ sung vật tư đã chọn."
+          : `Đã bổ sung ${selectedCandidates.length} vật tư trong một lượt.`,
+      );
+      onSaved();
+      onClose();
+    } catch (error) {
+      showToast(
+        error?.response?.data?.message || "Bổ sung hàng loạt thất bại.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={modalOverlayStyle}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ ...modalContentStyle, width: "100%", maxWidth: 760 }}>
+        <div
+          style={{
+            padding: "24px 32px",
+            borderBottom: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+              Bổ sung hàng loạt
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "4px 0 0" }}>
+              Phòng {seedItem.roomNumber || "—"} · cùng lượt lưu trú
+            </h3>
+            <p style={{ margin: "8px 0 0", color: "#64748b", fontSize: 13 }}>
+              Chọn các vật tư đã đền bù cần bổ sung lại vào phòng trong một lượt.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              border: "1px solid #e2e8f0",
+              background: "white",
+              cursor: "pointer",
+            }}
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div style={{ padding: 24, display: "grid", gap: 16 }}>
+          {candidates.length === 0 ? (
+            <div style={{ background: "#f8fafc", borderRadius: 16, padding: 20, color: "#64748b", fontWeight: 600 }}>
+              Không còn vật tư nào trong cùng booking cần bổ sung.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {candidates.map((item) => {
+                const max = Math.max(
+                  1,
+                  Math.min(
+                    Number(item.remainingToReplenish || 0),
+                    Number(item.availableStock || 0),
+                  ),
+                );
+                const disabled = Number(item.availableStock || 0) <= 0;
+                const checked = selectedIds.includes(item.id);
+                return (
+                  <label
+                    key={item.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "auto 1.4fr 0.8fr 0.8fr",
+                      gap: 14,
+                      alignItems: "center",
+                      padding: 16,
+                      borderRadius: 16,
+                      border: checked ? "1.5px solid #4f645b" : "1px solid #e2e8f0",
+                      background: disabled ? "#f8fafc" : checked ? "#f0faf5" : "white",
+                      opacity: disabled ? 0.7 : 1,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleSelect(item.id)}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 800, color: "#0f172a" }}>{item.itemName}</div>
+                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                        Thiếu cần bù: {item.remainingToReplenish} · Tồn khả dụng: {item.availableStock}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", marginBottom: 6 }}>
+                        SỐ LƯỢNG BÙ
+                      </div>
+                      <input
+                        type="number"
+                        min={1}
+                        max={max}
+                        value={quantities[item.id] ?? max}
+                        disabled={!checked || disabled}
+                        onChange={(e) => updateQuantity(item.id, e.target.value, max)}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                      <div style={{ fontWeight: 800, color: "#0f172a" }}>#{item.id}</div>
+                      <div style={{ marginTop: 4 }}>
+                        {disabled ? "Hết tồn kho" : `Tối đa ${max}`}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 8 }}>
+              Ghi chú chung
+            </label>
+            <textarea
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ví dụ: đã lấy vật tư từ kho tầng 2 để bù lại minibar"
+              style={{ ...inputStyle, resize: "vertical" }}
+            />
+          </div>
+
+          {!canSubmit ? (
+            <div style={{ background: "#fff7ed", color: "#c2410c", borderRadius: 14, padding: "12px 14px", fontSize: 13, fontWeight: 600 }}>
+              Chọn ít nhất một vật tư còn tồn kho để bổ sung hàng loạt.
+            </div>
+          ) : null}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                background: "white",
+                fontWeight: 700,
+                color: "#334155",
+                cursor: "pointer",
+              }}
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              style={{
+                padding: "10px 22px",
+                borderRadius: 12,
+                border: "none",
+                background: "linear-gradient(135deg,#4f645b 0%,#43574f 100%)",
+                color: "#e7fef3",
+                fontWeight: 800,
+                cursor: canSubmit ? "pointer" : "not-allowed",
+                opacity: canSubmit ? 1 : 0.55,
+              }}
+            >
+              {saving ? "Đang bổ sung..." : "Bổ sung đã chọn"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 export function LossAndDamageHeader({ recordCount, onRefresh }) {
   return (
@@ -1384,6 +1890,7 @@ export function LossAndDamageToolbar({
 export function LossAndDamageTable({
   loading,
   paged,
+  records,
   page,
   pageSize,
   recordsCount,
@@ -1392,6 +1899,8 @@ export function LossAndDamageTable({
   fmtCurrency,
   onView,
   onEdit,
+  onReplenish,
+  onBatchReplenish,
   onDelete,
   onPageChange,
 }) {
@@ -1452,6 +1961,8 @@ export function LossAndDamageTable({
             paged.map((rec) => {
               const imgs = rec.images || [];
               const dt = fmtDateTime(rec.createdAt);
+              const batchCandidates = getBulkReplenishCandidates(records, rec);
+              const canBatchReplenish = batchCandidates.length > 1;
               return (
                 <tr key={rec.id} className="table-row">
                   <td style={{ padding: "20px 24px", fontSize: 13, fontWeight: 700, color: "#64748b" }}>
@@ -1491,7 +2002,27 @@ export function LossAndDamageTable({
                     </div>
                   </td>
                   <td style={{ padding: "20px 24px", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                    {rec.itemName}
+                    <div>{rec.itemName}</div>
+                    {rec.status === "Confirmed" ? (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "3px 10px",
+                          borderRadius: 999,
+                          background: rec.remainingToReplenish > 0 ? "#fff7ed" : "#ecfdf5",
+                          color: rec.remainingToReplenish > 0 ? "#c2410c" : "#15803d",
+                          fontSize: 12,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {rec.remainingToReplenish > 0
+                          ? `Còn thiếu ${rec.remainingToReplenish}`
+                          : "Đã bổ sung đủ"}
+                      </div>
+                    ) : null}
                   </td>
                   <td style={{ padding: "20px 24px", fontSize: 15, fontWeight: 800, color: "#64748b" }}>
                     {rec.quantity}
@@ -1510,6 +2041,32 @@ export function LossAndDamageTable({
                       </button>
                       <button className="btn-icon-p" onClick={() => onEdit(rec)} title="Chỉnh sửa">
                         <span className="material-symbols-outlined">edit_square</span>
+                      </button>
+                      <button
+                        className="btn-icon-p"
+                        onClick={() => onReplenish(rec)}
+                        title="Bổ sung lại vào phòng"
+                        disabled={rec.status !== "Confirmed" || rec.remainingToReplenish <= 0}
+                        style={
+                          rec.status !== "Confirmed" || rec.remainingToReplenish <= 0
+                            ? { opacity: 0.4, cursor: "not-allowed" }
+                            : { color: "#166534" }
+                        }
+                      >
+                        <span className="material-symbols-outlined">inventory_2</span>
+                      </button>
+                      <button
+                        className="btn-icon-p"
+                        onClick={() => onBatchReplenish(rec)}
+                        title="Bổ sung hàng loạt theo booking"
+                        disabled={!canBatchReplenish}
+                        style={
+                          !canBatchReplenish
+                            ? { opacity: 0.4, cursor: "not-allowed" }
+                            : { color: "#1d4ed8" }
+                        }
+                      >
+                        <span className="material-symbols-outlined">playlist_add_check</span>
                       </button>
                       <button className="btn-icon-p" onClick={() => onDelete(rec)} title="Xóa" style={{ color: "#ef4444" }}>
                         <span className="material-symbols-outlined">delete_forever</span>
@@ -1574,6 +2131,8 @@ export default function LossAndDamagePage() {
   const [toasts, setToasts] = useState([]);
   const [editItem, setEditItem] = useState(null);
   const [detailItem, setDetailItem] = useState(null);
+  const [replenishItem, setReplenishItem] = useState(null);
+  const [batchReplenishItem, setBatchReplenishItem] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -1617,7 +2176,10 @@ export default function LossAndDamagePage() {
   useEffect(() => {
     fetchRecords();
     intervalRef.current = setInterval(() => fetchRecords(true), 30000);
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    };
   }, [fetchRecords]);
 
   const handleDelete = async () => {
@@ -1665,9 +2227,10 @@ export default function LossAndDamagePage() {
           position: "fixed",
           top: 24,
           right: 24,
-          zIndex: 300,
+          zIndex: 120,
           pointerEvents: "none",
           minWidth: 280,
+          width: "fit-content",
         }}
       >
         {toasts.map((t) => (
@@ -1686,6 +2249,21 @@ export default function LossAndDamagePage() {
         onSaved={() => fetchRecords(true)}
         showToast={showToast}
       />
+      <ReplenishModal
+        open={!!replenishItem}
+        item={replenishItem}
+        onClose={() => setReplenishItem(null)}
+        onSaved={() => fetchRecords(true)}
+        showToast={showToast}
+      />
+      <BatchReplenishModal
+        open={!!batchReplenishItem}
+        seedItem={batchReplenishItem}
+        records={records}
+        onClose={() => setBatchReplenishItem(null)}
+        onSaved={() => fetchRecords(true)}
+        showToast={showToast}
+      />
       <ConfirmDialog
         open={!!deleteTarget}
         title="Xác nhận xóa"
@@ -1695,7 +2273,7 @@ export default function LossAndDamagePage() {
         loading={deleteLoading}
       />
 
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", position: "relative", zIndex: 0 }}>
         <LossAndDamageHeader
           recordCount={records.length}
           onRefresh={() => fetchRecords()}
@@ -1717,6 +2295,7 @@ export default function LossAndDamagePage() {
         <LossAndDamageTable
           loading={loading}
           paged={paged}
+          records={records}
           page={page}
           pageSize={pageSize}
           recordsCount={records.length}
@@ -1725,6 +2304,8 @@ export default function LossAndDamagePage() {
           fmtCurrency={fmtCurrency}
           onView={setDetailItem}
           onEdit={setEditItem}
+          onReplenish={setReplenishItem}
+          onBatchReplenish={setBatchReplenishItem}
           onDelete={setDeleteTarget}
           onPageChange={setPage}
         />

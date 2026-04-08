@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { addInvoiceAdjustment, finalizeInvoice, getInvoiceDetail, removeInvoiceAdjustment } from "../../api/invoicesApi";
 import { recordPayment } from "../../api/paymentsApi";
 import { formatCurrency, formatDate } from "../../utils";
+import { getInvoiceStatusLabel, getPaymentTypeLabel } from "../../utils/statusLabels";
 
 // ─── Thông báo ────────────────────────────────────────────────────────────────────
 const TOAST_STYLES = {
@@ -48,7 +49,7 @@ const InvoiceStatusBadge = ({ status }) => {
   return (
     <span className="badge-p" style={{ background: s.bg, color: s.text }}>
       <span className="material-symbols-outlined" style={{ fontSize: 13, fontWeight: 700 }}>{s.icon}</span>
-      {status}
+      {getInvoiceStatusLabel(status)}
     </span>
   );
 };
@@ -184,7 +185,7 @@ export default function InvoiceDetailPage() {
     const paymentRows = (invoice.payments || []).map((item) => `
       <tr>
         <td>${formatDate(item.paymentDate || "")}</td>
-        <td>${item.paymentType || "-"}</td>
+        <td>${getPaymentTypeLabel(item.paymentType) || "-"}</td>
         <td>${item.paymentMethod || "-"}</td>
         <td style="text-align:right;">${formatCurrency(item.amountPaid || 0)}</td>
       </tr>
@@ -197,6 +198,26 @@ export default function InvoiceDetailPage() {
         <td>${formatDate(item.checkInDate).split(" ")[0]}</td>
         <td>${formatDate(item.checkOutDate).split(" ")[0]}</td>
         <td style="text-align:right;">${formatCurrency(item.pricePerNight || 0)}</td>
+      </tr>
+    `).join("");
+
+    const serviceRows = (invoice.serviceItems || []).map((item) => `
+      <tr>
+        <td>${item.roomNumber || "-"}</td>
+        <td>${item.serviceName || "-"}</td>
+        <td>${item.quantity || 0}</td>
+        <td style="text-align:right;">${formatCurrency(item.unitPrice || 0)}</td>
+        <td style="text-align:right;">${formatCurrency(item.totalAmount || 0)}</td>
+      </tr>
+    `).join("");
+
+    const damageRows = (invoice.damageItems || []).map((item) => `
+      <tr>
+        <td>${item.roomNumber || "-"}</td>
+        <td>${item.itemName || "-"}</td>
+        <td>${item.quantity || 0}</td>
+        <td style="text-align:right;">${formatCurrency(item.penaltyAmount || 0)}</td>
+        <td style="text-align:right;">${formatCurrency(item.totalAmount || 0)}</td>
       </tr>
     `).join("");
 
@@ -250,7 +271,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div class="card">
               <div class="section-title">Trạng thái</div>
-              <p><strong>${invoice.status || "-"}</strong></p>
+              <p><strong>${getInvoiceStatusLabel(invoice.status) || "-"}</strong></p>
               <p class="muted">Ngày tạo: ${formatDate(invoice.createdAt)}</p>
             </div>
           </div>
@@ -269,6 +290,42 @@ export default function InvoiceDetailPage() {
               </thead>
               <tbody>
                 ${detailRows || '<tr><td colspan="5">Không có dữ liệu</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="section-title">Dịch vụ đã sử dụng</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Phòng</th>
+                  <th>Dịch vụ</th>
+                  <th>SL</th>
+                  <th style="text-align:right;">Đơn giá</th>
+                  <th style="text-align:right;">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${serviceRows || '<tr><td colspan="5">Không có dịch vụ phát sinh</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="section-title">Thiết bị / thất thoát</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Phòng</th>
+                  <th>Vật tư</th>
+                  <th>SL</th>
+                  <th style="text-align:right;">Đơn giá đền bù</th>
+                  <th style="text-align:right;">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${damageRows || '<tr><td colspan="5">Không có thất thoát</td></tr>'}
               </tbody>
             </table>
           </div>
@@ -432,9 +489,8 @@ export default function InvoiceDetailPage() {
                     <div>
                       <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>Loại thanh toán</label>
                       <select value={form.paymentType} onChange={(e) => setForm({ ...form, paymentType: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }} onFocus={(e) => e.target.style.borderColor = "#4f645b"} onBlur={(e) => e.target.style.borderColor = "#e2e8e1"}>
-                        <option value="Final_Settlement">Thanh toán chốt (Final)</option>
-                        <option value="Deposit">Đặt cọc (Deposit)</option>
-                        <option value="Refund">Hoàn tiền (Refund)</option>
+                        <option value="Final_Settlement">Thanh toán cuối</option>
+                        <option value="Refund">Hoàn tiền</option>
                       </select>
                     </div>
                   </div>
@@ -519,6 +575,94 @@ export default function InvoiceDetailPage() {
 
             <div style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.06)" }}>
               <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f0ea", background: "rgba(249,248,243,.6)" }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1c1917", margin: 0 }}>Dịch vụ đã sử dụng</h3>
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "white" }}>
+                    <th style={{ padding: "14px 24px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Phòng</th>
+                    <th style={{ padding: "14px 24px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Dịch vụ</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>SL</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Đơn giá</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(invoice.serviceItems || []).length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: "32px 24px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
+                        Không có dịch vụ phát sinh.
+                      </td>
+                    </tr>
+                  )}
+                  {(invoice.serviceItems || []).map((item, index) => (
+                    <tr key={`${item.orderServiceId}-${item.serviceId}-${index}`} className="table-row">
+                      <td style={{ padding: "16px 24px", fontSize: 13, fontWeight: 700, color: "#1c1917" }}>{item.roomNumber || "-"}</td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1c1917" }}>{item.serviceName || "-"}</div>
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{item.orderDate ? formatDate(item.orderDate) : "Chưa có thời gian"}</div>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#1c1917" }}>{item.quantity || 0}</td>
+                      <td style={{ padding: "16px 24px", textAlign: "right", fontSize: 13, color: "#6b7280" }}>{formatCurrency(item.unitPrice || 0)}</td>
+                      <td style={{ padding: "16px 24px", textAlign: "right", fontSize: 14, fontWeight: 800, color: "#1c1917" }}>{formatCurrency(item.totalAmount || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.06)" }}>
+              <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f0ea", background: "rgba(249,248,243,.6)" }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1c1917", margin: 0 }}>Thiết bị / thất thoát</h3>
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "white" }}>
+                    <th style={{ padding: "14px 24px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Phòng</th>
+                    <th style={{ padding: "14px 24px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Vật tư</th>
+                    <th style={{ padding: "14px 24px", textAlign: "center", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Trạng thái</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>SL</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Đơn giá</th>
+                    <th style={{ padding: "14px 24px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #f1f0ea", textTransform: "uppercase", letterSpacing: ".05em" }}>Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(invoice.damageItems || []).length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: "32px 24px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
+                        Không có thất thoát hoặc thiết bị hư.
+                      </td>
+                    </tr>
+                  )}
+                  {(invoice.damageItems || []).map((item) => (
+                    <tr key={item.id} className="table-row">
+                      <td style={{ padding: "16px 24px", fontSize: 13, fontWeight: 700, color: "#1c1917" }}>{item.roomNumber || "-"}</td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1c1917" }}>{item.itemName || "-"}</div>
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{item.description || "Không có ghi chú"}</div>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: "center" }}>
+                        <span
+                          className="badge-p"
+                          style={{
+                            background: item.remainingToReplenish > 0 ? "#fff7ed" : "#ecfdf5",
+                            color: item.remainingToReplenish > 0 ? "#c2410c" : "#15803d",
+                          }}
+                        >
+                          {item.remainingToReplenish > 0 ? `Còn thiếu ${item.remainingToReplenish}` : "Đã bổ sung đủ"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#1c1917" }}>{item.quantity || 0}</td>
+                      <td style={{ padding: "16px 24px", textAlign: "right", fontSize: 13, color: "#6b7280" }}>{formatCurrency(item.penaltyAmount || 0)}</td>
+                      <td style={{ padding: "16px 24px", textAlign: "right", fontSize: 14, fontWeight: 800, color: "#b91c1c" }}>{formatCurrency(item.totalAmount || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.06)" }}>
+              <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f0ea", background: "rgba(249,248,243,.6)" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1c1917", margin: 0 }}>Lịch sử thanh toán</h3>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -545,7 +689,7 @@ export default function InvoiceDetailPage() {
                         <div style={{ fontSize: 11, color: "#9ca3af" }}>{formatDate(p.paymentDate).split(' ')[1]}</div>
                       </td>
                       <td style={{ padding: "16px 24px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1c1917" }}>{p.paymentType}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1c1917" }}>{getPaymentTypeLabel(p.paymentType)}</div>
                         <div style={{ fontSize: 12, color: "#6b7280" }}>{p.paymentMethod}</div>
                       </td>
                       <td style={{ padding: "16px 24px", textAlign: "right" }}>

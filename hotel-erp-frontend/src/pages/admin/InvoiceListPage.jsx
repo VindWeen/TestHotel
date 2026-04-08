@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { getInvoices } from "../../api/invoicesApi";
 import { formatCurrency, formatDate } from "../../utils";
+import { getInvoiceStatusLabel } from "../../utils/statusLabels";
 
 // ─── Thông báo ────────────────────────────────────────────────────────────────────
 const TOAST_STYLES = {
@@ -47,7 +48,7 @@ const InvoiceStatusBadge = ({ status }) => {
   return (
     <span className="badge-p" style={{ background: s.bg, color: s.text }}>
       <span className="material-symbols-outlined" style={{ fontSize: 13, fontWeight: 700 }}>{s.icon}</span>
-      {status}
+      {getInvoiceStatusLabel(status)}
     </span>
   );
 };
@@ -144,12 +145,12 @@ export default function InvoiceListPage() {
           style={{ border: "1.5px solid #e2e8e1", background: "#f9f8f3", padding: "10px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600, color: "#1c1917", outline: "none", width: 200, fontFamily: "Manrope, sans-serif", cursor: "pointer" }}
         >
           <option value="">Tất cả trạng thái</option>
-          <option value="Draft">Draft (Hóa đơn nháp)</option>
-          <option value="Ready_To_Collect">Ready (Sẵn sàng thu tiền)</option>
-          <option value="Unpaid">Unpaid (Chưa thanh toán)</option>
-          <option value="Partially_Paid">Partially Paid (TT một phần)</option>
-          <option value="Paid">Paid (Đã thanh toán)</option>
-          <option value="Refunded">Refunded (Đã hoàn tiền)</option>
+          <option value="Draft">Hóa đơn nháp</option>
+          <option value="Ready_To_Collect">Sẵn sàng thu</option>
+          <option value="Unpaid">Chưa thanh toán</option>
+          <option value="Partially_Paid">Thanh toán một phần</option>
+          <option value="Paid">Đã thanh toán</option>
+          <option value="Refunded">Đã hoàn tiền</option>
         </select>
         <button
           onClick={() => { setStatus(""); }}

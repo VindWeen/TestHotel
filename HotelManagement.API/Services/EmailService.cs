@@ -9,7 +9,10 @@ public interface IEmailService
 {
     Task SendBookingConfirmationAsync(string toEmail, string guestName, string bookingCode, DateTime checkIn, DateTime checkOut, decimal totalAmount);
     Task SendNewStaffAccountAsync(string toEmail, string fullName, string password, string roleName);
+    Task SendGuestWelcomeAsync(string toEmail, string fullName);
+    Task SendGuestAccountCreatedAsync(string toEmail, string fullName, string password);
     Task SendPasswordChangedAsync(string toEmail, string fullName);
+    Task SendForgotPasswordResetAsync(string toEmail, string fullName, string newPassword);
     Task SendPasswordResetByAdminAsync(string toEmail, string fullName, string newPassword);
 }
 
@@ -90,6 +93,52 @@ public class EmailService : IEmailService
         return SendAsync(toEmail, fullName, subject, body);
     }
 
+    public Task SendGuestWelcomeAsync(string toEmail, string fullName)
+    {
+        var subject = "[Hotel] Chào mừng bạn đến với hệ thống khách sạn";
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">Xin chào {WebUtility.HtmlEncode(fullName)}!</h2>
+                <p>Tài khoản khách hàng của bạn đã được tạo thành công.</p>
+                <p>Bạn có thể đăng nhập để theo dõi lịch sử đặt phòng, hạng thành viên và các ưu đãi hiện có.</p>
+                <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        return SendAsync(toEmail, fullName, subject, body);
+    }
+
+    public Task SendGuestAccountCreatedAsync(string toEmail, string fullName, string password)
+    {
+        var subject = "[Hotel] Tài khoản thành viên của bạn đã được tạo";
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">Tài khoản của bạn đã sẵn sàng</h2>
+                <p>Xin chào <strong>{WebUtility.HtmlEncode(fullName)}</strong>,</p>
+                <p>Tài khoản thành viên đã được tạo cho bạn sau khi làm thủ tục check-in. Bạn có thể đăng nhập bằng email này và mật khẩu tạm thời bên dưới:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    <tr style="background: #f9f8f3;">
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Email đăng nhập</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb;">{WebUtility.HtmlEncode(toEmail)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 600;">Mật khẩu tạm thời</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: 700; color: #15803d;">{WebUtility.HtmlEncode(password)}</td>
+                    </tr>
+                </table>
+
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                    <p style="margin: 0; color: #92400e;">Vui lòng đăng nhập và đổi mật khẩu sau khi vào hệ thống.</p>
+                </div>
+
+                <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        return SendAsync(toEmail, fullName, subject, body);
+    }
+
     public Task SendPasswordChangedAsync(string toEmail, string fullName)
     {
         var subject = "[Hotel] Mật khẩu của bạn vừa được thay đổi";
@@ -104,6 +153,31 @@ public class EmailService : IEmailService
                 </div>
 
                 <p style="color: #6b7280; font-size: 13px;">Trân trọng,<br/><strong>Hotel Management Team</strong></p>
+            </div>
+            """;
+
+        return SendAsync(toEmail, fullName, subject, body);
+    }
+
+    public Task SendForgotPasswordResetAsync(string toEmail, string fullName, string newPassword)
+    {
+        var subject = "[Hotel] Mat khau moi cho tai khoan cua ban";
+        var body = $"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <h2 style="color: #4f645b;">Mat khau moi cua ban da san sang</h2>
+                <p>Xin chao <strong>{WebUtility.HtmlEncode(fullName)}</strong>,</p>
+                <p>He thong da xu ly yeu cau quen mat khau cua ban. Day la mat khau moi de ban dang nhap:</p>
+
+                <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
+                    <span style="font-size: 24px; font-weight: 700; letter-spacing: 0.1em; color: #15803d; font-family: monospace; padding: 4px 8px; background: #dcfce7; border-radius: 4px; user-select: all; cursor: copy;">{WebUtility.HtmlEncode(newPassword)}</span>
+                </div>
+
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                    <p style="margin: 0; color: #92400e;">Vui long dang nhap bang mat khau moi va doi lai mat khau sau khi vao he thong.</p>
+                </div>
+
+                <p style="color: #6b7280; font-size: 13px;">Neu ban khong thuc hien yeu cau nay, vui long lien he bo phan ho tro som nhat co the.</p>
+                <p style="color: #6b7280; font-size: 13px;">Tran trong,<br/><strong>Hotel Management Team</strong></p>
             </div>
             """;
 

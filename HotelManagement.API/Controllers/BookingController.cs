@@ -9,7 +9,7 @@ using HotelManagement.Core.Authorization;
 using HotelManagement.Core.Constants;
 using HotelManagement.API.Services;
 using HotelManagement.Core.DTOs;
-
+using HotelManagement.Core.Helpers;
 namespace HotelManagement.API.Controllers;
 
 [ApiController]
@@ -109,6 +109,52 @@ public class BookingsController : ControllerBase
         return "Có thể book";
     }
 
+    private static string ComputeRoomStatus(string businessStatus, string cleaningStatus)
+        => businessStatus switch
+        {
+            RoomBusinessStatuses.Occupied => "Occupied",
+            RoomBusinessStatuses.Disabled => "Maintenance",
+            RoomBusinessStatuses.Available when cleaningStatus is CleaningStatuses.Dirty or CleaningStatuses.PendingLoss => "Cleaning",
+            _ => "Available"
+        };
+
+    private static BookingPaymentSummaryResponse BuildPaymentSummary(Booking booking)
+    {
+        var estimatedTotal = booking.TotalEstimatedAmount;
+        var paidBeforeCheckout = Math.Max(0m, booking.DepositAmount ?? 0m);
+        var requiredBookingDepositAmount = Math.Max(0m, booking.RequiredBookingDepositAmount);
+        var requiredCheckInAmount = Math.Max(0m, booking.RequiredCheckInAmount);
+
+        var latestInvoice = booking.Invoices
+            .OrderByDescending(i => i.CreatedAt)
+            .FirstOrDefault();
+
+        decimal? remainingToCheckout = null;
+        if (latestInvoice != null)
+        {
+            var invoicePaid = latestInvoice.Payments
+                .Where(p => string.Equals(p.Status, PaymentStatuses.Success, StringComparison.OrdinalIgnoreCase))
+                .Sum(p => string.Equals(p.PaymentType, PaymentTypes.Refund, StringComparison.OrdinalIgnoreCase)
+                    ? -p.AmountPaid
+                    : p.AmountPaid);
+
+            remainingToCheckout = Math.Max(0m, (latestInvoice.FinalTotal ?? 0m) - paidBeforeCheckout - invoicePaid);
+        }
+
+        return new BookingPaymentSummaryResponse
+        {
+            EstimatedTotal = estimatedTotal,
+            PaidBeforeCheckout = paidBeforeCheckout,
+            RequiredBookingDepositAmount = requiredBookingDepositAmount,
+            RequiredCheckInAmount = requiredCheckInAmount,
+            RemainingToConfirm = Math.Max(0m, requiredBookingDepositAmount - paidBeforeCheckout),
+            RemainingToCheckIn = Math.Max(0m, requiredCheckInAmount - paidBeforeCheckout),
+            RemainingToCheckout = remainingToCheckout,
+            CanConfirm = paidBeforeCheckout >= requiredBookingDepositAmount,
+            CanCheckIn = paidBeforeCheckout >= requiredCheckInAmount
+        };
+    }
+
     private static BookingResponse MapToResponse(Booking b) => new()
     {
         Id = b.Id,
@@ -129,6 +175,7 @@ public class BookingsController : ControllerBase
         Note = b.Note,
         CancellationReason = b.CancellationReason,
         CancelledAt = b.CancelledAt,
+        PaymentSummary = BuildPaymentSummary(b),
         BookingDetails = b.BookingDetails.Select(d => new BookingDetailResponse
         {
             Id = d.Id,
@@ -257,7 +304,38 @@ public class BookingsController : ControllerBase
         }
 
         booking.TotalEstimatedAmount = Math.Max(0m, finalTotal);
-        booking.DepositAmount = booking.TotalEstimatedAmount * 0.3m;
+        ApplyBookingFinancialTargets(booking);
+        ApplyBookingStatusFromDeposit(booking);
+    }
+
+    private static void ApplyBookingFinancialTargets(Booking booking)
+    {
+        var estimatedTotal = Math.Max(0m, booking.TotalEstimatedAmount);
+        booking.RequiredBookingDepositAmount = decimal.Round(estimatedTotal * 0.3m, 2, MidpointRounding.AwayFromZero);
+        booking.RequiredCheckInAmount = decimal.Round(estimatedTotal * 0.5m, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private void ApplyBookingStatusFromDeposit(Booking booking)
+    {
+        var paidBeforeCheckout = Math.Max(0m, booking.DepositAmount ?? 0m);
+
+        if (string.Equals(booking.Status, BookingStatuses.Pending, StringComparison.OrdinalIgnoreCase)
+            && paidBeforeCheckout >= booking.RequiredBookingDepositAmount)
+        {
+            booking.Status = BookingStatuses.Confirmed;
+        }
+    }
+
+    private async Task RecalculateBookingDepositAmountAsync(Booking booking, CancellationToken cancellationToken = default)
+    {
+        var total = await _context.Payments
+            .Where(p => p.BookingId == booking.Id && p.Status == PaymentStatuses.Success)
+            .SumAsync(p => string.Equals(p.PaymentType, PaymentTypes.Refund, StringComparison.OrdinalIgnoreCase)
+                ? -p.AmountPaid
+                : p.AmountPaid, cancellationToken);
+
+        booking.DepositAmount = Math.Max(0m, total);
+        ApplyBookingStatusFromDeposit(booking);
     }
 
     private async Task<int> CountBookedRoomsAsync(int roomTypeId, DateTime checkInDate, DateTime checkOutDate, int? excludeBookingId = null, CancellationToken cancellationToken = default)
@@ -401,7 +479,8 @@ public class BookingsController : ControllerBase
             var assignedRoom = await _context.Rooms.FirstOrDefaultAsync(r => r.Id == detail.RoomId.Value, cancellationToken);
             if (assignedRoom != null)
             {
-                assignedRoom.BusinessStatus = "Occupied";
+                assignedRoom.BusinessStatus = RoomBusinessStatuses.Occupied;
+                assignedRoom.Status = ComputeRoomStatus(assignedRoom.BusinessStatus, assignedRoom.CleaningStatus);
                 detail.Room = assignedRoom;
             }
         }
@@ -417,11 +496,87 @@ public class BookingsController : ControllerBase
 
             detail.RoomId = room.Id;
             detail.Room = room;
-            room.BusinessStatus = "Occupied";
+            room.BusinessStatus = RoomBusinessStatuses.Occupied;
+            room.Status = ComputeRoomStatus(room.BusinessStatus, room.CleaningStatus);
         }
 
         booking.Status = BookingStatuses.CheckedIn;
         booking.CheckInTime ??= DateTime.UtcNow;
+    }
+
+    private static string? NormalizeGuestEmail(string? email)
+        => string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
+
+    private static string? NormalizeGuestPhone(string? phone)
+        => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+
+    private async Task EnsureGuestAccountLinkedOnCheckInAsync(
+        Booking booking,
+        string? guestName,
+        string? guestPhone,
+        string? guestEmail,
+        string? nationalId,
+        CancellationToken cancellationToken = default)
+    {
+        booking.GuestName = string.IsNullOrWhiteSpace(guestName) ? booking.GuestName?.Trim() : guestName.Trim();
+        booking.GuestPhone = NormalizeGuestPhone(guestPhone) ?? NormalizeGuestPhone(booking.GuestPhone);
+        booking.GuestEmail = NormalizeGuestEmail(guestEmail) ?? NormalizeGuestEmail(booking.GuestEmail);
+
+        if (booking.UserId.HasValue)
+            return;
+
+        if (string.IsNullOrWhiteSpace(booking.GuestName) ||
+            string.IsNullOrWhiteSpace(booking.GuestPhone) ||
+            string.IsNullOrWhiteSpace(booking.GuestEmail) ||
+            string.IsNullOrWhiteSpace(nationalId))
+        {
+            throw new InvalidOperationException("Khách chưa có hồ sơ cần nhập đủ họ tên, số điện thoại, email và CCCD trước khi check-in.");
+        }
+
+        var normalizedEmail = booking.GuestEmail!;
+        var trimmedNationalId = nationalId.Trim();
+
+        var existingUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+
+        if (existingUser != null)
+        {
+            booking.UserId = existingUser.Id;
+            booking.GuestName = existingUser.FullName;
+            booking.GuestEmail = existingUser.Email;
+            booking.GuestPhone = existingUser.Phone ?? booking.GuestPhone;
+            existingUser.Phone ??= booking.GuestPhone;
+            existingUser.NationalId ??= trimmedNationalId;
+            existingUser.UpdatedAt = DateTime.UtcNow;
+            return;
+        }
+
+        var guestRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Guest", cancellationToken);
+        var defaultMembership = await _context.Memberships
+            .FirstOrDefaultAsync(m => m.MinPoints == 0 && m.IsActive, cancellationToken);
+
+        if (guestRole == null)
+            throw new InvalidOperationException("Hệ thống chưa cấu hình vai trò Guest để tạo tài khoản khách lưu trú.");
+
+        var plainPassword = PasswordGenerator.GenerateRandomPassword(10);
+        var guestUser = new User
+        {
+            FullName = booking.GuestName!,
+            Email = normalizedEmail,
+            Phone = booking.GuestPhone,
+            NationalId = trimmedNationalId,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
+            RoleId = guestRole?.Id,
+            MembershipId = defaultMembership?.Id,
+            Status = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Users.Add(guestUser);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        booking.UserId = guestUser.Id;
+        _ = _email.SendGuestAccountCreatedAsync(guestUser.Email, guestUser.FullName, plainPassword);
     }
 
     [RequirePermission(PermissionCodes.ManageBookings)]
@@ -451,6 +606,8 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.RoomType)
+            .Include(b => b.Invoices)
+                .ThenInclude(i => i.Payments)
             .Where(b => b.Status != BookingStatuses.Cancelled)
             .OrderByDescending(b => b.Id)
             .ToListAsync();
@@ -630,6 +787,8 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.RoomType)
+            .Include(b => b.Invoices)
+                .ThenInclude(i => i.Payments)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (booking == null)
@@ -653,6 +812,8 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.RoomType)
+            .Include(b => b.Invoices)
+                .ThenInclude(i => i.Payments)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (booking == null)
@@ -680,6 +841,8 @@ public class BookingsController : ControllerBase
                 .ThenInclude(d => d.Room)
             .Include(b => b.BookingDetails)
                 .ThenInclude(d => d.RoomType)
+            .Include(b => b.Invoices)
+                .ThenInclude(i => i.Payments)
             .OrderByDescending(b => b.Id)
             .ToListAsync();
 
@@ -699,6 +862,16 @@ public class BookingsController : ControllerBase
 
         try
         {
+            if (request.Details == null || request.Details.Count == 0)
+                return BookingActionError(StatusCodes.Status400BadRequest, "Booking phải có ít nhất một chặng phòng.");
+
+            var normalizedSource = string.IsNullOrWhiteSpace(request.Source)
+                ? BookingSources.Online
+                : request.Source.Trim().ToLowerInvariant();
+
+            if (!BookingSources.All.Contains(normalizedSource))
+                return BookingActionError(StatusCodes.Status400BadRequest, "Nguồn booking không hợp lệ.");
+
             foreach (var d in request.Details)
             {
                 var normalized = NormalizeStayDates(d.CheckInDate, d.CheckOutDate);
@@ -730,7 +903,7 @@ public class BookingsController : ControllerBase
                 NumAdults = request.NumAdults,
                 NumChildren = request.NumChildren,
                 Status = BookingStatuses.Pending,
-                Source = request.Source ?? "online",
+                Source = normalizedSource,
                 Note = request.Note,
                 BookingCode = await GenerateBookingCodeAsync()
             };
@@ -814,8 +987,8 @@ public class BookingsController : ControllerBase
                 booking.TotalEstimatedAmount = subtotal;
             }
 
-            booking.DepositAmount = booking.TotalEstimatedAmount * 0.3m;
-            _paymentService.EnsureValidAmount(booking.DepositAmount ?? 0);
+            booking.DepositAmount = 0m;
+            ApplyBookingFinancialTargets(booking);
 
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
@@ -907,6 +1080,9 @@ public class BookingsController : ControllerBase
         if (b == null)
             return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking #{id}.");
 
+        if ((b.DepositAmount ?? 0m) < b.RequiredBookingDepositAmount)
+            return BookingActionError(StatusCodes.Status400BadRequest, $"Booking chưa đủ tiền cọc tối thiểu để xác nhận. Còn thiếu {(b.RequiredBookingDepositAmount - (b.DepositAmount ?? 0m)):N0}đ.");
+
         if (!_statusFlowService.CanTransition(b.Status, BookingStatuses.Confirmed, out var confirmError))
             return BookingActionError(StatusCodes.Status400BadRequest, confirmError);
 
@@ -968,8 +1144,9 @@ public class BookingsController : ControllerBase
         {
             if (d.Room != null)
             {
-                d.Room.BusinessStatus = "Available";
-                d.Room.CleaningStatus = "Clean";
+                d.Room.BusinessStatus = RoomBusinessStatuses.Available;
+                d.Room.CleaningStatus = CleaningStatuses.Clean;
+                d.Room.Status = ComputeRoomStatus(d.Room.BusinessStatus, d.Room.CleaningStatus);
             }
         }
 
@@ -1009,12 +1186,16 @@ public class BookingsController : ControllerBase
         if (booking.Status != BookingStatuses.Confirmed && booking.Status != BookingStatuses.CheckedIn)
             return BookingActionError(StatusCodes.Status400BadRequest, "Chỉ booking đã xác nhận hoặc đang lưu trú mới được check-in theo phòng.");
 
+        if ((booking.DepositAmount ?? 0m) < booking.RequiredCheckInAmount)
+            return BookingActionError(StatusCodes.Status400BadRequest, $"Booking chưa đủ tiền để nhận phòng. Cần thu thêm {(booking.RequiredCheckInAmount - (booking.DepositAmount ?? 0m)):N0}đ.");
+
         var detail = booking.BookingDetails.FirstOrDefault(d => d.Id == request.BookingDetailId);
         if (detail == null)
             return BookingActionError(StatusCodes.Status404NotFound, $"Không tìm thấy booking detail #{request.BookingDetailId}.");
 
         try
         {
+            await EnsureGuestAccountLinkedOnCheckInAsync(booking, request.GuestName, request.GuestPhone, request.GuestEmail, request.NationalId, cancellationToken);
             await ApplyCheckInToDetailAsync(booking, detail, request.RoomId, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -1058,6 +1239,9 @@ public class BookingsController : ControllerBase
         if (booking.Status != BookingStatuses.Confirmed && booking.Status != BookingStatuses.CheckedIn)
             return BookingActionError(StatusCodes.Status400BadRequest, "Chỉ booking đã xác nhận hoặc đang lưu trú mới được check-in hàng loạt.");
 
+        if ((booking.DepositAmount ?? 0m) < booking.RequiredCheckInAmount)
+            return BookingActionError(StatusCodes.Status400BadRequest, $"Booking chưa đủ tiền để nhận phòng. Cần thu thêm {(booking.RequiredCheckInAmount - (booking.DepositAmount ?? 0m)):N0}đ.");
+
         var requestedDetails = request?.Details ?? [];
         var detailsToCheckIn = requestedDetails.Count > 0
             ? booking.BookingDetails.Where(d => requestedDetails.Any(x => x.BookingDetailId == d.Id)).ToList()
@@ -1065,6 +1249,15 @@ public class BookingsController : ControllerBase
 
         if (detailsToCheckIn.Count == 0)
             return BookingActionError(StatusCodes.Status400BadRequest, "Không có booking detail nào để check-in.");
+
+        try
+        {
+            await EnsureGuestAccountLinkedOnCheckInAsync(booking, request?.GuestName, request?.GuestPhone, request?.GuestEmail, request?.NationalId, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BookingActionError(StatusCodes.Status400BadRequest, ex.Message);
+        }
 
         foreach (var detail in detailsToCheckIn)
         {
@@ -1101,8 +1294,8 @@ public class BookingsController : ControllerBase
 
     [RequirePermission(PermissionCodes.ManageBookings)]
     [HttpPatch("{id}/check-in")]
-    public async Task<IActionResult> CheckIn(int id, CancellationToken cancellationToken)
-        => await CheckInBulk(id, null, cancellationToken);
+    public async Task<IActionResult> CheckIn(int id, [FromBody] BulkCheckInBookingRequest? request, CancellationToken cancellationToken)
+        => await CheckInBulk(id, request, cancellationToken);
 
     [RequirePermission(PermissionCodes.ManageBookings)]
     [HttpPatch("{id}/extend-stay")]
@@ -1286,8 +1479,9 @@ public class BookingsController : ControllerBase
         {
             if (d.Room != null)
             {
-                d.Room.BusinessStatus = "Available";
-                d.Room.CleaningStatus = "Dirty";
+                d.Room.BusinessStatus = RoomBusinessStatuses.Available;
+                d.Room.CleaningStatus = CleaningStatuses.Dirty;
+                d.Room.Status = ComputeRoomStatus(d.Room.BusinessStatus, d.Room.CleaningStatus);
             }
         }
 
@@ -1315,4 +1509,3 @@ public class BookingsController : ControllerBase
         return BookingActionSuccess("Check-out booking thành công. Booking đang chờ quyết toán hóa đơn.", b);
     }
 }
-

@@ -17,6 +17,8 @@ const PublicAttractionsPage = lazy(() => import("../pages/PublicAttractionsPage"
 const PublicAttractionDetailPage = lazy(() => import("../pages/PublicAttractionDetailPage"));
 const PublicReviewsPage = lazy(() => import("../pages/PublicReviewsPage"));
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
+const ShiftManagementPage = lazy(() => import("../pages/admin/ShiftManagementPage"));
+const MaintenancePage = lazy(() => import("../pages/admin/MaintenancePage"));
 const UserListPage = lazy(() => import("../pages/admin/UserListPage"));
 const RolePermissionPage = lazy(() => import("../pages/admin/RolePermissionPage"));
 const LossAndDamagePage = lazy(() => import("../pages/admin/LossAndDamagePage"));
@@ -73,7 +75,9 @@ function ServiceIndexRedirect() {
   const target =
     lastView === "categories"
       ? "/admin/services/categories"
-      : "/admin/services/items";
+      : lastView === "items"
+        ? "/admin/services/items"
+        : "/admin/services/order";
 
   return <Navigate to={target} replace />;
 }
@@ -118,6 +122,7 @@ export default function AdminRoutes() {
             </RequirePermission>
           }
         />
+        <Route path="reports" element={<Navigate to="/admin/dashboard" replace />} />
 
         {/* Quản lý Phòng */}
         <Route
@@ -142,6 +147,14 @@ export default function AdminRoutes() {
           element={
             <RequirePermission permission="MANAGE_ROOMS">
               {withSuspense(<HousekeepingPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="maintenance"
+          element={
+            <RequirePermission permission="MANAGE_ROOMS">
+              {withSuspense(<MaintenancePage />)}
             </RequirePermission>
           }
         />
@@ -225,12 +238,16 @@ export default function AdminRoutes() {
           }
         />
         <Route
-          path="order-services"
+          path="services/order"
           element={
             <RequirePermission permission="MANAGE_SERVICES">
               {withSuspense(<OrderServicePage />)}
             </RequirePermission>
           }
+        />
+        <Route
+          path="order-services"
+          element={<Navigate to="/admin/services/order" replace />}
         />
 
         {/* Nhân sự */}
@@ -239,6 +256,14 @@ export default function AdminRoutes() {
           element={
             <RequirePermission permission="MANAGE_USERS">
               {withSuspense(<UserListPage />)}
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="shifts"
+          element={
+            <RequirePermission permission="MANAGE_USERS">
+              {withSuspense(<ShiftManagementPage />)}
             </RequirePermission>
           }
         />

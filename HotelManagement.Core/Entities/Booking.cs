@@ -19,6 +19,8 @@ public class Booking
     // Tiền
     public decimal TotalEstimatedAmount { get; set; } = 0;
     public decimal? DepositAmount { get; set; }
+    public decimal RequiredBookingDepositAmount { get; set; } = 0;
+    public decimal RequiredCheckInAmount { get; set; } = 0;
 
     // Check-in/out thực tế
     public DateTime? CheckInTime { get; set; }
@@ -38,6 +40,7 @@ public class Booking
     public Voucher? Voucher { get; set; }
     public ICollection<BookingDetail> BookingDetails { get; set; } = [];
     public ICollection<Invoice> Invoices { get; set; } = [];
+    public ICollection<Payment> Payments { get; set; } = [];
     public ICollection<Review> Reviews { get; set; } = [];
     public ICollection<LoyaltyTransaction> LoyaltyTransactions { get; set; } = [];
     public ICollection<VoucherUsage> VoucherUsages { get; set; } = [];

@@ -238,7 +238,9 @@ CREATE TABLE [dbo].[Bookings](
     [voucher_id]             [int]            NULL,
     -- Tiền
     [total_estimated_amount] [decimal](18, 2) NOT NULL DEFAULT 0,  -- tổng tiền dự kiến
-    [deposit_amount]         [decimal](18, 2) NULL    DEFAULT 0,   -- tiền đã cọc
+    [deposit_amount]         [decimal](18, 2) NULL    DEFAULT 0,   -- tổng tiền đã thu trước check-out
+    [required_booking_deposit_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
+    [required_check_in_amount] [decimal](18, 2) NOT NULL DEFAULT 0,
     -- Check-in/out thực tế
     [check_in_time]          [datetime]       NULL,          -- thời điểm check-in thực tế
     [check_out_time]         [datetime]       NULL,          -- thời điểm check-out thực tế
@@ -250,7 +252,7 @@ CREATE TABLE [dbo].[Bookings](
     [cancellation_reason]    [nvarchar](500)  NULL,
     [cancelled_at]           [datetime]       NULL,
 PRIMARY KEY CLUSTERED ([id] ASC)
-) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
 
 CREATE TABLE [dbo].[Booking_Details](
@@ -325,6 +327,9 @@ CREATE TABLE [dbo].[Loss_And_Damages](
     [img_url]           [nvarchar](max)  NULL,          -- ảnh minh chứng thiệt hại lưu Cloudinary
     [status]            [nvarchar](20)   NOT NULL DEFAULT 'Pending',  -- Pending / Confirmed / Waived
     [is_stock_synced]   [bit]            NOT NULL DEFAULT 0,
+    [replenished_quantity] [int]         NOT NULL DEFAULT 0,          -- số lượng đã được bổ sung/thay mới vào lại phòng
+    [replenished_at]    [datetime]       NULL,                        -- thời điểm bổ sung đủ
+    [replenishment_note] [nvarchar](500) NULL,                        -- ghi chú bổ sung/thay mới
     [created_at]        [datetime]       NULL,
 PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
@@ -363,8 +368,9 @@ GO
 
 CREATE TABLE [dbo].[Payments](
     [id]               [int]            IDENTITY(1,1) NOT NULL,
+    [booking_id]       [int]            NULL,
     [invoice_id]       [int]            NULL,
-    [payment_type]     [nvarchar](30)   NULL,           -- Deposit / Final_Settlement / Refund
+    [payment_type]     [nvarchar](30)   NULL,           -- Booking_Deposit / CheckIn_Collection / Final_Settlement / Refund
     [payment_method]   [nvarchar](50)   NULL,           -- Cash / VNPay / Credit Card / Bank Transfer
     [amount_paid]      [decimal](18, 2) NOT NULL,
     [transaction_code] [nvarchar](100)  NULL,
@@ -468,6 +474,27 @@ PRIMARY KEY CLUSTERED ([id] ASC)
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
 
+CREATE TABLE [dbo].[Maintenance_Tickets](
+    [id]                  [int]            IDENTITY(1,1) NOT NULL,
+    [room_id]             [int]            NOT NULL,
+    [reported_by_user_id] [int]            NULL,
+    [assigned_to_user_id] [int]            NULL,
+    [title]               [nvarchar](255)  NOT NULL,
+    [reason]              [nvarchar](max)  NOT NULL,
+    [category]            [nvarchar](100)  NULL,
+    [priority]            [nvarchar](50)   NOT NULL DEFAULT 'Medium',
+    [blocks_room]         [bit]            NOT NULL DEFAULT 0,
+    [status]              [nvarchar](50)   NOT NULL DEFAULT 'Open',
+    [opened_at]           [datetime]       NOT NULL DEFAULT GETDATE(),
+    [started_at]          [datetime]       NULL,
+    [expected_done_at]    [datetime]       NULL,
+    [resolved_at]         [datetime]       NULL,
+    [closed_at]           [datetime]       NULL,
+    [resolution_note]     [nvarchar](max)  NULL,
+PRIMARY KEY CLUSTERED ([id] ASC)
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+
 -- ============================================================
 -- CLUSTER 7: LOYALTY & PROMOTIONS TRACKING
 -- ============================================================
@@ -507,6 +534,7 @@ GO
 CREATE NONCLUSTERED INDEX [IX_Articles_AttractionId] ON [dbo].[Articles] ([attraction_id] ASC)
 GO
 ALTER TABLE [dbo].[Bookings]           ADD UNIQUE NONCLUSTERED ([booking_code] ASC)
+CREATE NONCLUSTERED INDEX [ix_payments_booking_id] ON [dbo].[Payments]([booking_id] ASC)
 GO
 ALTER TABLE [dbo].[Equipments]         ADD UNIQUE NONCLUSTERED ([item_code] ASC)
 GO
@@ -545,6 +573,7 @@ ALTER TABLE [dbo].[Order_Services]     ADD DEFAULT (getdate())    FOR [order_dat
 ALTER TABLE [dbo].[Order_Services]     ADD DEFAULT ((0))          FOR [total_amount]
 ALTER TABLE [dbo].[Order_Services]     ADD DEFAULT ('Pending')    FOR [status]
 ALTER TABLE [dbo].[Payments]           ADD DEFAULT (getdate())    FOR [payment_date]
+ALTER TABLE [dbo].[Payments]           ADD CONSTRAINT [ck_payments_booking_or_invoice] CHECK (((CASE WHEN [booking_id] IS NOT NULL THEN 1 ELSE 0 END) + (CASE WHEN [invoice_id] IS NOT NULL THEN 1 ELSE 0 END)) = 1)
 ALTER TABLE [dbo].[Reviews]            ADD DEFAULT (getdate())    FOR [created_at]
 ALTER TABLE [dbo].[Room_Images]        ADD DEFAULT ((0))          FOR [is_primary]
 ALTER TABLE [dbo].[Room_Inventory]     ADD DEFAULT ((1))          FOR [quantity]
@@ -595,6 +624,7 @@ ALTER TABLE [dbo].[Articles]            WITH CHECK ADD FOREIGN KEY([category_id]
 ALTER TABLE [dbo].[Articles]            WITH CHECK ADD FOREIGN KEY([attraction_id])         REFERENCES [dbo].[Attractions]       ([id])
 ALTER TABLE [dbo].[Invoice_Adjustments] WITH CHECK ADD FOREIGN KEY([invoice_id])            REFERENCES [dbo].[Invoices]          ([id])
 ALTER TABLE [dbo].[Payments]            WITH CHECK ADD FOREIGN KEY([invoice_id])            REFERENCES [dbo].[Invoices]          ([id])
+ALTER TABLE [dbo].[Payments]            WITH CHECK ADD FOREIGN KEY([booking_id])            REFERENCES [dbo].[Bookings]          ([id])
 ALTER TABLE [dbo].[Reviews]             WITH CHECK ADD FOREIGN KEY([booking_id])            REFERENCES [dbo].[Bookings]          ([id])
 ALTER TABLE [dbo].[Reviews]             WITH CHECK ADD FOREIGN KEY([room_type_id])          REFERENCES [dbo].[Room_Types]        ([id])
 ALTER TABLE [dbo].[Reviews]             WITH CHECK ADD FOREIGN KEY([user_id])               REFERENCES [dbo].[Users]             ([id])
@@ -603,9 +633,24 @@ ALTER TABLE [dbo].[Loyalty_Transactions] WITH CHECK ADD FOREIGN KEY([user_id])  
 ALTER TABLE [dbo].[Loyalty_Transactions] WITH CHECK ADD FOREIGN KEY([booking_id])          REFERENCES [dbo].[Bookings]          ([id])
 ALTER TABLE [dbo].[Shifts]              WITH CHECK ADD FOREIGN KEY([user_id])               REFERENCES [dbo].[Users]             ([id])
 ALTER TABLE [dbo].[Shifts]              WITH CHECK ADD FOREIGN KEY([confirmed_by])          REFERENCES [dbo].[Users]             ([id])
+ALTER TABLE [dbo].[Maintenance_Tickets] WITH CHECK ADD FOREIGN KEY([room_id])              REFERENCES [dbo].[Rooms]             ([id])
+ALTER TABLE [dbo].[Maintenance_Tickets] WITH CHECK ADD FOREIGN KEY([reported_by_user_id])  REFERENCES [dbo].[Users]             ([id])
+ALTER TABLE [dbo].[Maintenance_Tickets] WITH CHECK ADD FOREIGN KEY([assigned_to_user_id])  REFERENCES [dbo].[Users]             ([id])
 ALTER TABLE [dbo].[Voucher_Usage]       WITH CHECK ADD FOREIGN KEY([voucher_id])            REFERENCES [dbo].[Vouchers]          ([id])
 ALTER TABLE [dbo].[Voucher_Usage]       WITH CHECK ADD FOREIGN KEY([user_id])               REFERENCES [dbo].[Users]             ([id])
 ALTER TABLE [dbo].[Voucher_Usage]       WITH CHECK ADD FOREIGN KEY([booking_id])            REFERENCES [dbo].[Bookings]          ([id])
+GO
+
+CREATE INDEX [IX_Maintenance_Tickets_RoomId]
+    ON [dbo].[Maintenance_Tickets] ([room_id]);
+GO
+
+CREATE INDEX [IX_Maintenance_Tickets_ReportedByUserId]
+    ON [dbo].[Maintenance_Tickets] ([reported_by_user_id]);
+GO
+
+CREATE INDEX [IX_Maintenance_Tickets_AssignedToUserId]
+    ON [dbo].[Maintenance_Tickets] ([assigned_to_user_id]);
 GO
 
 -- ============================================================

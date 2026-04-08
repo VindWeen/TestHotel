@@ -11,6 +11,9 @@ public class LossAndDamage
     public string? Description { get; set; }
     public string Status { get; set; } = "Pending"; // Pending / Confirmed / Waived
     public bool IsStockSynced { get; set; } = false;
+    public int ReplenishedQuantity { get; set; } = 0;
+    public DateTime? ReplenishedAt { get; set; }
+    public string? ReplenishmentNote { get; set; }
     public DateTime? CreatedAt { get; set; }
     public string? ImgUrl { get; set; }
 

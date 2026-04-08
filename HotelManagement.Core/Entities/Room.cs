@@ -24,4 +24,5 @@ public class Room
     public RoomType? RoomType { get; set; }
     public ICollection<RoomInventory> RoomInventories { get; set; } = [];
     public ICollection<BookingDetail> BookingDetails { get; set; } = [];
+    public ICollection<MaintenanceTicket> MaintenanceTickets { get; set; } = [];
 }

@@ -37,11 +37,19 @@ public class CheckInBookingDetailRequest
 {
     public int BookingDetailId { get; set; }
     public int? RoomId { get; set; }
+    public string? GuestName { get; set; }
+    public string? GuestPhone { get; set; }
+    public string? GuestEmail { get; set; }
+    public string? NationalId { get; set; }
 }
 
 public class BulkCheckInBookingRequest
 {
     public List<CheckInBookingDetailRequest> Details { get; set; } = new();
+    public string? GuestName { get; set; }
+    public string? GuestPhone { get; set; }
+    public string? GuestEmail { get; set; }
+    public string? NationalId { get; set; }
 }
 
 public class ExtendStayRequest
@@ -80,6 +88,19 @@ public class BookingDetailResponse
     public string? RoomTypeName { get; set; }
 }
 
+public class BookingPaymentSummaryResponse
+{
+    public decimal EstimatedTotal { get; set; }
+    public decimal PaidBeforeCheckout { get; set; }
+    public decimal RequiredBookingDepositAmount { get; set; }
+    public decimal RequiredCheckInAmount { get; set; }
+    public decimal RemainingToConfirm { get; set; }
+    public decimal RemainingToCheckIn { get; set; }
+    public decimal? RemainingToCheckout { get; set; }
+    public bool CanConfirm { get; set; }
+    public bool CanCheckIn { get; set; }
+}
+
 public class BookingResponse
 {
     public int Id { get; set; }
@@ -100,6 +121,7 @@ public class BookingResponse
     public string? Note { get; set; }
     public string? CancellationReason { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public BookingPaymentSummaryResponse PaymentSummary { get; set; } = new();
     public List<BookingDetailResponse> BookingDetails { get; set; } = new();
 }
 

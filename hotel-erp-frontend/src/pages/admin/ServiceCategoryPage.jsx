@@ -241,7 +241,7 @@ export default function ServiceCategoryPage() {
         subtitle="Tách riêng màn nhóm để giảm rối và tập trung vào cấu trúc danh mục."
         stats={stats}
         primaryAction={
-          <button onClick={() => openModal()} style={primaryButton(true)}>
+          <button onClick={() => openModal()} style={primaryButton(false)}>
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
               category
             </span>

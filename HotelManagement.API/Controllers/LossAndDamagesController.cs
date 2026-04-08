@@ -66,6 +66,9 @@ public class LossAndDamagesController : ControllerBase
             : "Pending";
     }
 
+    private static int ComputeRemainingToReplenish(LossAndDamage record)
+        => Math.Max(0, Math.Max(1, record.Quantity) - Math.Max(0, record.ReplenishedQuantity));
+
     private static string ComputeRoomStatus(string businessStatus, string cleaningStatus)
         => businessStatus switch
         {
@@ -96,6 +99,28 @@ public class LossAndDamagesController : ControllerBase
         return null;
     }
 
+    private async Task<int?> ResolveBookingDetailIdForRoomInventoryAsync(int roomInventoryId)
+    {
+        var roomId = await _db.RoomInventories
+            .Where(ri => ri.Id == roomInventoryId)
+            .Select(ri => ri.RoomId)
+            .FirstOrDefaultAsync();
+
+        if (roomId <= 0)
+            return null;
+
+        return await _db.BookingDetails
+            .Where(bd =>
+                bd.RoomId == roomId &&
+                bd.Booking != null &&
+                (bd.Booking.Status == "Checked_out_pending_settlement" ||
+                 bd.Booking.Status == "Completed"))
+            .OrderByDescending(bd => bd.Booking!.CheckOutTime ?? bd.CheckOutDate)
+            .ThenByDescending(bd => bd.Id)
+            .Select(bd => (int?)bd.Id)
+            .FirstOrDefaultAsync();
+    }
+
     private async Task SyncRoomCleaningStatusForLossAsync(LossAndDamage record)
     {
         var roomId = await ResolveRoomIdAsync(record);
@@ -107,12 +132,12 @@ public class LossAndDamagesController : ControllerBase
             return;
 
         var hasPendingLoss = await _db.LossAndDamages
-            .Where(l => l.Id != record.Id && l.Status == "Pending")
+            .Where(l => l.Id != record.Id && (l.Status == "Pending" || (l.Status == "Confirmed" && l.ReplenishedQuantity < l.Quantity)))
             .AnyAsync(l =>
                 (l.RoomInventoryId.HasValue && l.RoomInventory != null && l.RoomInventory.RoomId == roomId.Value)
                 || (l.BookingDetailId.HasValue && l.BookingDetail != null && l.BookingDetail.RoomId == roomId.Value));
 
-        if (record.Status == "Pending")
+        if (record.Status == "Pending" || (record.Status == "Confirmed" && ComputeRemainingToReplenish(record) > 0))
             hasPendingLoss = true;
 
         if (hasPendingLoss)
@@ -147,8 +172,12 @@ public class LossAndDamagesController : ControllerBase
 
         var equipment = roomInventory.Equipment;
         var quantity = Math.Max(1, record.Quantity);
+        var shortageQuantity = Math.Max(0, quantity - Math.Max(0, record.ReplenishedQuantity));
 
-        equipment.InUseQuantity = Math.Max(0, equipment.InUseQuantity - quantity);
+        roomInventory.Quantity = Math.Max(0, (roomInventory.Quantity ?? 0) - shortageQuantity);
+        roomInventory.IsActive = (roomInventory.Quantity ?? 0) > 0;
+        roomInventory.Note ??= record.Description;
+        equipment.InUseQuantity = Math.Max(0, equipment.InUseQuantity - shortageQuantity);
         equipment.DamagedQuantity += quantity;
         equipment.UpdatedAt = DateTime.UtcNow;
         record.IsStockSynced = true;
@@ -180,8 +209,11 @@ public class LossAndDamagesController : ControllerBase
 
         var equipment = roomInventory.Equipment;
         var quantity = Math.Max(1, record.Quantity);
+        var shortageQuantity = Math.Max(0, quantity - Math.Max(0, record.ReplenishedQuantity));
 
-        equipment.InUseQuantity += quantity;
+        roomInventory.Quantity = Math.Max(0, roomInventory.Quantity ?? 0) + shortageQuantity;
+        roomInventory.IsActive = true;
+        equipment.InUseQuantity += shortageQuantity;
         equipment.DamagedQuantity = Math.Max(0, equipment.DamagedQuantity - quantity);
         equipment.UpdatedAt = DateTime.UtcNow;
         record.IsStockSynced = false;
@@ -231,12 +263,17 @@ public class LossAndDamagesController : ControllerBase
                 l.Description,
                 l.Status,
                 l.IsStockSynced,
+                l.ReplenishedQuantity,
+                l.ReplenishedAt,
+                l.ReplenishmentNote,
                 l.CreatedAt,
                 l.ReportedBy,
                 l.ImgUrl,
                 ItemName = l.RoomInventory != null && l.RoomInventory.Equipment != null ? l.RoomInventory.Equipment.Name : null,
                 RoomNumber = l.RoomInventory != null && l.RoomInventory.Room != null ? l.RoomInventory.Room.RoomNumber : null,
                 ReporterName = l.Reporter != null ? l.Reporter.FullName : null,
+                AvailableStock = l.RoomInventory != null && l.RoomInventory.Equipment != null ? l.RoomInventory.Equipment.InStockQuantity : 0,
+                RoomInventoryQuantity = l.RoomInventory != null ? l.RoomInventory.Quantity : null,
             })
             .ToListAsync();
 
@@ -250,11 +287,17 @@ public class LossAndDamagesController : ControllerBase
             l.Description,
             l.Status,
             l.IsStockSynced,
+            l.ReplenishedQuantity,
+            l.ReplenishedAt,
+            l.ReplenishmentNote,
+            RemainingToReplenish = Math.Max(0, l.Quantity - l.ReplenishedQuantity),
             l.CreatedAt,
             l.ReportedBy,
             l.ItemName,
             l.RoomNumber,
             l.ReporterName,
+            l.AvailableStock,
+            l.RoomInventoryQuantity,
             Images = ParseImages(l.ImgUrl)
         }).ToList();
 
@@ -278,12 +321,17 @@ public class LossAndDamagesController : ControllerBase
                 l.Description,
                 l.Status,
                 l.IsStockSynced,
+                l.ReplenishedQuantity,
+                l.ReplenishedAt,
+                l.ReplenishmentNote,
                 l.CreatedAt,
                 l.ReportedBy,
                 l.ImgUrl,
                 ItemName = l.RoomInventory != null && l.RoomInventory.Equipment != null ? l.RoomInventory.Equipment.Name : null,
                 RoomNumber = l.RoomInventory != null && l.RoomInventory.Room != null ? l.RoomInventory.Room.RoomNumber : null,
                 ReporterName = l.Reporter != null ? l.Reporter.FullName : null,
+                AvailableStock = l.RoomInventory != null && l.RoomInventory.Equipment != null ? l.RoomInventory.Equipment.InStockQuantity : 0,
+                RoomInventoryQuantity = l.RoomInventory != null ? l.RoomInventory.Quantity : null,
             })
             .FirstOrDefaultAsync();
 
@@ -300,11 +348,17 @@ public class LossAndDamagesController : ControllerBase
             record.Description,
             record.Status,
             record.IsStockSynced,
+            record.ReplenishedQuantity,
+            record.ReplenishedAt,
+            record.ReplenishmentNote,
+            RemainingToReplenish = Math.Max(0, record.Quantity - record.ReplenishedQuantity),
             record.CreatedAt,
             record.ReportedBy,
             record.ItemName,
             record.RoomNumber,
             record.ReporterName,
+            record.AvailableStock,
+            record.RoomInventoryQuantity,
             Images = ParseImages(record.ImgUrl)
         });
     }
@@ -351,6 +405,9 @@ public class LossAndDamagesController : ControllerBase
             CreatedAt = DateTime.UtcNow,
             ImgUrl = imageList.Any() ? JsonSerializer.Serialize(imageList) : null
         };
+
+        if (!record.BookingDetailId.HasValue && record.RoomInventoryId.HasValue)
+            record.BookingDetailId = await ResolveBookingDetailIdForRoomInventoryAsync(record.RoomInventoryId.Value);
 
         _db.LossAndDamages.Add(record);
         if (record.Status == "Confirmed")
@@ -407,6 +464,9 @@ public class LossAndDamagesController : ControllerBase
         var oldStatus = record.Status;
         var oldQuantity = record.Quantity;
 
+        if (request.Quantity < record.ReplenishedQuantity)
+            return BadRequest(new { message = "S? l??ng kh?ng ???c nh? h?n ph?n ?? b? sung." });
+
         var currentImages = new List<ImageItem>();
         if (!string.IsNullOrEmpty(record.ImgUrl))
         {
@@ -448,6 +508,10 @@ public class LossAndDamagesController : ControllerBase
         record.PenaltyAmount = request.PenaltyAmount;
         record.Description = request.Description?.Trim();
         record.Status = NormalizeStatus(request.Status);
+        if (record.ReplenishedQuantity > record.Quantity)
+            record.ReplenishedQuantity = record.Quantity;
+        if (record.ReplenishedQuantity < Math.Max(1, record.Quantity))
+            record.ReplenishedAt = null;
         record.ImgUrl = finalImages.Any() ? JsonSerializer.Serialize(finalImages) : null;
 
         if (record.Status == "Confirmed")
@@ -525,6 +589,77 @@ public class LossAndDamagesController : ControllerBase
             notification
         });
     }
+
+    [HttpPost("{id:int}/replenish")]
+    [RequirePermission(PermissionCodes.ManageInventory)]
+    public async Task<IActionResult> Replenish(int id, [FromBody] ReplenishLossAndDamageRequest request)
+    {
+        if (request.Quantity < 1)
+            return BadRequest(new { message = "S? l??ng b? sung ph?i l?n h?n 0." });
+
+        var record = await _db.LossAndDamages
+            .Include(l => l.RoomInventory)
+                .ThenInclude(ri => ri!.Equipment)
+            .FirstOrDefaultAsync(l => l.Id == id);
+
+        if (record is null)
+            return NotFound(new { message = $"Kh?ng t?m th?y bi?n b?n #{id}." });
+
+        if (record.Status != "Confirmed")
+            return BadRequest(new { message = "Ch? c? th? b? sung sau khi bi?n b?n ?? x?c nh?n." });
+
+        if (!record.RoomInventoryId.HasValue || record.RoomInventory?.Equipment is null)
+            return BadRequest(new { message = "Bi?n b?n n?y kh?ng g?n v?i v?t t? ph?ng ?? b? sung." });
+
+        var remaining = ComputeRemainingToReplenish(record);
+        if (remaining <= 0)
+            return BadRequest(new { message = "Bi?n b?n n?y ?? b? sung ??." });
+
+        var roomInventory = record.RoomInventory;
+        var equipment = roomInventory.Equipment;
+        var availableStock = Math.Max(0, equipment.InStockQuantity);
+        if (availableStock <= 0)
+            return BadRequest(new
+            {
+                message = "Kho hi?n kh?ng c?n t?n kh? d?ng ?? b? sung.",
+                remainingToReplenish = remaining,
+                availableStock
+            });
+
+        var actualQuantity = Math.Min(request.Quantity, Math.Min(remaining, availableStock));
+
+        roomInventory.Quantity = Math.Max(0, roomInventory.Quantity ?? 0) + actualQuantity;
+        roomInventory.IsActive = true;
+        if (!string.IsNullOrWhiteSpace(request.Note))
+            roomInventory.Note = request.Note.Trim();
+
+        equipment.InUseQuantity += actualQuantity;
+        equipment.UpdatedAt = DateTime.UtcNow;
+
+        record.ReplenishedQuantity += actualQuantity;
+        if (record.ReplenishedQuantity >= Math.Max(1, record.Quantity))
+            record.ReplenishedAt = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(request.Note))
+            record.ReplenishmentNote = request.Note.Trim();
+
+        await _db.SaveChangesAsync();
+        await SyncRoomCleaningStatusForLossAsync(record);
+        await _db.SaveChangesAsync();
+
+        var remainingAfter = ComputeRemainingToReplenish(record);
+        return Ok(new
+        {
+            message = remainingAfter == 0
+                ? "?? b? sung ?? v?t t? cho ph?ng."
+                : $"?? b? sung {actualQuantity} v? c?n thi?u {remainingAfter}.",
+            replenishedQuantity = actualQuantity,
+            totalReplenishedQuantity = record.ReplenishedQuantity,
+            remainingToReplenish = remainingAfter,
+            roomInventoryQuantity = roomInventory.Quantity,
+            availableStock = Math.Max(0, equipment.InStockQuantity)
+        });
+    }
+
 }
 
 public class CreateLossAndDamageRequest
@@ -546,4 +681,10 @@ public class UpdateLossAndDamageRequest
     public string Status { get; set; } = null!;
     public List<IFormFile>? Images { get; set; }
     public string? KeepImagesJson { get; set; }
+}
+
+public class ReplenishLossAndDamageRequest
+{
+    public int Quantity { get; set; }
+    public string? Note { get; set; }
 }

@@ -1,15 +1,18 @@
 ﻿import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { addRoomToBooking, cancelBooking, checkIn, checkInRoom, checkOut, confirmBooking, earlyCheckOut, extendStay, getBookingDetail } from "../../api/bookingsApi";
+import { addRoomToBooking, cancelBooking, checkIn, checkInRoom, checkOut, earlyCheckOut, extendStay, getBookingDetail } from "../../api/bookingsApi";
+import { createInvoiceFromBooking, getInvoiceByBookingId } from "../../api/invoicesApi";
+import { recordPayment } from "../../api/paymentsApi";
 import { formatCurrency, formatDate } from "../../utils";
+import { getBookingSourceLabel, getBookingStatusLabel } from "../../utils/statusLabels";
 
 const ALLOWED_ACTIONS = {
-  Pending: ["confirm", "cancel"],
-  Confirmed: ["checkin", "cancel"],
-  Checked_in: ["checkout"],
-  Checked_out_pending_settlement: [],
-  Completed: [],
-  Cancelled: [],
+  Pending: ["cancel", "collect_deposit"],
+  Confirmed: ["checkin", "cancel", "open_invoice"],
+  Checked_in: ["checkout", "open_invoice"],
+  Checked_out_pending_settlement: ["open_invoice"],
+  Completed: ["open_invoice"],
+  Cancelled: ["refund"],
 };
 
 // ─── Thông báo ────────────────────────────────────────────────────────────────────
@@ -80,6 +83,111 @@ function CancelModal({ open, onConfirm, onCancel, loading }) {
   );
 }
 
+function CheckInModal({ open, booking, loading, onConfirm, onCancel }) {
+  const [form, setForm] = useState({ guestName: "", guestPhone: "", guestEmail: "", nationalId: "" });
+
+  useEffect(() => {
+    if (!open || !booking) return;
+    setForm({
+      guestName: booking.guestName || "",
+      guestPhone: booking.guestPhone || "",
+      guestEmail: booking.guestEmail || "",
+      nationalId: "",
+    });
+  }, [open, booking]);
+
+  if (!open || !booking) return null;
+
+  const canSubmit = form.guestName.trim() && form.guestPhone.trim() && form.guestEmail.trim() && form.nationalId.trim();
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2100, padding: 20 }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 520, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)", animation: "modalSlideUp .3s ease-out", padding: 32 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: "0 0 8px" }}>Xác nhận check-in</h3>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>
+          Booking này chưa gắn hồ sơ khách. Nhập thông tin lưu trú để hệ thống kiểm tra tài khoản theo email trước khi check-in.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <input value={form.guestName} onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))} placeholder="Họ tên khách" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <input value={form.guestPhone} onChange={(e) => setForm((prev) => ({ ...prev, guestPhone: e.target.value }))} placeholder="Số điện thoại" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <input value={form.guestEmail} onChange={(e) => setForm((prev) => ({ ...prev, guestEmail: e.target.value }))} placeholder="Email" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917", gridColumn: "span 2" }} />
+          <input value={form.nationalId} onChange={(e) => setForm((prev) => ({ ...prev, nationalId: e.target.value }))} placeholder="CCCD / Hộ chiếu" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917", gridColumn: "span 2" }} />
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "white", fontWeight: 700, color: "#6b7280", cursor: "pointer", fontSize: 14 }}>Đóng</button>
+          <button onClick={() => onConfirm(form)} disabled={loading || !canSubmit} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#4f645b", fontWeight: 700, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, opacity: (!canSubmit || loading) ? 0.6 : 1 }}>
+            {loading ? <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin .65s linear infinite" }} /> : <span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span>}
+            Xác nhận check-in
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookingPaymentModal({ open, booking, mode, loading, onConfirm, onCancel }) {
+  const [form, setForm] = useState({ amountPaid: "", paymentMethod: "Cash", transactionCode: "", note: "" });
+
+  useEffect(() => {
+    if (!open || !booking) return;
+    const summary = booking.paymentSummary || {};
+    const suggestedAmount = mode === "deposit"
+      ? summary.remainingToConfirm || 0
+      : mode === "checkin"
+        ? summary.remainingToCheckIn || 0
+        : booking.depositAmount || 0;
+
+    setForm({
+      amountPaid: suggestedAmount > 0 ? String(Math.ceil(suggestedAmount)) : "",
+      paymentMethod: "Cash",
+      transactionCode: "",
+      note: "",
+    });
+  }, [open, booking, mode]);
+
+  if (!open || !booking) return null;
+
+  const title = mode === "deposit"
+    ? "Thu cọc booking"
+    : mode === "checkin"
+      ? "Thu thêm để nhận phòng"
+      : "Hoàn tiền booking";
+
+  const helper = mode === "deposit"
+    ? `Cần tối thiểu ${formatCurrency(booking?.paymentSummary?.remainingToConfirm || 0)} để booking được xác nhận.`
+    : mode === "checkin"
+      ? `Cần thu thêm ${formatCurrency(booking?.paymentSummary?.remainingToCheckIn || 0)} để đủ điều kiện nhận phòng.`
+      : `Số tiền đã thu trước đó: ${formatCurrency(booking?.depositAmount || 0)}.`;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2200, padding: 20 }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 460, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)", padding: 32 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1c1917", margin: "0 0 8px" }}>{title}</h3>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>{helper}</p>
+        <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+          <input type="number" min="0" step="1000" value={form.amountPaid} onChange={(e) => setForm((prev) => ({ ...prev, amountPaid: e.target.value }))} placeholder="Số tiền" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <select value={form.paymentMethod} onChange={(e) => setForm((prev) => ({ ...prev, paymentMethod: e.target.value }))} style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }}>
+            <option value="Cash">Tiền mặt</option>
+            <option value="Momo">Momo</option>
+            <option value="VNPay_Mock">VNPay</option>
+            <option value="Credit Card">Thẻ tín dụng</option>
+            <option value="Bank Transfer">Chuyển khoản</option>
+          </select>
+          <input value={form.transactionCode} onChange={(e) => setForm((prev) => ({ ...prev, transactionCode: e.target.value }))} placeholder="Mã giao dịch (nếu có)" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917" }} />
+          <textarea value={form.note} onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))} placeholder="Ghi chú" style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "#f9f8f3", fontSize: 13, fontWeight: 500, outline: "none", color: "#1c1917", minHeight: 80, resize: "none" }} />
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #e2e8e1", background: "white", fontWeight: 700, color: "#6b7280", cursor: "pointer", fontSize: 14 }}>Đóng</button>
+          <button onClick={() => onConfirm({ ...form, amountPaid: Number(form.amountPaid) })} disabled={loading || Number(form.amountPaid) <= 0} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#4f645b", fontWeight: 700, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, opacity: (Number(form.amountPaid) <= 0 || loading) ? 0.6 : 1 }}>
+            {loading ? <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin .65s linear infinite" }} /> : <span className="material-symbols-outlined" style={{ fontSize: 18 }}>payments</span>}
+            Xác nhận
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Nhãn trạng thái ─────────────────────────────────────────────────────────────
 const BookingStatusBadge = ({ status }) => {
   const map = {
@@ -94,7 +202,7 @@ const BookingStatusBadge = ({ status }) => {
   return (
     <span className="badge-p" style={{ background: s.bg, color: s.text }}>
       <span className="material-symbols-outlined" style={{ fontSize: 13, fontWeight: 700 }}>{s.icon}</span>
-      {status}
+      {getBookingStatusLabel(status)}
     </span>
   );
 };
@@ -114,6 +222,11 @@ export default function BookingDetailPage() {
   // Trạng thái hộp thoại tùy chỉnh
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [checkInModalOpen, setCheckInModalOpen] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("deposit");
 
   const showToast = useCallback((msg, type = "success") => {
     const toastId = Date.now() + Math.random();
@@ -141,7 +254,20 @@ export default function BookingDetailPage() {
     load();
   }, [load]);
 
-  const canRun = (action) => (ALLOWED_ACTIONS[booking?.status] || []).includes(action);
+  const canRun = (action) => {
+    const status = booking?.status;
+    const summary = booking?.paymentSummary || {};
+
+    if (action === "collect_deposit") return status === "Pending" && (summary.remainingToConfirm || 0) > 0;
+    if (action === "collect_checkin") return status === "Confirmed" && !summary.canCheckIn;
+    if (action === "checkin") return status === "Confirmed" && !!summary.canCheckIn;
+    if (action === "cancel") return status === "Pending" || status === "Confirmed";
+    if (action === "checkout") return status === "Checked_in";
+    if (action === "open_invoice") return Number(booking?.depositAmount || 0) > 0 || status === "Checked_out_pending_settlement" || status === "Completed";
+    if (action === "refund") return status === "Cancelled" && Number(booking?.depositAmount || 0) > 0;
+
+    return (ALLOWED_ACTIONS[status] || []).includes(action);
+  };
 
   const runAction = async (action) => {
     if (action === "cancel") {
@@ -149,13 +275,106 @@ export default function BookingDetailPage() {
       return;
     }
 
+    if (action === "collect_deposit") {
+      setPaymentMode("deposit");
+      setPaymentModalOpen(true);
+      return;
+    }
+
+    if (action === "collect_checkin") {
+      setPaymentMode("checkin");
+      setPaymentModalOpen(true);
+      return;
+    }
+
+    if (action === "refund") {
+      setPaymentMode("refund");
+      setPaymentModalOpen(true);
+      return;
+    }
+
+    if (action === "open_invoice") {
+      try {
+        const res = await getInvoiceByBookingId(id);
+        const invoiceId = res?.data?.data?.id;
+        if (invoiceId) {
+          navigate(`/admin/invoices/${invoiceId}`);
+          return;
+        }
+      } catch (e) {
+        if (Number(booking?.depositAmount || 0) > 0 || booking?.status === "Checked_out_pending_settlement") {
+          try {
+            const created = await createInvoiceFromBooking(id);
+            const invoiceId = created?.data?.invoiceId;
+            if (invoiceId) {
+              showToast("Đã tạo hóa đơn cho booking.");
+              navigate(`/admin/invoices/${invoiceId}`);
+              return;
+            }
+          } catch (createError) {
+            showToast(createError?.response?.data?.message || "Không thể tạo hóa đơn cho booking này.", "error");
+            return;
+          }
+        }
+
+        showToast(e?.response?.data?.message || "Không tìm thấy hóa đơn của booking này.", "error");
+        return;
+      }
+    }
+
+    if (action === "checkin" && !booking?.userId) {
+      setCheckInModalOpen(true);
+      return;
+    }
+
     try {
-      if (action === "confirm") { await confirmBooking(id); showToast("Đã xác nhận booking."); }
       if (action === "checkin") { await checkIn(id); showToast("Đã Check-in thành công."); }
       if (action === "checkout") { await checkOut(id); showToast("Đã Check-out thành công."); }
       await load();
     } catch (e) {
       showToast(e?.response?.data?.message || "Thao tác thất bại.", "error");
+    }
+  };
+
+  const executeBookingPayment = async (payload) => {
+    setPaymentLoading(true);
+    try {
+      const paymentType = paymentMode === "deposit"
+        ? "Booking_Deposit"
+        : paymentMode === "checkin"
+          ? "CheckIn_Collection"
+          : "Refund";
+
+      await recordPayment({
+        bookingId: Number(id),
+        paymentType,
+        paymentMethod: payload.paymentMethod,
+        amountPaid: Number(payload.amountPaid),
+        transactionCode: payload.transactionCode || null,
+        note: payload.note || null,
+      });
+
+      showToast(paymentMode === "refund" ? "Đã ghi nhận hoàn tiền booking." : "Đã ghi nhận thanh toán booking.");
+      setPaymentModalOpen(false);
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Không thể ghi nhận thanh toán booking.", "error");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const executeCheckIn = async (payload) => {
+    setCheckInLoading(true);
+    try {
+      await checkIn(id, payload);
+      showToast("Đã check-in và cập nhật hồ sơ khách thành công.");
+      setCheckInModalOpen(false);
+      await load();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Check-in thất bại.", "error");
+    } finally {
+      setCheckInLoading(false);
     }
   };
 
@@ -291,6 +510,23 @@ export default function BookingDetailPage() {
         onCancel={() => setCancelModalOpen(false)}
         loading={cancelLoading}
       />
+      <CheckInModal
+        key={checkInModalOpen ? "checkin-open" : "checkin-closed"}
+        open={checkInModalOpen}
+        booking={booking}
+        onConfirm={executeCheckIn}
+        onCancel={() => setCheckInModalOpen(false)}
+        loading={checkInLoading}
+      />
+      <BookingPaymentModal
+        key={paymentModalOpen ? `payment-${paymentMode}` : "payment-closed"}
+        open={paymentModalOpen}
+        booking={booking}
+        mode={paymentMode}
+        onConfirm={executeBookingPayment}
+        onCancel={() => setPaymentModalOpen(false)}
+        loading={paymentLoading}
+      />
 
       {extendStayConflict && (
         <div
@@ -389,12 +625,38 @@ export default function BookingDetailPage() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#1c1917" }}>{booking.guestPhone || "-"}</div>
                 </div>
                 <div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Email</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#1c1917" }}>{booking.guestEmail || "-"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Nguồn booking</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#1c1917" }}>{getBookingSourceLabel(booking.source)}</div>
+                </div>
+                <div>
                   <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Tổng dự kiến</div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#16a34a" }}>{formatCurrency(booking.totalEstimatedAmount)}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Đã đặt cọc</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Đã thu trước lưu trú</div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#4f645b" }}>{formatCurrency(booking.depositAmount)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Mức cần để xác nhận</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#1c1917" }}>{formatCurrency(booking.paymentSummary?.requiredBookingDepositAmount || 0)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Mức cần để nhận phòng</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#1c1917" }}>{formatCurrency(booking.paymentSummary?.requiredCheckInAmount || 0)}</div>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Tiến độ thanh toán trước lưu trú</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1c1917" }}>
+                    {booking.paymentSummary?.canCheckIn
+                      ? "Booking đã đủ điều kiện nhận phòng."
+                      : booking.status === "Pending"
+                        ? `Cần thêm ${formatCurrency(booking.paymentSummary?.remainingToConfirm || 0)} để xác nhận booking.`
+                        : `Cần thêm ${formatCurrency(booking.paymentSummary?.remainingToCheckIn || 0)} để đủ điều kiện nhận phòng.`}
+                  </div>
                 </div>
                 {booking.status === "Cancelled" && (
                   <div style={{ gridColumn: "1 / -1" }}>
@@ -472,7 +734,7 @@ export default function BookingDetailPage() {
                       <td style={{ padding: "16px 24px", textAlign: "right" }}>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
                           {!detail.roomId && (booking.status === "Confirmed" || booking.status === "Checked_in") && (
-                            <button className="action-btn" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => handleCheckInDetail(detail.id)}>
+                            <button className="action-btn" style={{ padding: "8px 12px", fontSize: 12 }} onClick={() => handleCheckInDetail(detail.id)} disabled={!booking.userId}>
                               Check-in phòng
                             </button>
                           )}
@@ -501,8 +763,11 @@ export default function BookingDetailPage() {
             <div style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,.06)" }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1c1917", margin: "0 0 16px" }}>Hành động</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <button className="action-btn primary" disabled={!canRun("confirm")} onClick={() => runAction("confirm")}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span> Xác nhận booking
+                <button className="action-btn primary" disabled={!canRun("collect_deposit")} onClick={() => runAction("collect_deposit")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>payments</span> Thu cọc booking
+                </button>
+                <button className="action-btn" disabled={!canRun("collect_checkin")} onClick={() => runAction("collect_checkin")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span> Thu thêm để nhận phòng
                 </button>
                 <button className="action-btn" disabled={!canRun("checkin")} onClick={() => runAction("checkin")}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span> Khách Check-in
@@ -510,8 +775,14 @@ export default function BookingDetailPage() {
                 <button className="action-btn" disabled={!canRun("checkout")} onClick={() => runAction("checkout")}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>logout</span> Khách Check-out
                 </button>
+                <button className="action-btn" disabled={!canRun("open_invoice")} onClick={() => runAction("open_invoice")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>receipt_long</span> Mở hóa đơn
+                </button>
                 <button className="action-btn" disabled={!(booking?.status === "Pending" || booking?.status === "Confirmed" || booking?.status === "Checked_in")} onClick={handleAddRoom}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add_home</span> Thêm phòng vào booking
+                </button>
+                <button className="action-btn" disabled={!canRun("refund")} onClick={() => runAction("refund")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>reply</span> Hoàn tiền booking
                 </button>
                 <button className="action-btn danger" disabled={!canRun("cancel")} onClick={() => runAction("cancel")}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>cancel</span> Hủy đặt phòng

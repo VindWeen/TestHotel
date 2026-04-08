@@ -113,6 +113,30 @@ const defaultTierTheme = {
   subtle: "#78716c",
 };
 
+const hexToRgb = (hex) => {
+  const normalized = String(hex || "").trim().replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+};
+
+const rgbaFromHex = (hex, alpha) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+const mixWithWhite = (hex, weight = 0.7) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const clampWeight = Math.max(0, Math.min(1, weight));
+  const mix = (channel) => Math.round(channel + (255 - channel) * clampWeight);
+  return `rgb(${mix(rgb.r)}, ${mix(rgb.g)}, ${mix(rgb.b)})`;
+};
+
 const fmt = (v) => Number(v || 0).toLocaleString("vi-VN");
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString("vi-VN") : "—");
 const fmtDateTime = (v) => (v ? new Date(v).toLocaleString("vi-VN") : "—");
@@ -167,12 +191,14 @@ const getTierTheme = (name, colorHex) => {
   }
 
   if (normalized.includes("bạc") || normalized.includes("silver")) {
+    const base = colorHex || "#c0c0c0";
     return {
-      background: "#f3f4f6",
-      border: "#cbd5e1",
-      text: "#475569",
-      dot: colorHex || "#c0c0c0",
-      subtle: "#64748b",
+      background:
+        `linear-gradient(135deg, ${mixWithWhite(base, 0.38) || "#d8dee6"} 0%, ${mixWithWhite(base, 0.72) || "#edf2f7"} 100%)`,
+      border: rgbaFromHex(base, 0.95) || "#94a3b8",
+      text: "#334155",
+      dot: base,
+      subtle: "#475569",
     };
   }
 
@@ -187,12 +213,14 @@ const getTierTheme = (name, colorHex) => {
   }
 
   if (normalized.includes("bạch kim") || normalized.includes("platinum")) {
+    const base = colorHex || "#e5e4e2";
     return {
-      background: "#f8fafc",
-      border: "#cbd5e1",
-      text: "#334155",
-      dot: colorHex || "#e5e4e2",
-      subtle: "#475569",
+      background:
+        `linear-gradient(135deg, ${mixWithWhite(base, 0.2) || "#e7ebf0"} 0%, ${mixWithWhite(base, 0.58) || "#f5f8fb"} 100%)`,
+      border: rgbaFromHex(base, 1) || "#b8c2cc",
+      text: "#1f2937",
+      dot: base,
+      subtle: "#334155",
     };
   }
 
@@ -351,6 +379,14 @@ export default function MembershipPage() {
     return { sortBy, sortDir };
   }, [filters.sort]);
 
+  const tierColorMap = useMemo(
+    () =>
+      Object.fromEntries(
+        tiers.map((tier) => [String(tier.tierName || "").trim().toLowerCase(), tier.colorHex || null]),
+      ),
+    [tiers],
+  );
+
   const loadMembers = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
@@ -493,7 +529,7 @@ export default function MembershipPage() {
           </div>
         </section>
 
-        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 20, alignItems: "start" }}>
+        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 250px", gap: 16, alignItems: "start" }}>
           <div style={{ ...card, overflow: "hidden" }}>
             <div style={{ padding: "18px 20px", borderBottom: "1px solid #f1f0ea" }}>
               <strong style={{ color: "#1c1917", fontSize: 16 }}>Danh sách loyalty member</strong>
@@ -503,8 +539,8 @@ export default function MembershipPage() {
               <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#faf8f3", borderBottom: "1px solid #f1f0ea" }}>
-                    {["Khách hàng", "Hạng", "Điểm tích lũy", "Điểm khả dụng", "Giao dịch", "Trạng thái", "Ngày tham gia", "Thao tác"].map((h, i) => (
-                      <th key={h} style={{ padding: "15px 18px", textAlign: i === 7 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", color: "#78716c" }}>{h}</th>
+                    {["Khách hàng", "Hạng", "Điểm tích lũy", "Điểm khả dụng", "Giao dịch", "Trạng thái", "Ngày tham gia", "Thao tác"].map((h) => (
+                      <th key={h} style={{ padding: "15px 24px", textAlign: "center", fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", color: "#78716c" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -515,25 +551,75 @@ export default function MembershipPage() {
                     const status = statusMeta(row.status);
                     return (
                       <tr key={row.id} style={{ borderBottom: "1px solid #f7f4ee" }}>
-                        <td style={{ padding: "16px 18px" }}>
+                        <td style={{ padding: "16px 24px" }}>
                           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                             <div style={{ width: 42, height: 42, borderRadius: 999, background: "linear-gradient(135deg, #d6f5eb, #eefaf4)", color: "#14532d", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
                               {(row.fullName || "?").charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div style={{ color: "#1c1917", fontWeight: 800, fontSize: 14 }}>{row.fullName}</div>
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>{row.email || "—"}</div>
+                              <div style={{ color: "#1c1917", fontWeight: 700, fontSize: 14 }}>{row.fullName}</div>
+                              <div style={{ color: "#6b7280", fontSize: 14 }}>{row.email || "—"}</div>
                               <div style={{ color: "#a8a29e", fontSize: 12 }}>{row.phone || "Chưa có số điện thoại"}</div>
                             </div>
                           </div>
                         </td>
-                        <td style={{ padding: "16px 18px" }}><TierBadge name={row.membershipTier} colorHex={row.membershipColor} /></td>
-                        <td style={{ padding: "16px 18px", color: "#1f2937", fontWeight: 800 }}>{fmt(row.loyaltyPoints)}</td>
-                        <td style={{ padding: "16px 18px", color: "#0f766e", fontWeight: 800 }}>{fmt(row.loyaltyPointsUsable)}</td>
-                        <td style={{ padding: "16px 18px", color: "#57534e" }}>{fmt(row.transactionCount)}</td>
-                        <td style={{ padding: "16px 18px" }}><span style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, background: status.bg, color: status.color, textTransform: "uppercase" }}>{status.label}</span></td>
-                        <td style={{ padding: "16px 18px", color: "#57534e" }}><div>{fmtDate(row.createdAt)}</div><div style={{ color: "#a8a29e", fontSize: 12 }}>Cập nhật: {fmtDate(row.updatedAt)}</div></td>
-                        <td style={{ padding: "16px 18px", textAlign: "right" }}><button type="button" onClick={() => openDetail(row.id)} style={primaryBtn}>Xem chi tiết</button></td>
+                        <td style={{ padding: "16px 24px" }}><TierBadge name={row.membershipTier} colorHex={row.membershipColor} /></td>
+                        <td style={{ padding: "16px 24px", color: "#1f2937", fontWeight: 800, fontSize: 14 }}>{fmt(row.loyaltyPoints)}</td>
+                        <td style={{ padding: "16px 24px", color: "#0f766e", fontWeight: 800, fontSize: 14 }}>{fmt(row.loyaltyPointsUsable)}</td>
+                        <td style={{ padding: "16px 24px", color: "#57534e", fontSize: 14 }}>{fmt(row.transactionCount)}</td>
+                        <td style={{ padding: "16px 24px" }}>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 96,
+                              padding: "6px 12px",
+                              borderRadius: 999,
+                              fontSize: 10,
+                              fontWeight: 800,
+                              lineHeight: 1,
+                              whiteSpace: "nowrap",
+                              background: status.bg,
+                              color: status.color,
+                              textTransform: "uppercase",
+                              textAlign: "center",
+                            }}
+                          >
+                            {status.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: "16px 24px", color: "#57534e", fontSize: 14 }}><div>{fmtDate(row.createdAt)}</div><div style={{ color: "#a8a29e", fontSize: 12 }}>Cập nhật: {fmtDate(row.updatedAt)}</div></td>
+                        <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                          <div style={{ display: "flex", justifyContent: "flex-end", gap: 4 }}>
+                            <button
+                              type="button"
+                              onClick={() => openDetail(row.id)}
+                              style={{
+                                padding: 8,
+                                color: "#9ca3af",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                borderRadius: 8,
+                                transition: "all .15s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#f3f4f6";
+                                e.currentTarget.style.color = "#4f645b";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "";
+                                e.currentTarget.style.color = "#9ca3af";
+                              }}
+                              title="Xem chi tiết"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
+                                visibility
+                              </span>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -554,7 +640,10 @@ export default function MembershipPage() {
             <p style={{ margin: "6px 0 18px", color: "#78716c", fontSize: 13, lineHeight: 1.6 }}>Snapshot nhanh để xem member đang tập trung ở hạng nào và tổng điểm đi kèm.</p>
             <div style={{ display: "grid", gap: 12 }}>
               {(summary.tierBreakdown || []).length === 0 ? <div style={{ color: "#a8a29e", fontSize: 14 }}>Chưa có dữ liệu breakdown.</div> : summary.tierBreakdown.map((item) => {
-                const theme = getTierTheme(item.tierName);
+                const theme = getTierTheme(
+                  item.tierName,
+                  tierColorMap[String(item.tierName || "").trim().toLowerCase()],
+                );
                 return (
                   <div key={item.tierName} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, background: theme.background }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -604,6 +693,10 @@ export default function MembershipPage() {
                       ["Điểm tích lũy", fmt(member.loyaltyPoints)],
                       ["Điểm khả dụng", fmt(member.loyaltyPointsUsable)],
                       ["Tổng giao dịch", fmt(member.transactionCount)],
+                      ["Tổng booking", fmt(member.bookingCount)],
+                      ["Booking hoàn tất", fmt(member.completedBookingCount)],
+                      ["Lượt review", fmt(member.reviewCount)],
+                      ["Lượt dùng voucher", fmt(member.voucherUsageCount)],
                       ["Giảm giá hạng", member.membershipDiscount != null ? `${member.membershipDiscount}%` : "—"],
                       ["Ngày tham gia", fmtDateTime(member.createdAt)],
                       ["Giao dịch gần nhất", fmtDateTime(member.lastTransactionAt)],
@@ -643,6 +736,60 @@ export default function MembershipPage() {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+
+                <div style={{ ...card, padding: 20, marginTop: 18 }}>
+                  <div style={{ color: "#1c1917", fontWeight: 800, fontSize: 18 }}>Tóm tắt CRM nội bộ</div>
+                  <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
+                    <div>
+                      <div style={{ color: "#78716c", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Booking gần đây</div>
+                      {(member.recentBookings || []).length === 0 ? (
+                        <div style={{ color: "#9ca3af", fontSize: 14 }}>Chưa có booking gần đây.</div>
+                      ) : (
+                        <div style={{ display: "grid", gap: 10 }}>
+                          {member.recentBookings.map((item) => (
+                            <div key={`${item.bookingCode}-${item.id}`} style={{ border: "1px solid #efe9de", borderRadius: 14, padding: 12, background: "#fff" }}>
+                              <div style={{ color: "#1c1917", fontWeight: 800 }}>{item.bookingCode}</div>
+                              <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13 }}>{item.status} • {fmtDateTime(item.checkInDate || item.createdAt)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ color: "#78716c", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Review gần đây</div>
+                      {(member.recentReviews || []).length === 0 ? (
+                        <div style={{ color: "#9ca3af", fontSize: 14 }}>Chưa có review gần đây.</div>
+                      ) : (
+                        <div style={{ display: "grid", gap: 10 }}>
+                          {member.recentReviews.map((item) => (
+                            <div key={item.id} style={{ border: "1px solid #efe9de", borderRadius: 14, padding: 12, background: "#fff" }}>
+                              <div style={{ color: "#1c1917", fontWeight: 800 }}>Đánh giá {item.rating || 0}/5</div>
+                              <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13 }}>{fmtDateTime(item.createdAt)}</div>
+                              <div style={{ marginTop: 8, color: "#44403c", fontSize: 14 }}>{item.comment || "Không có nội dung."}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ color: "#78716c", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Voucher gần dùng</div>
+                      {(member.recentVoucherUsage || []).length === 0 ? (
+                        <div style={{ color: "#9ca3af", fontSize: 14 }}>Chưa phát sinh voucher usage.</div>
+                      ) : (
+                        <div style={{ display: "grid", gap: 10 }}>
+                          {member.recentVoucherUsage.map((item) => (
+                            <div key={item.id} style={{ border: "1px solid #efe9de", borderRadius: 14, padding: 12, background: "#fff" }}>
+                              <div style={{ color: "#1c1917", fontWeight: 800 }}>{item.voucherCode || `Voucher #${item.voucherId}`}</div>
+                              <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13 }}>{fmtDateTime(item.usedAt || item.createdAt)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

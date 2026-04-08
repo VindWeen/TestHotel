@@ -1,4 +1,4 @@
-// src/pages/admin/DashboardPage.jsx
+﻿// src/pages/admin/DashboardPage.jsx
 // Dashboard thực tế — tích hợp API: Bookings, Rooms, Users, Reviews, Vouchers, LossAndDamages, Equipments
 import { useState, useEffect, useCallback } from "react";
 import { getBookings } from "../../api/bookingsApi";
@@ -8,6 +8,7 @@ import { getReviews } from "../../api/reviewsApi";
 import { getVouchers } from "../../api/vouchersApi";
 import { getRoomTypes } from "../../api/roomTypesApi";
 import { getEquipments } from "../../api/equipmentsApi";
+import { getInvoices } from "../../api/invoicesApi";
 import axiosClient from "../../api/axios";
 
 const DASHBOARD_PAGE_SIZE = 200;
@@ -15,19 +16,19 @@ const DASHBOARD_PAGE_SIZE = 200;
 // ─── Utility ─────────────────────────────────────────────────────────────────
 const fmt = (n) =>
   n == null
-    ? "—"
+    ? "?"
     : new Intl.NumberFormat("vi-VN").format(n);
 
 const fmtCurrency = (n) =>
   n == null
-    ? "—"
+    ? "?"
     : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n);
 
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+  d ? new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "?";
 
 const fmtDateTime = (d) =>
-  d ? new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+  d ? new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "?";
 
 // ─── Status Config ─────────────────────────────────────────────────────────────
 const isSameDay = (date, target) =>
@@ -42,6 +43,15 @@ const getBookingRevenueDate = (booking) => {
   const fallback = booking?.bookingDetails?.[0]?.checkOutDate;
   return fallback ? new Date(fallback) : null;
 };
+
+const getBookingReferenceDate = (booking) => {
+  if (booking?.checkInTime) return new Date(booking.checkInTime);
+  const fallback = booking?.bookingDetails?.[0]?.checkInDate;
+  return fallback ? new Date(fallback) : null;
+};
+
+const getInvoiceRevenueDate = (invoice) =>
+  invoice?.createdAt ? new Date(invoice.createdAt) : null;
 
 const getPagedTotal = (payload, fallbackLength = 0) =>
   payload?.pagination?.totalItems ??
@@ -75,12 +85,12 @@ const STATUS_CFG = {
   Pending: { label: "Chờ xử lý", bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
   Confirmed: { label: "Đã xác nhận", bg: "#dbeafe", color: "#1e40af", dot: "#3b82f6" },
   Checked_in: { label: "Đang ở", bg: "#d1fae5", color: "#065f46", dot: "#10b981" },
-  Checked_out_pending_settlement: { label: "Chờ quyết toán", bg: "#ffedd5", color: "#9a3412", dot: "#f97316" },
+  Checked_out_pending_settlement: { label: "Chờ thanh toán", bg: "#ffedd5", color: "#9a3412", dot: "#f97316" },
   Completed: { label: "Hoàn thành", bg: "#f1f5f9", color: "#475569", dot: "#94a3b8" },
   Cancelled: { label: "Đã huỷ", bg: "#fee2e2", color: "#991b1b", dot: "#ef4444" },
 };
 
-// ─── Room Business Status Config ───────────────────────────────────────────────
+// â”€â”€â”€ Room Business Status Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getRoomStatusKey = (rm) => {
   if (rm.businessStatus === "Disabled") return "Maintenance";
   if (rm.businessStatus === "Occupied") return "Occupied";
@@ -112,7 +122,7 @@ const ROOM_BS_CFG = {
   },
 };
 
-// ─── Skeleton ──────────────────────────────────────────────────────────────────
+// ─── Skeleton ────────────────────────────────────────────────────────────────
 const Skel = ({ w = "100%", h = 16, r = 8, style = {} }) => (
   <div
     style={{
@@ -125,7 +135,7 @@ const Skel = ({ w = "100%", h = 16, r = 8, style = {} }) => (
   />
 );
 
-// ─── Mini Bar Chart ────────────────────────────────────────────────────────────
+// ─── Mini Bar Chart ──────────────────────────────────────────────────────────
 function MiniBar({ data, labels, color = "#4f645b" }) {
   if (!data?.length) return null;
   const max = Math.max(...data, 1);
@@ -176,7 +186,7 @@ function Stars({ rating }) {
   );
 }
 
-// ─── Main Component ─────────────────────────────────────────────────────────────
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
@@ -208,12 +218,15 @@ export default function DashboardPage() {
     pendingLoss: 0,
     confirmedLoss: 0,
     totalEquipments: 0,
+    totalEquipmentUnits: 0,
+    inUseEquipmentUnits: 0,
+    damagedEquipmentUnits: 0,
   });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [bkRes, rmRes, usRes, rvApprovedRes, rvPendingRes, vcRes, rtRes, ldRes, eqRes] = await Promise.allSettled([
+      const [bkRes, rmRes, usRes, rvApprovedRes, rvPendingRes, vcRes, rtRes, ldRes, eqRes, ivRes] = await Promise.allSettled([
         fetchAllPages(getBookings),
         getRooms(),
         fetchAllPages(getUsers),
@@ -223,6 +236,7 @@ export default function DashboardPage() {
         getRoomTypes(),
         axiosClient.get("/LossAndDamages?pageSize=500"),
         getEquipments({ pageSize: 500 }),
+        fetchAllPages(getInvoices),
       ]);
 
       const bkList = bkRes.status === "fulfilled" ? bkRes.value : [];
@@ -238,6 +252,7 @@ export default function DashboardPage() {
       const ldList = Array.isArray(ldPayload) ? ldPayload : (ldPayload?.data || []);
       const eqPayload = eqRes.status === "fulfilled" ? eqRes.value.data : null;
       const eqList = Array.isArray(eqPayload) ? eqPayload : (eqPayload?.data || []);
+      const ivList = ivRes.status === "fulfilled" ? ivRes.value : [];
 
       setBookings(bkList);
       setRooms(rmList);
@@ -250,56 +265,65 @@ export default function DashboardPage() {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const completedBookings = bkList.filter(b => b.status === "Completed");
-      const totalRevenue = completedBookings.reduce((s, b) => s + (b.totalEstimatedAmount || 0), 0);
+      const paidInvoices = ivList.filter((invoice) => invoice.status === "Paid");
+      const totalRevenue = paidInvoices.reduce((sum, invoice) => sum + (invoice.finalTotal || 0), 0);
 
-      const todayBookings = completedBookings.filter((b) => isSameDay(getBookingRevenueDate(b), now));
-      const todayRevenue = todayBookings.reduce((s, b) => s + (b.totalEstimatedAmount || 0), 0);
+      const todayRevenue = paidInvoices
+        .filter((invoice) => isSameDay(getInvoiceRevenueDate(invoice), now))
+        .reduce((sum, invoice) => sum + (invoice.finalTotal || 0), 0);
 
-      const activeBookings = bkList.filter(b => ["Confirmed", "Checked_in", "Checked_out_pending_settlement", "Pending"].includes(b.status)).length;
-      const pendingBookings = bkList.filter(b => b.status === "Pending").length;
+      const activeBookings = bkList.filter((b) => ["Confirmed", "Checked_in", "Checked_out_pending_settlement", "Pending"].includes(b.status)).length;
+      const pendingBookings = bkList.filter((b) => b.status === "Pending").length;
 
-      const available = rmList.filter(r => r.businessStatus === "Available").length;
-      const ready = rmList.filter(r => r.businessStatus === "Available" && r.cleaningStatus === "Clean").length;
-      const total = rmList.length || 1;
-      const occupancyRate = Math.round(((total - available) / total) * 100);
+      const ready = rmList.filter((r) => r.businessStatus === "Available" && r.cleaningStatus === "Clean").length;
+      const occupied = rmList.filter((r) => r.businessStatus === "Occupied").length;
+      const sellableRooms = rmList.filter((r) => r.businessStatus !== "Disabled").length || 1;
+      const occupancyRate = Math.round((occupied / sellableRooms) * 100);
 
-      const newUsersThisMonth = usList.filter(u => {
+      const newUsersThisMonth = usList.filter((u) => {
         const d = u.createdAt ? new Date(u.createdAt) : null;
         return d && d >= monthStart;
       }).length;
 
       const avgRating = approvedReviews.length > 0
-        ? approvedReviews.reduce((s, r) => s + (r.rating || 0), 0) / approvedReviews.length
+        ? approvedReviews.reduce((sum, review) => sum + (review.rating || 0), 0) / approvedReviews.length
         : 0;
 
       const pendingReviews = pendingReviewList.length;
 
-      const activeVouchers = vcList.filter(v => v.isActive).length;
+      const activeVouchers = vcList.filter((v) => v.isActive).length;
       const activeRoomTypes = rtList.filter((rt) => rt.isActive !== false).length;
 
       const revenueByDay = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (6 - i));
-        return completedBookings
-          .filter((b) => isSameDay(getBookingRevenueDate(b), d))
-          .reduce((s, b) => s + (b.totalEstimatedAmount || 0), 0);
+        return paidInvoices
+          .filter((invoice) => isSameDay(getInvoiceRevenueDate(invoice), d))
+          .reduce((sum, invoice) => sum + (invoice.finalTotal || 0), 0);
       });
 
       const bookingsByStatus = {};
-      bkList.forEach(b => { bookingsByStatus[b.status] = (bookingsByStatus[b.status] || 0) + 1; });
+      bkList.forEach((b) => { bookingsByStatus[b.status] = (bookingsByStatus[b.status] || 0) + 1; });
 
-      const roomTypeOccupancy = rtList.map(rt => {
-        const occupied = rmList.filter(r => r.roomTypeId === rt.id && r.businessStatus === "Occupied").length;
-        const totalRt = rmList.filter(r => r.roomTypeId === rt.id).length;
-        return { id: rt.id, name: rt.name, occupied, total: totalRt, rate: totalRt > 0 ? Math.round((occupied / totalRt) * 100) : 0 };
+      const roomTypeOccupancy = rtList.map((rt) => {
+        const occupiedRt = rmList.filter((r) => r.roomTypeId === rt.id && r.businessStatus === "Occupied").length;
+        const sellableRt = rmList.filter((r) => r.roomTypeId === rt.id && r.businessStatus !== "Disabled").length;
+        return {
+          id: rt.id,
+          name: rt.name,
+          occupied: occupiedRt,
+          total: sellableRt,
+          rate: sellableRt > 0 ? Math.round((occupiedRt / sellableRt) * 100) : 0,
+        };
       }).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 
-      // Loss & Damage stats
-      const totalLossValue = ldList.reduce((s, l) => s + (l.penaltyAmount || 0), 0);
-      const pendingLoss = ldList.filter(l => l.status === "Pending").length;
-      const confirmedLoss = ldList.filter(l => l.status === "Confirmed").length;
+      const totalLossValue = ldList.reduce((sum, item) => sum + ((item.penaltyAmount || 0) * (item.quantity || 1)), 0);
+      const pendingLoss = ldList.filter((l) => l.status === "Pending").length;
+      const confirmedLoss = ldList.filter((l) => l.status === "Confirmed").length;
       const totalEquipments = eqList.length;
+      const totalEquipmentUnits = eqList.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
+      const inUseEquipmentUnits = eqList.reduce((sum, item) => sum + (item.inUseQuantity || 0), 0);
+      const damagedEquipmentUnits = eqList.reduce((sum, item) => sum + (item.damagedQuantity || 0), 0);
 
       setStats({
         totalRevenue, todayRevenue, activeBookings, pendingBookings,
@@ -308,6 +332,7 @@ export default function DashboardPage() {
         avgRating, pendingReviews, activeVouchers,
         revenueByDay, bookingsByStatus, roomTypeOccupancy, activeRoomTypes,
         totalLossValue, pendingLoss, confirmedLoss, totalEquipments,
+        totalEquipmentUnits, inUseEquipmentUnits, damagedEquipmentUnits,
       });
     } catch (err) {
       console.error("Dashboard load error:", err);
@@ -318,7 +343,14 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const recentBookings = [...bookings].sort((a, b) => b.id - a.id).slice(0, 8);
+  const recentBookings = [...bookings]
+    .sort((a, b) => {
+      const timeA = getBookingReferenceDate(a)?.getTime() ?? 0;
+      const timeB = getBookingReferenceDate(b)?.getTime() ?? 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    })
+    .slice(0, 8);
   const STATUS_ORDER = { Occupied: 0, Cleaning: 1, PendingLoss: 2, Maintenance: 3, Ready: 4 };
   const roomPreview = [...rooms].sort((a, b) => {
     const ka = STATUS_ORDER[getRoomStatusKey(a)] ?? 99;
@@ -375,7 +407,7 @@ export default function DashboardPage() {
 
       <div style={{ maxWidth: 1400, margin: "0 auto", fontFamily: "Manrope, sans-serif" }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
           <div>
             <h2 style={{ fontSize: 28, fontWeight: 800, color: "#1c1917", letterSpacing: "-0.03em", margin: "0 0 5px" }}>
@@ -396,7 +428,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* ── KPI Row 1 ── */}
+        {/* KPI Row 1 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 20 }}>
           {[
             {
@@ -408,7 +440,7 @@ export default function DashboardPage() {
             {
               icon: "confirmation_number", bg: "#dbeafe", iconBg: "rgba(30,64,175,.1)", iconColor: "#1e40af",
               label: "Booking đang hoạt động", value: loading ? null : fmt(stats.activeBookings),
-              sub: loading ? null : `${stats.pendingBookings} đang chờ xác nhận`,
+              sub: loading ? null : `${stats.pendingBookings} booking chờ cọc`,
               subColor: "#f59e0b", delay: 60,
             },
             {
@@ -419,8 +451,8 @@ export default function DashboardPage() {
             },
             {
               icon: "group", bg: "#f7e8dd", iconBg: "rgba(95,85,77,.1)", iconColor: "#5f554d",
-              label: "Người dùng", value: loading ? null : fmt(stats.totalUsers),
-              sub: loading ? null : `+${stats.newUsersThisMonth} người dùng mới tháng này`,
+              label: "Tài khoản hệ thống", value: loading ? null : fmt(stats.totalUsers),
+              sub: loading ? null : `+${stats.newUsersThisMonth} tài khoản mới tháng này`,
               subColor: "#6b7280", delay: 180,
             },
           ].map((kpi, idx) => (
@@ -455,7 +487,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* ── KPI Row 2: Thất thoát + Vật tư ── */}
+        {/* KPI Row 2: Thất thoát + Vật tư */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
           {/* Thất thoát hư hỏng */}
           <div className="card-in" style={{ background: "linear-gradient(135deg,#fff1f2 0%,#ffe4e6 100%)", borderRadius: 18, padding: 22, border: "1.5px solid #fecdd3", animationDelay: "220ms", animationFillMode: "both" }}>
@@ -469,7 +501,7 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.5)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng thất thoát bị hỏng</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.5)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng tiền đền bù ghi nhận</p>
             {loading ? <Skel h={28} w={140} style={{ marginBottom: 6 }} /> : (
               <div className="kpi-val" style={{ animationFillMode: "both" }}>
                 <h3 style={{ fontSize: 24, fontWeight: 800, color: "#dc2626", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
@@ -480,7 +512,7 @@ export default function DashboardPage() {
             {loading ? <Skel h={12} w={160} /> : (
               <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#dc2626" }}>
-                  {lossAndDamages.length} biên bản · {stats.confirmedLoss} xác nhận
+                  {lossAndDamages.length} biên bản · {stats.confirmedLoss} đã xác nhận
                 </span>
               </div>
             )}
@@ -493,29 +525,29 @@ export default function DashboardPage() {
                 <span className="material-symbols-outlined" style={{ color: "#0284c7", fontSize: 22, fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
               </div>
             </div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.5)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng quan vật tư</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.5)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tổng số lượng vật tư</p>
             {loading ? <Skel h={28} w={80} style={{ marginBottom: 6 }} /> : (
               <div className="kpi-val" style={{ animationFillMode: "both" }}>
                 <h3 style={{ fontSize: 24, fontWeight: 800, color: "#0284c7", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
-                  {fmt(equipments.length)}
+                  {fmt(stats.totalEquipmentUnits)}
                 </h3>
               </div>
             )}
             {loading ? <Skel h={12} w={160} /> : (
               <p style={{ fontSize: 11, fontWeight: 600, color: "#0369a1", margin: 0 }}>
-                {fmt(equipments.length)} loại thiết bị · {fmt(rooms.length)} phòng quản lý
+                {fmt(stats.inUseEquipmentUnits)} đang dùng · {fmt(stats.damagedEquipmentUnits)} hư hỏng
               </p>
             )}
           </div>
         </div>
 
-        {/* ── Row 2: Revenue + Room Type Occupancy ── */}
+        {/* Row 2: Revenue + Room Type Occupancy */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
           <div className="card-in" style={{ background: "white", borderRadius: 18, padding: 24, border: "1px solid #f1f0ea", boxShadow: "0 1px 4px rgba(0,0,0,.05)", animationDelay: "200ms", animationFillMode: "both" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
                 <h4 style={{ fontSize: 15, fontWeight: 700, color: "#1c1917", margin: "0 0 2px" }}>Doanh thu 7 ngày qua</h4>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Chỉ tính booking Hoàn thành</p>
+                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Chỉ tính hóa đơn đã thanh toán</p>
               </div>
               {!loading && (
                 <span style={{ fontSize: 11, fontWeight: 700, background: "#d1fae5", color: "#065f46", padding: "4px 10px", borderRadius: 9999 }}>
@@ -573,7 +605,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Row 3: Booking Status + Reviews + Quick Stats ── */}
+        {/* Row 3: Booking Status + Reviews + Quick Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 20 }}>
           <div className="card-in" style={{ background: "white", borderRadius: 18, padding: 24, border: "1px solid #f1f0ea", boxShadow: "0 1px 4px rgba(0,0,0,.05)", animationDelay: "300ms", animationFillMode: "both" }}>
             <h4 style={{ fontSize: 15, fontWeight: 700, color: "#1c1917", margin: "0 0 18px" }}>Phân loại booking</h4>
@@ -668,8 +700,8 @@ export default function DashboardPage() {
                 {[
                   { icon: "local_offer", iconColor: "#1e40af", bg: "#dbeafe", label: "Voucher đang hoạt động", value: fmt(stats.activeVouchers), sub: `${fmt(vouchers.length)} tổng cộng` },
                   { icon: "bed", iconColor: "#065f46", bg: "#d1fae5", label: "Phòng sẵn sàng", value: fmt(stats.availableRooms), sub: `${fmt(rooms.length)} phòng tổng` },
-                  { icon: "category", iconColor: "#9333ea", bg: "#f3e8ff", label: "Loại phòng", value: fmt(roomTypes.length), sub: "Loại phòng đang hoạt động" },
-                  { icon: "people", iconColor: "#b45309", bg: "#fef3c7", label: "Nhân viên & Khách", value: fmt(stats.totalUsers), sub: `+${fmt(stats.newUsersThisMonth)} tháng này` },
+                  { icon: "category", iconColor: "#9333ea", bg: "#f3e8ff", label: "Loại phòng", value: fmt(stats.activeRoomTypes), sub: "Loại phòng đang hoạt động" },
+                  { icon: "people", iconColor: "#b45309", bg: "#fef3c7", label: "Tài khoản hệ thống", value: fmt(stats.totalUsers), sub: `+${fmt(stats.newUsersThisMonth)} tháng này` },
                 ].map((item, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fafaf8", borderRadius: 12, padding: "10px 14px" }}>
                     <div style={{ padding: 8, background: item.bg, borderRadius: 10, flexShrink: 0 }}>
@@ -687,12 +719,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Recent Bookings Table ── */}
+        {/* Recent Bookings Table */}
         <div className="card-in" style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", boxShadow: "0 1px 4px rgba(0,0,0,.05)", overflow: "hidden", animationDelay: "460ms", animationFillMode: "both", marginBottom: 20 }}>
           <div style={{ padding: "20px 28px", borderBottom: "1px solid #f1f0ea", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <h4 style={{ fontSize: 15, fontWeight: 700, color: "#1c1917", margin: 0 }}>Booking gần đây</h4>
             <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}>
-              {loading ? "…" : `${recentBookings.length} booking`}
+              {loading ? "..." : `${recentBookings.length} booking`}
             </span>
           </div>
           <div className="scroll-x">
@@ -760,7 +792,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Room Status Grid ── */}
+        {/* Room Status Grid */}
         <div className="card-in" style={{ background: "white", borderRadius: 18, border: "1px solid #f1f0ea", boxShadow: "0 1px 4px rgba(0,0,0,.05)", overflow: "hidden", animationDelay: "500ms", animationFillMode: "both" }}>
           <div style={{ padding: "20px 28px", borderBottom: "1px solid #f1f0ea", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <h4 style={{ fontSize: 15, fontWeight: 700, color: "#1c1917", margin: 0 }}>Trạng thái phòng</h4>
@@ -781,7 +813,7 @@ export default function DashboardPage() {
                     }}
                   >
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: cfg.dot, flexShrink: 0 }} />
-                    {loading ? "…" : cnt} {cfg.label}
+                    {loading ? "..." : cnt} {cfg.label}
                   </span>
                 );
               })}
@@ -848,7 +880,7 @@ export default function DashboardPage() {
 
                               {/* Room type / floor */}
                               <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(0,0,0,.38)", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.08em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {rm.roomTypeName || (rm.floor ? `Tầng ${rm.floor}` : "—")}
+                                {rm.roomTypeName || (rm.floor ? `Tầng ${rm.floor}` : "?")}
                               </p>
 
                               {/* Status badge + cleaning icon */}

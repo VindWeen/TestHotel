@@ -119,6 +119,7 @@ builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IBookingStatusFlowService, BookingStatusFlowService>();
 builder.Services.AddScoped<IVoucherValidationService, VoucherValidationService>();
+builder.Services.AddScoped<IDashboardAggregationService, DashboardAggregationService>();
 builder.Services.AddHostedService<RoomStatusSchedulerService>();
 // ── 4.5 Cloudinary ──────────────────────────────────────────────────
 var cloudCfg     = builder.Configuration.GetSection("Cloudinary");
